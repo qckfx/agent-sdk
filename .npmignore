@@ -1,0 +1,5 @@
+# Source files not needed in the published npm package
+vite.config.ts
+.env
+.env.development
+.env.production
