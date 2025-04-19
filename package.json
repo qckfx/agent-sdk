@@ -1,6 +1,6 @@
 {
   "name": "@qckfx/agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "qckfx AI Agent SDK",
   "main": "dist/cjs/index.js",
@@ -21,6 +21,11 @@
     "build:esm": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build": "npm run build:esm && npm run build:cjs",
+    "eval": "ts-node src/eval/index.ts",
+    "eval:quick": "ts-node src/eval/index.ts run --quick --concurrency 4",
+    "eval:custom": "ts-node src/eval/index.ts run --config",
+    "eval:list": "ts-node src/eval/index.ts list",
+    "eval:build": "npm run build && node dist/eval/index.js",
     "test": "vitest run",
     "docs": "typedoc",
     "prepublishOnly": "npm run build"
