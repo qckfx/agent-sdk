@@ -4,7 +4,9 @@
  */
 
 import { program } from 'commander';
-import { createAgent, createAnthropicProvider, createLogger, LogLevel, LogCategory } from './index.js';
+import { createAgent } from './public.js';
+import { createAnthropicProvider } from './providers/AnthropicProvider.js';
+import { createLogger, LogLevel, LogCategory } from './utils/logger.js';
 import * as dotenv from 'dotenv';
 import { SessionState, ToolResultEntry } from './types/index.js';
 import chalk from 'chalk';

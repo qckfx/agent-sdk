@@ -1,5 +1,5 @@
 /**
- * Shared event definitions and types used across agent-core and agent-platform.
+ * Shared event definitions and types used across agent-core.
  * This module provides a centralized event system for agent communication.
  * 
  * @module Events
@@ -26,6 +26,6 @@ export const MESSAGE_ADDED = 'message:added';
  */
 export const MESSAGE_UPDATED = 'message:updated';
 
-// Re-export AgentEventType and AgentEvents from sessionUtils for backwards compatibility
+// Re-export AgentEventType, AgentEvents from sessionUtils for backwards compatibility
 import { AgentEventType, AgentEvents } from './utils/sessionUtils.js';
 export { AgentEventType, AgentEvents };

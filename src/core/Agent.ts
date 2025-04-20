@@ -1,48 +1,40 @@
 /**
- * Agent Framework - Main entry point
- * 
- * This framework provides a modular, composition-based approach to building AI agents.
- * It follows a tool-based architecture where each capability is a separate module
- * that can be composed together.
+ * Agent - Main factory for creating agents
  */
 
-// Core components
-import { createAgentRunner } from './core/AgentRunner.js';
-import { createToolRegistry } from './core/ToolRegistry.js';
-import { createPermissionManager } from './core/PermissionManager.js';
-import { createModelClient } from './core/ModelClient.js';
-import { createDefaultPromptManager } from './core/PromptManager.js';
+import { Agent, AgentConfig } from '../types/main.js';
+import { ModelProvider } from '../types/model.js';
+import { LogLevel, createLogger } from '../utils/logger.js';
+import { createContextWindow } from '../types/contextWindow.js';
+import { createToolRegistry } from './ToolRegistry.js';
+import { createPermissionManager } from './PermissionManager.js';
+import { createModelClient } from './ModelClient.js';
+import { createAgentRunner } from './AgentRunner.js';
 
-// Types
-import { Agent, AgentConfig } from './types/main.js';
-import { ModelProvider } from './types/model.js';
-import { createContextWindow } from './types/contextWindow.js';
-import { Tool } from './types/tool.js';
+// Execution adapters
+import { LocalExecutionAdapter } from '../utils/LocalExecutionAdapter.js';
+import { E2BExecutionAdapter } from '../utils/E2BExecutionAdapter.js';
+import { DockerContainerManager } from '../utils/DockerContainerManager.js';
+import { DockerExecutionAdapter } from '../utils/DockerExecutionAdapter.js';
 
-// Utils
-import { createLogger, LogLevel } from './utils/logger.js';
-import { LocalExecutionAdapter } from './utils/LocalExecutionAdapter.js';
-import { E2BExecutionAdapter } from './utils/E2BExecutionAdapter.js';
-import { DockerContainerManager } from './utils/DockerContainerManager.js';
-import { DockerExecutionAdapter } from './utils/DockerExecutionAdapter.js';
-
-// Tools
-import { createBashTool } from './tools/BashTool.js';
-import { createGlobTool } from './tools/GlobTool.js';
-import { createGrepTool } from './tools/GrepTool.js';
-import { createLSTool } from './tools/LSTool.js';
-import { createFileReadTool } from './tools/FileReadTool.js';
-import { createFileEditTool } from './tools/FileEditTool.js';
-import { createFileWriteTool } from './tools/FileWriteTool.js';
-import { createThinkTool } from './tools/ThinkTool.js';
-import { createBatchTool } from './tools/BatchTool.js';
+// Default tools
+import { createBashTool } from '../tools/BashTool.js';
+import { createGlobTool } from '../tools/GlobTool.js';
+import { createGrepTool } from '../tools/GrepTool.js';
+import { createLSTool } from '../tools/LSTool.js';
+import { createFileReadTool } from '../tools/FileReadTool.js';
+import { createFileEditTool } from '../tools/FileEditTool.js';
+import { createFileWriteTool } from '../tools/FileWriteTool.js';
+import { createThinkTool } from '../tools/ThinkTool.js';
+import { createBatchTool } from '../tools/BatchTool.js';
+import { Tool } from '../types/tool.js';
 
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
  * @returns The configured agent
  */
-const createAgent = (config: AgentConfig): Agent => {
+export const createAgent = (config: AgentConfig): Agent => {
   if (!config.modelProvider) {
     throw new Error('Agent requires a modelProvider function');
   }
@@ -143,6 +135,3 @@ const createAgent = (config: AgentConfig): Agent => {
     }
   };
 };
-
-// Only export createAgent from this file
-export { createAgent };
