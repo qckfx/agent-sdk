@@ -1,6 +1,6 @@
 {
   "name": "@qckfx/agent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "qckfx AI Agent SDK",
   "main": "./dist/cjs/index.js",
@@ -10,22 +10,29 @@
     ".": {
       "types": "./dist/esm/index.d.ts",
       "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
+      "require": "./dist/cjs/index.cjs"
     },
     "./tools": {
       "types": "./dist/esm/src/tools/index.d.ts",
       "import": "./dist/esm/src/tools/index.js",
-      "require": "./dist/cjs/src/tools/index.js"
+      "require": "./dist/cjs/src/tools/index.cjs"
     },
     "./providers": {
       "types": "./dist/esm/src/providers/index.d.ts",
       "import": "./dist/esm/src/providers/index.js",
-      "require": "./dist/cjs/src/providers/index.js"
+      "require": "./dist/cjs/src/providers/index.cjs"
     },
     "./internals": {
       "types": "./dist/esm/src/internals/index.d.ts",
       "import": "./dist/esm/src/internals/index.js",
-      "require": "./dist/cjs/src/internals/index.js"
+      "require": "./dist/cjs/src/internals/index.cjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "tools": ["dist/esm/src/tools/index.d.ts"],
+      "providers": ["dist/esm/src/providers/index.d.ts"],
+      "internals": ["dist/esm/src/internals/index.d.ts"]
     }
   },
   "files": [
@@ -36,7 +43,7 @@
   },
   "scripts": {
     "build:esm": "tsc -p tsconfig.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', '{\\\"type\\\": \\\"commonjs\\\"}', 'utf8')\"",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node postbuild-cjs.cjs",
     "build": "npm run build:esm && npm run build:cjs",
     "eval": "ts-node src/eval/index.ts",
     "eval:quick": "ts-node src/eval/index.ts run --quick --concurrency 4",

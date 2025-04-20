@@ -1,6 +1,7 @@
 /**
  * Utility functions for working with session state
  * @module SessionUtils
+ * @internal
  */
 import { EventEmitter } from 'events';
 import { GitRepositoryInfo, DirtyRepositoryStatus } from '../types/repository.js';
@@ -62,6 +63,7 @@ export enum AgentEventType {
  * {@link AgentEventType.ENVIRONMENT_STATUS_CHANGED} event.
  * 
  * @interface
+ * @internal
  */
 export interface EnvironmentStatusEvent {
   /**
@@ -88,6 +90,7 @@ export interface EnvironmentStatusEvent {
 /**
  * Track aborted sessions with timestamps
  * This is the single source of truth for abort status
+ * @internal
  */
 export const abortedSessions = new Map<string, number>();
 
@@ -97,6 +100,7 @@ export const abortedSessions = new Map<string, number>();
  * 
  * @param sessionId The session ID to check
  * @returns Whether the session has been aborted
+ * @internal
  */
 export function isSessionAborted(sessionId: string): boolean {
   // Check for aborted events in the session registry - the single source of truth
@@ -107,6 +111,7 @@ export function isSessionAborted(sessionId: string): boolean {
  * Get the timestamp when a session was aborted
  * @param sessionId The session ID to check
  * @returns The timestamp when the session was aborted, or null if not aborted
+ * @internal
  */
 export function getAbortTimestamp(sessionId: string): number | null {
   return abortedSessions.get(sessionId) ?? null;
@@ -116,6 +121,7 @@ export function getAbortTimestamp(sessionId: string): number | null {
  * Mark a session as aborted
  * @param sessionId The session ID to abort
  * @returns The timestamp when the session was aborted
+ * @internal
  */
 export function setSessionAborted(sessionId: string): number {
   // Update the centralized abort registry with the current timestamp
@@ -131,6 +137,7 @@ export function setSessionAborted(sessionId: string): number {
 /**
  * Clear aborted status for a session
  * @param sessionId The session ID to clear
+ * @internal
  */
 export function clearSessionAborted(sessionId: string): void {
   abortedSessions.delete(sessionId);
@@ -161,6 +168,7 @@ export function clearSessionAborted(sessionId: string): void {
  * Format git repository information as a context prompt
  * @param gitInfo Git repository information
  * @returns Formatted string for use in system prompt
+ * @internal
  */
 export function formatGitInfoAsContextPrompt(gitInfo: GitRepositoryInfo | null): string | null {
   if (!gitInfo || !gitInfo.isGitRepository) {

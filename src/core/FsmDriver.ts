@@ -2,6 +2,7 @@
  * Thin wrapper around AgentFSM that performs side‑effects while advancing the
  * state machine. This implementation now supports both tool execution and
  * assistant replies, with abort handling.
+ * @internal
  */
 
 import {
@@ -29,6 +30,7 @@ interface DriverDeps {
   logger: Logger;
 }
 
+/** @internal */
 export class FsmDriver {
   private state: AgentState = { type: 'IDLE' };
   private _iterations: number = 0;
@@ -307,3 +309,4 @@ export class FsmDriver {
     };
   }
 }
+

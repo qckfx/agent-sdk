@@ -27,8 +27,9 @@ import { createContextWindow } from '../types/contextWindow.js';
  * Creates an agent runner to orchestrate the agent process
  * @param config - Configuration options
  * @returns The agent runner interface
+ * @internal
  */
-export const createAgentRunner = (config: AgentRunnerConfig): AgentRunner => {
+export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
   // Listen for abort events just for logging purposes
   AgentEvents.on(
     AgentEventType.ABORT_SESSION,
@@ -204,4 +205,5 @@ export const createAgentRunner = (config: AgentRunnerConfig): AgentRunner => {
       };
     }
   };
-};
+}
+

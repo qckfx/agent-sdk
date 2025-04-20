@@ -1,5 +1,6 @@
 /**
  * Types and interfaces for the agent runner
+ * @internal
  */
 
 import { ModelClient } from './model.js';
@@ -7,6 +8,8 @@ import { PermissionManager } from './permission.js';
 import { ToolRegistry } from './registry.js';
 import { ExecutionAdapter } from './tool.js';
 import { SessionState } from './model.js';
+
+/** @internal */
 export interface AgentRunnerConfig {
   modelClient: ModelClient;
   toolRegistry: ToolRegistry;
@@ -21,6 +24,7 @@ export interface AgentRunnerConfig {
   };
 }
 
+/** @internal */
 export interface ToolResultEntry {
   toolId: string;
   args: Record<string, unknown>;
@@ -30,6 +34,7 @@ export interface ToolResultEntry {
   aborted?: boolean;
 }
 
+/** @internal */
 export interface ProcessQueryResult {
   result?: {
     toolResults: ToolResultEntry[];
@@ -43,11 +48,13 @@ export interface ProcessQueryResult {
   aborted?: boolean;
 }
 
+/** @internal */
 export interface ConversationResult {
   responses: string[];
   sessionState: Record<string, unknown>;
 }
 
+/** @internal */
 export interface AgentRunner {
   processQuery(query: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
   runConversation(initialQuery: string): Promise<ConversationResult>;
@@ -56,16 +63,21 @@ export interface AgentRunner {
 // We'll use the SessionState and ConversationMessage types from model.ts
 
 // Legacy interfaces from the original agent.ts file
+/** @internal */
 export interface AgentMessage {
   role: string;
   content: string;
 }
 
+/** @internal */
 export interface AgentResponse {
   text: string;
   [key: string]: unknown;
 }
 
+/**
+ * Parameter definition for a tool
+ */
 export interface ToolParameter {
   name: string;
   description: string;
@@ -74,6 +86,7 @@ export interface ToolParameter {
   default?: unknown;
 }
 
+/** @internal */
 export interface ToolDefinition {
   name: string;
   description: string;

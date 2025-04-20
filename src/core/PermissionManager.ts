@@ -1,5 +1,6 @@
 /**
  * PermissionManager - Handles permission requests for tools that require user approval
+ * @internal
  */
 
 import { PermissionManager, PermissionManagerConfig, UIHandler } from '../types/permission.js';
@@ -12,8 +13,9 @@ import { LogCategory } from '../utils/logger.js';
  * @param toolRegistry - The tool registry to use for tool lookups
  * @param config - Configuration options
  * @returns The permission manager interface
+ * @internal
  */
-export const createPermissionManager = (
+const createPermissionManager = (
   toolRegistry: ToolRegistry,
   config: PermissionManagerConfig = {}
 ): PermissionManager => {
@@ -190,3 +192,6 @@ export const createPermissionManager = (
     }
   };
 };
+
+// Export for internals barrel
+export { createPermissionManager };

@@ -26,6 +26,6 @@ export const MESSAGE_ADDED = 'message:added';
  */
 export const MESSAGE_UPDATED = 'message:updated';
 
-// Re-export AgentEventType, AgentEvents from sessionUtils for backwards compatibility
-import { AgentEventType, AgentEvents } from './utils/sessionUtils.js';
-export { AgentEventType, AgentEvents };
+// Re-export AgentEventType, AgentEvents, and EnvironmentStatusEvent from sessionUtils for backwards compatibility
+import { AgentEventType, AgentEvents, EnvironmentStatusEvent } from './utils/sessionUtils.js';
+export { AgentEventType, AgentEvents, EnvironmentStatusEvent };

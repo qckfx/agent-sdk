@@ -1,5 +1,6 @@
 /**
  * ToolRegistry - Manages the collection of available tools for the agent
+ * @internal
  */
 
 import { Tool, ToolContext, ToolCategory } from '../types/tool.js';
@@ -9,23 +10,26 @@ import { v5 as uuidv5 } from 'uuid';
 /**
  * UUID Namespace for tool execution IDs
  * Used to generate consistent UUIDs from Anthropic tool use IDs
+ * @internal
  */
-export const TOOL_EXECUTION_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341';
+const TOOL_EXECUTION_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341';
 
 /**
  * Generate a stable execution ID from an Anthropic tool use ID
  * @param toolUseId The Anthropic-generated tool use ID
  * @returns A stable UUID v5 generated from the tool use ID
+ * @internal
  */
-export function generateExecutionId(toolUseId: string): string {
+function generateExecutionId(toolUseId: string): string {
   return uuidv5(toolUseId, TOOL_EXECUTION_NAMESPACE);
 }
 
 /**
  * Creates a tool registry to manage available tools
  * @returns The tool registry interface
+ * @internal
  */
-export const createToolRegistry = (): ToolRegistry => {
+function createToolRegistry(): ToolRegistry {
   // Private storage for registered tools
   const tools = new Map<string, Tool>();
   // Index to look up tools by category
@@ -218,4 +222,7 @@ export const createToolRegistry = (): ToolRegistry => {
       }
     }
   };
-};
+}
+
+// Export for internals barrel
+export { createToolRegistry };

@@ -1,8 +1,10 @@
 /**
  * Finite‑state machine for agent execution flow.
  * Pure reducer – no side‑effects – so it is easy to unit‑test.
+ * @internal
  */
 
+/** @internal */
 export type AgentState =
   | { type: 'IDLE' }
   | { type: 'WAITING_FOR_MODEL' }
@@ -11,6 +13,7 @@ export type AgentState =
   | { type: 'ABORTED' }
   | { type: 'COMPLETE' };
 
+/** @internal */
 export type AgentEvent =
   | { type: 'USER_MESSAGE' }
   | { type: 'MODEL_TOOL_CALL'; toolUseId: string }
@@ -18,6 +21,7 @@ export type AgentEvent =
   | { type: 'MODEL_FINAL' }
   | { type: 'ABORT_REQUESTED' };
 
+/** @internal */
 export function transition(state: AgentState, event: AgentEvent): AgentState {
   switch (state.type) {
     case 'IDLE':
@@ -59,6 +63,7 @@ export function transition(state: AgentState, event: AgentEvent): AgentState {
   throw new Error(`Invalid transition: ${state.type} + ${event.type}`);
 }
 
+/** @internal */
 export function isTerminal(state: AgentState): boolean {
   return state.type === 'COMPLETE' || state.type === 'ABORTED';
 }

@@ -1,5 +1,5 @@
 {
-  "entryPoints": ["./index.ts"],
+  "entryPoints": ["./src/public.ts"],
   "out": "docs/api",
   "name": "@qckfx/agent API Documentation",
   "includeVersion": true,

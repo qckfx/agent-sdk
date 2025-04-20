@@ -16,6 +16,7 @@ import { SessionState } from '../types/model.js';
 
 /**
  * Interface for prompt managers that generate system prompts
+ * @internal
  */
 export interface PromptManager {
   /**
@@ -59,8 +60,9 @@ const DEFAULT_SYSTEM_PROMPT = "You are a precise, efficient AI assistant that he
 /**
  * Basic implementation of the PromptManager that uses a fixed system prompt
  * and enhances it with context from the session state
+ * @internal
  */
-export class BasicPromptManager implements PromptManager {
+class BasicPromptManager implements PromptManager {
   private readonly basePrompt: string;
   private readonly defaultTemperature: number;
   private directoryStructurePrompt: string | null = null;
@@ -156,6 +158,7 @@ DO NOT suggest using more tools - you have reached your limit for this interacti
  * Creates a prompt manager with the default system prompt
  * @param temperature Optional temperature override (defaults to 0.2)
  * @returns A new prompt manager instance
+ * @internal
  */
 export function createDefaultPromptManager(temperature?: number): PromptManager {
   return new BasicPromptManager(undefined, temperature);
@@ -166,7 +169,9 @@ export function createDefaultPromptManager(temperature?: number): PromptManager 
  * @param basePrompt The base system prompt to use
  * @param temperature Optional temperature override (defaults to 0.2)
  * @returns A new prompt manager instance
+ * @internal
  */
 export function createPromptManager(basePrompt: string, temperature?: number): PromptManager {
   return new BasicPromptManager(basePrompt, temperature);
 }
+

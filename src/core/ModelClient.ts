@@ -1,5 +1,6 @@
 /**
  * ModelClient - Interacts with the Language Model
+ * @internal
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -22,6 +23,7 @@ import { isSessionAborted } from '../utils/sessionUtils.js';
  * Helper function to get sessionId from SessionState
  * @param sessionState The session state
  * @returns The session ID as a string
+ * @internal
  */
 function getSessionId(sessionState: SessionState): string {
   if (!sessionState.id) {
@@ -34,8 +36,9 @@ function getSessionId(sessionState: SessionState): string {
  * Creates a client for interacting with the language model
  * @param config - Configuration options
  * @returns The model client interface
+ * @internal
  */
-export const createModelClient = (config: ModelClientConfig): ModelClient => {
+export function createModelClient(config: ModelClientConfig): ModelClient {
   if (!config || !config.modelProvider) {
     throw new Error('ModelClient requires a modelProvider function');
   }
