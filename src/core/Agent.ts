@@ -84,7 +84,10 @@ export const createAgent = (config: AgentConfig): Agent => {
         break;
       case 'docker': {
         // Create container manager and adapter
-        const containerManager = new DockerContainerManager({ logger });
+        const containerManager = new DockerContainerManager({
+          projectRoot: process.cwd(),
+          logger
+        });
         executionAdapter = new DockerExecutionAdapter(containerManager, { logger });
         break;
       }

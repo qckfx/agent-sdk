@@ -12,31 +12,56 @@
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.cjs"
     },
-    "./tools": {
+    "./browser": {
+      "types": "./dist/esm/browser/index.d.ts",
+      "import": "./dist/esm/browser/index.js",
+      "require": "./dist/cjs/browser/index.cjs"
+    },
+    "./browser/internals": {
+      "types": "./dist/esm/browser/internals/index.d.ts",
+      "import": "./dist/esm/browser/internals/index.js",
+      "require": "./dist/cjs/browser/internals/index.cjs"
+    },
+    "./node": {
+      "types": "./dist/esm/node/index.d.ts",
+      "import": "./dist/esm/node/index.js",
+      "require": "./dist/cjs/node/index.cjs"
+    },
+    "./node/tools": {
       "types": "./dist/esm/src/tools/index.d.ts",
       "import": "./dist/esm/src/tools/index.js",
       "require": "./dist/cjs/src/tools/index.cjs"
     },
-    "./providers": {
+    "./node/providers": {
       "types": "./dist/esm/src/providers/index.d.ts",
       "import": "./dist/esm/src/providers/index.js",
       "require": "./dist/cjs/src/providers/index.cjs"
     },
-    "./internals": {
+    "./node/internals": {
       "types": "./dist/esm/src/internals/index.d.ts",
       "import": "./dist/esm/src/internals/index.js",
       "require": "./dist/cjs/src/internals/index.cjs"
+    },
+    "./types/*": {
+      "types": "./dist/esm/src/types/*.d.ts",
+      "import": "./dist/esm/src/types/*.js"
     }
   },
   "typesVersions": {
     "*": {
-      "tools": ["dist/esm/src/tools/index.d.ts"],
-      "providers": ["dist/esm/src/providers/index.d.ts"],
-      "internals": ["dist/esm/src/internals/index.d.ts"]
+      "browser": ["dist/esm/browser/index.d.ts"],
+      "browser/internals": ["dist/esm/browser/internals/index.d.ts"],
+      "node": ["dist/esm/node/index.d.ts"],
+      "node/tools": ["dist/esm/src/tools/index.d.ts"],
+      "node/providers": ["dist/esm/src/providers/index.d.ts"],
+      "node/internals": ["dist/esm/src/internals/index.d.ts"],
+      "types/*": ["dist/esm/src/types/*.d.ts"]
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "docker",
+    "scripts"
   ],
   "publishConfig": {
     "access": "public"
@@ -52,6 +77,7 @@
     "eval:build": "npm run build && node dist/eval/index.js",
     "test": "vitest run",
     "docs": "typedoc",
+        "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

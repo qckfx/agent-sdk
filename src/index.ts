@@ -4,6 +4,9 @@
  * This framework provides a modular, composition-based approach to building AI agents.
  * It follows a tool-based architecture where each capability is a separate module
  * that can be composed together.
+ * 
+ * Note: For Node.js-specific features (including EventEmitter support),
+ * use `import { ... } from '@qckfx/agent/node'` instead.
  */
 
 // Core components
@@ -92,7 +95,10 @@ const createAgent = (config: AgentConfig): Agent => {
         break;
       case 'docker': {
         // Create container manager and adapter
-        const containerManager = new DockerContainerManager({ logger });
+        const containerManager = new DockerContainerManager({
+          projectRoot: process.cwd(),
+          logger
+        });
         executionAdapter = new DockerExecutionAdapter(containerManager, { logger });
         break;
       }

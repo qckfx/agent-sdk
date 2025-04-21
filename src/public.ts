@@ -8,16 +8,35 @@
 export { createAgent } from './core/Agent.js';
 export { createTool } from './tools/createTool.js';
 
-// Event constants
-export { MESSAGE_ADDED, MESSAGE_UPDATED, AgentEventType, AgentEvents, EnvironmentStatusEvent } from './events.js';
+// Event helpers (safe, read‑only API surface)
+export {
+  onAbortSession,
+  onEnvironmentStatusChanged,
+  onProcessingCompleted,
+  onMessageAdded,
+  onMessageUpdated,
+  offMessageAdded,
+  offMessageUpdated,
+} from './events.js';
+export type { EnvironmentStatusEvent } from './events.js';
+
+export type {
+  StructuredContent,
+  TextContentPart,
+  ContentPart,
+  ToolCallReference,
+  Message,
+  MessageAddedEvent,
+  MessageUpdatedEvent,
+} from './types/message.js';
 
 // Core types
-export { Agent, AgentConfig } from './types/main.js';
-export { Tool, ToolContext } from './types/tool.js';
-export { ToolParameter } from './types/agent.js';
+export type { Agent, AgentConfig } from './types/main.js';
+export type { Tool, ToolContext } from './types/tool.js';
+export type { ToolParameter } from './types/agent.js';
 
 // Tool result types
-export {
+export type {
   LSToolResult,
   LSToolSuccessResult,
   LSToolErrorResult,

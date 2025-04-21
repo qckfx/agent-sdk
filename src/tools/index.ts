@@ -15,24 +15,24 @@ export { createGrepTool } from './GrepTool.js';
 export { createLSTool } from './LSTool.js';
 export { createThinkTool } from './ThinkTool.js';
 
-// Tool result types
-export { 
-  type FileEditToolArgs,
-  type FileEditToolResult, 
-  type FileEditToolSuccessResult, 
-  type FileEditToolErrorResult
+// Tool result types - using export type for type-only exports
+export type { 
+  FileEditToolArgs,
+  FileEditToolResult, 
+  FileEditToolSuccessResult, 
+  FileEditToolErrorResult
 } from './FileEditTool.js';
 
-export { 
-  type FileReadToolArgs,
-  type FileReadToolResult, 
-  type FileReadToolSuccessResult, 
-  type FileReadToolErrorResult
+export type { 
+  FileReadToolArgs,
+  FileReadToolResult, 
+  FileReadToolSuccessResult, 
+  FileReadToolErrorResult
 } from './FileReadTool.js';
 
-export { 
-  type LSToolResult, 
-  type LSToolSuccessResult, 
-  type LSToolErrorResult,
-  type FileEntry
+export type { 
+  LSToolResult, 
+  LSToolSuccessResult, 
+  LSToolErrorResult,
+  FileEntry
 } from './LSTool.js';

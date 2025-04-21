@@ -10,6 +10,7 @@ node_modules/
 dist/
 build/
 coverage/
+types-test/
 
 # TypeScript
 *.tsbuildinfo

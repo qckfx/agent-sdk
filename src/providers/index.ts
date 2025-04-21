@@ -4,4 +4,5 @@
  * Re-exports all provider implementations for convenience.
  */
 
-export { createAnthropicProvider, AnthropicProvider } from './AnthropicProvider.js';
+export { createAnthropicProvider } from './AnthropicProvider.js';
+export type { AnthropicProvider } from './AnthropicProvider.js';

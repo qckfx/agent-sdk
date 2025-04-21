@@ -4,11 +4,15 @@
  * 
  * This file exports the minimal stable API surface.
  * 
- * For advanced functionality, use:
+ * For browser environments use:
+ * - import { ... } from '@qckfx/agent/browser'
+ * - import { ... } from '@qckfx/agent/browser/internals'
  * 
- * - import { ... } from '@qckfx/agent/tools'
- * - import { ... } from '@qckfx/agent/providers'
- * - import { ... } from '@qckfx/agent/internals'
+ * For Node.js specific features use:
+ * - import { ... } from '@qckfx/agent/node'
+ * - import { ... } from '@qckfx/agent/node/tools'
+ * - import { ... } from '@qckfx/agent/node/providers'
+ * - import { ... } from '@qckfx/agent/node/internals'
  */
 
-export * from './src/public.js';
+export * from './node/index.js';

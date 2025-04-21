@@ -1,0 +1,29 @@
+# /docker/docker-compose.yml
+version: '3'
+
+services:
+  agent-sandbox:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      # Mount the caller's project root into the container.  The
+      # HOST_PROJECT_ROOT environment variable is injected automatically by
+      # DockerContainerManager at runtime.  We keep the original fallback to
+      # ".." so that the compose file continues to work when run manually.
+      - ${HOST_PROJECT_ROOT:-..}:/workspace:rw
+    working_dir: /workspace
+    # Security limits
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    # Network isolation (can be changed to 'host' if network access is needed)
+    network_mode: "none"
+

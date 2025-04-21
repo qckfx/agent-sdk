@@ -20,6 +20,14 @@ export interface ContainerInfo {
  * Options for the Docker container manager
  */
 export interface DockerManagerOptions {
+  /**
+   * Absolute path to the *project root* that should be mounted into the
+   * container as the workspace directory.  The caller (usually the
+   * DockerExecutionAdapter factory) must provide this value – it is no longer
+   * automatically detected.
+   */
+  projectRoot: string;
+
   composeFilePath?: string;
   serviceName?: string;
   projectName?: string;
@@ -38,6 +46,15 @@ export class DockerContainerManager {
   private composeFilePath: string;
   private serviceName: string;
   private projectName: string;
+  private composeCmd: 'docker compose' | 'docker-compose' = 'docker-compose';
+  private projectRoot: string;
+  /**
+   * Environment variables that must be passed to every docker‑compose command
+   * so that the compose file can correctly mount the caller supplied project
+   * directory.  At the moment we only inject HOST_PROJECT_ROOT but we keep
+   * the structure extensible for future additions.
+   */
+  private composeEnv: Record<string, string>;
   private logger?: {
     debug: (message: string, category?: string) => void;
     info: (message: string, category?: string) => void;
@@ -48,13 +65,83 @@ export class DockerContainerManager {
   /**
    * Create a Docker container manager using docker-compose
    */
-  constructor(options: DockerManagerOptions = {}) {
-    // Get the Docker directory which is in the project root
-    const projectRoot = path.resolve(__dirname, '..', '..');
-    this.composeFilePath = options.composeFilePath || path.join(projectRoot, 'docker', 'docker-compose.yml');
+  constructor(options: DockerManagerOptions) {
+
+    // -------------------------------------------------------------------
+    // 1)  Use the *project root* provided by the caller.  We no longer try to
+    //     second‑guess the correct path in here – the surrounding application
+    //     holds the necessary context and must pass the directory explicitly.
+    // -------------------------------------------------------------------
+
+    if (!options.projectRoot) {
+      throw new Error('DockerContainerManager requires a "projectRoot" option');
+    }
+
+    // Resolve to an absolute path to avoid surprises later on and perform the
+    // same normalisation that previously existed when we detected the path
+    // ourselves:
+    //   •  If the given path is somewhere inside node_modules we move up until
+    //      we leave the folder – this keeps the original behaviour intact for
+    //      test setups that run inside the package directory.
+    let projectRoot = path.resolve(options.projectRoot);
+
+    if (projectRoot.includes(`${path.sep}node_modules${path.sep}`)) {
+      let candidate = projectRoot;
+      while (candidate.includes(`${path.sep}node_modules${path.sep}`)) {
+        candidate = path.dirname(candidate);
+      }
+      projectRoot = candidate;
+    }
+
+    this.projectRoot = projectRoot;
+    console.log('🔴🔴🔴 projectRoot', this.projectRoot);
+
+    // Build the environment map that will be supplied to every compose call.
+    // We intentionally do NOT mutate process.env directly to avoid leaking
+    // variables globally when the library is used as a dependency.
+    this.composeEnv = {
+      HOST_PROJECT_ROOT: this.projectRoot
+    };
+
+    // -------------------------------------------------------------------
+    // 2)  Locate the docker‑compose.yml that ships with *this* package because
+    //     the majority of user projects will not provide their own compose
+    //     configuration.  The compose file lives under agent‑core/docker.
+    // -------------------------------------------------------------------
+
+    const packageCandidates: string[] = [
+      // Development / ts‑node checkout
+      path.resolve(__dirname, '..', '..'),
+      // Installed bundle in node_modules (dist/cjs/…/utils)
+      path.resolve(__dirname, '..', '..', '..', '..'),
+    ];
+
+    let composeFilePath = '';
+    for (const root of packageCandidates) {
+      const potential = path.join(root, 'docker', 'docker-compose.yml');
+      if (fs.existsSync(potential)) {
+        composeFilePath = potential;
+        break;
+      }
+    }
+
+    if (!composeFilePath) {
+      throw new Error('Could not locate agent-core/docker/docker-compose.yml');
+    }
+
+    // If the caller provided a composeFilePath option we still let it
+    // override our auto‑detected path – this keeps the previous public API
+    // intact.
+    this.composeFilePath = options.composeFilePath || composeFilePath;
+
     this.serviceName = options.serviceName || 'agent-sandbox';
     this.projectName = options.projectName || 'qckfx';
     this.logger = options.logger;
+
+    // Detect whether the system uses `docker compose` (v2) or `docker-compose` (v1).
+    // We run this detection lazily below in a best‑effort manner; if detection
+    // fails we keep the default.
+    this.detectComposeCommand().catch(() => {/* ignore, will fall back to default */});
   }
 
   /**
@@ -63,7 +150,14 @@ export class DockerContainerManager {
   public async isDockerAvailable(): Promise<boolean> {
     try {
       const { stdout: dockerVersion } = await execAsync('docker --version');
-      const { stdout: composeVersion } = await execAsync('docker-compose --version');
+
+      // Ensure compose command detection has finished
+      await this.detectComposeCommand();
+
+      const composeVersionCmd = this.composeCmd === 'docker-compose'
+        ? 'docker-compose --version'
+        : 'docker compose version';
+      const { stdout: composeVersion } = await execAsync(composeVersionCmd);
       
       this.logger?.info(`Docker available: ${dockerVersion.trim()}`, 'system');
       this.logger?.info(`Docker Compose available: ${composeVersion.trim()}`, 'system');
@@ -90,6 +184,60 @@ export class DockerContainerManager {
   private containerInfoCacheTimestamp: number = 0;
   private readonly containerInfoCacheTTL: number = 30000; // 30 seconds TTL (increased from 5 seconds)
 
+  // ---------------------------------------------------------------------------
+  // Internal helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Verify that the running container actually mounts the *expected* host
+   * directory (this.projectRoot) to /workspace.  When the agent is re‑used
+   * from another project without removing the old container we might end up
+   * with a mismatch between the recorded project root and the bind mount that
+   * is active inside the container.  In that situation we return _false_ so
+   * that the caller can stop and recreate the sandbox.
+   */
+  private async isWorkspaceMountCorrect(containerId: string): Promise<boolean> {
+    try {
+      // Ask Docker for the mount information and parse the JSON output.
+      const { stdout } = await execAsync(
+        `docker inspect --format '{{ json .Mounts }}' ${containerId}`
+      );
+
+      type MountInfo = { Source: string; Destination: string };
+      const mounts: MountInfo[] = JSON.parse(stdout.trim());
+
+      const workspaceMount = mounts.find(m => m.Destination === '/workspace');
+      if (!workspaceMount) {
+        return false;
+      }
+
+      // Normalise both paths for a fair comparison.
+      const expected = path.resolve(this.projectRoot);
+      const actual   = path.resolve(workspaceMount.Source);
+
+      return expected === actual;
+    } catch {
+      // Be conservative – if we cannot determine the mount we better assume
+      // it's incorrect so that the caller replaces the container.
+      return false;
+    }
+  }
+
+  /**
+   * Detect which compose command is available on the host and cache the result
+   */
+  private async detectComposeCommand(): Promise<void> {
+    try {
+      await execAsync('docker compose version');
+      this.composeCmd = 'docker compose';
+    } catch {
+      // Fallback to classic docker‑compose. We don't re‑check here; a later
+      // failure will simply propagate.
+      this.composeCmd = 'docker-compose';
+    }
+    this.logger?.debug(`Using compose command: ${this.composeCmd}`, 'system');
+  }
+
   /**
    * Get information about the container with caching to reduce Docker CLI calls
    */
@@ -106,7 +254,8 @@ export class DockerContainerManager {
     try {
       // Get container ID using docker-compose
       const { stdout: idOutput } = await execAsync(
-        `docker-compose -f "${this.composeFilePath}" -p ${this.projectName} ps -q ${this.serviceName}`
+        `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} ps -q ${this.serviceName}`,
+        { env: { ...process.env, ...this.composeEnv } }
       );
       
       const containerId = idOutput.trim();
@@ -125,8 +274,10 @@ export class DockerContainerManager {
       const { stdout: nameOutput } = await execAsync(`docker inspect -f '{{.Name}}' ${containerId}`);
       const containerName = nameOutput.trim().replace(/^\//, '');
       
-      // Get project path - this is our local directory that's mounted
-      const projectPath = path.resolve(__dirname, '..', '..');
+      // Use the project root that was detected in the constructor. This path
+      // corresponds to the directory that is mounted into the container at
+      // /workspace.
+      const projectPath = this.projectRoot;
       
       // Create and cache the result
       const result: ContainerInfo = {
@@ -175,7 +326,10 @@ export class DockerContainerManager {
       
       // Start container using docker-compose
       this.logger?.info(`Starting container using docker-compose: ${this.serviceName}`, 'system');
-      await execAsync(`docker-compose -f "${this.composeFilePath}" -p ${this.projectName} up -d ${this.serviceName}`);
+      await execAsync(
+        `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} up -d ${this.serviceName}`,
+        { env: { ...process.env, ...this.composeEnv } }
+      );
       
       // Get container info after starting
       const containerInfo = await this.getContainerInfo();
@@ -203,7 +357,10 @@ export class DockerContainerManager {
       }
       
       this.logger?.info(`Stopping container: ${containerInfo.name}`, 'system');
-      await execAsync(`docker-compose -f "${this.composeFilePath}" -p ${this.projectName} stop ${this.serviceName}`);
+      await execAsync(
+        `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} stop ${this.serviceName}`,
+        { env: { ...process.env, ...this.composeEnv } }
+      );
       return true;
     } catch (error) {
       this.logger?.error(`Error stopping container: ${(error as Error).message}`, error, 'system');
@@ -222,7 +379,10 @@ export class DockerContainerManager {
       }
       
       this.logger?.info(`Removing container: ${containerInfo.name}`, 'system');
-      await execAsync(`docker-compose -f "${this.composeFilePath}" -p ${this.projectName} down`);
+      await execAsync(
+        `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} down`,
+        { env: { ...process.env, ...this.composeEnv } }
+      );
       return true;
     } catch (error) {
       this.logger?.error(`Error removing container: ${(error as Error).message}`, error, 'system');
@@ -281,6 +441,27 @@ export class DockerContainerManager {
       
       // Start container if needed
       try {
+        // Check if a container already exists
+        const existingContainer = await this.getContainerInfo();
+        if (existingContainer && existingContainer.status === 'running') {
+          // Verify the workspace mount is correct
+          const isMountCorrect = await this.isWorkspaceMountCorrect(existingContainer.id);
+          
+          if (!isMountCorrect) {
+            this.logger?.warn('Container workspace mount is incorrect, recreating container', 'system');
+            
+            // Stop and remove the container with incorrect mount
+            await this.removeContainer();
+            
+            // Create a new container
+            return await this.startContainer();
+          }
+          
+          // Container exists and mount is correct, return it
+          return existingContainer;
+        }
+        
+        // Start a new container
         const containerInfo = await this.startContainer();
         if (!containerInfo) {
           this.logger?.error('Failed to start Docker container', 'system');

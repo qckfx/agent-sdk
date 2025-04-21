@@ -14,6 +14,8 @@
  * @property {object} message - The message object that was added
  */
 export const MESSAGE_ADDED = 'message:added';
+import { MessageAddedEvent } from './types/message.js';
+export { MessageAddedEvent };
 
 /**
  * Event emitted when an existing message is updated
@@ -25,7 +27,98 @@ export const MESSAGE_ADDED = 'message:added';
  * @property {string} message.id - The ID of the message that was updated
  */
 export const MESSAGE_UPDATED = 'message:updated';
+import { MessageUpdatedEvent } from './types/message.js';
+export { MessageUpdatedEvent };
 
-// Re-export AgentEventType, AgentEvents, and EnvironmentStatusEvent from sessionUtils for backwards compatibility
-import { AgentEventType, AgentEvents, EnvironmentStatusEvent } from './utils/sessionUtils.js';
-export { AgentEventType, AgentEvents, EnvironmentStatusEvent };
+
+import { AgentEventType } from './utils/sessionUtils.js';
+export { AgentEventType }; // Export as value for use with EventEmitter
+export type { EnvironmentStatusEvent } from './utils/sessionUtils.js';
+
+// ---------------------------------------------------------------------------
+// Public helper subscription functions
+// ---------------------------------------------------------------------------
+
+// NOTE: We purposefully do NOT export the internal EventEmitter instance.  The
+// helper functions below provide a limited, typed surface for consumers to
+// subscribe to agent‑level events without being able to emit events or remove
+// internal listeners.
+
+import { AgentEvents } from './utils/sessionUtils.js';
+
+/**
+ * Subscribe to the {@link AgentEventType.ABORT_SESSION} event.
+ *
+ * This event is emitted whenever a session is manually aborted by the user or
+ * system. The listener is called with the aborted session's ID.
+ */
+export function onAbortSession(listener: (sessionId: string) => void): void {
+  AgentEvents.on(AgentEventType.ABORT_SESSION, listener);
+}
+
+import { EnvironmentStatusEvent } from './utils/sessionUtils.js';
+/**
+ * Subscribe to {@link AgentEventType.ENVIRONMENT_STATUS_CHANGED} events.
+ *
+ * The callback receives an {@link EnvironmentStatusEvent} object describing the
+ * current state of the execution environment.
+ */
+export function onEnvironmentStatusChanged(
+  listener: (event: EnvironmentStatusEvent) => void
+): void {
+  AgentEvents.on(AgentEventType.ENVIRONMENT_STATUS_CHANGED, listener);
+}
+
+/**
+ * Subscribe to {@link AgentEventType.PROCESSING_COMPLETED} events.
+ *
+ * The callback receives an object containing the `sessionId` and the agent's
+ * `response` string.
+ */
+export function onProcessingCompleted(
+  listener: (data: { sessionId: string; response: string }) => void
+): void {
+  AgentEvents.on(AgentEventType.PROCESSING_COMPLETED, listener);
+}
+
+/**
+ * Subscribe to message‑stream events emitted whenever a new message is added
+ * to the session history.
+ *
+ * The callback is invoked with an object containing the `sessionId` and the
+ * complete `message` that was pushed.
+ */
+export function onMessageAdded(
+  listener: (data: MessageAddedEvent) => void
+): void {
+  AgentEvents.on(MESSAGE_ADDED, listener);
+}
+
+/**
+ * Unsubscribe from message‑stream events emitted whenever a new message is added.
+ */
+export function offMessageAdded(
+  listener: (data: MessageAddedEvent) => void
+): void {
+  AgentEvents.off(MESSAGE_ADDED, listener);
+}
+
+/**
+ * Subscribe to events emitted whenever an existing message is updated.
+ *
+ * The callback receives the `sessionId` and the updated `message` object.
+ */
+export function onMessageUpdated(
+  listener: (data: MessageUpdatedEvent) => void
+): void {
+  AgentEvents.on(MESSAGE_UPDATED, listener);
+}
+
+/**
+ * Unsubscribe from message‑stream events emitted whenever a new message is added.
+ */
+export function offMessageUpdated(
+  listener: (data: MessageUpdatedEvent) => void
+): void {
+  AgentEvents.off(MESSAGE_UPDATED, listener);
+}

@@ -22,6 +22,11 @@ export interface ExecutionAdapterFactoryOptions {
    * Docker-specific options
    */
   docker?: {
+    /**
+     * Absolute path of the project root that will be mounted into the Docker
+     * sandbox.  Must be provided when the adapter type is set to "docker".
+     */
+    projectRoot: string;
     composeFilePath?: string;
     serviceName?: string;
     projectName?: string;
@@ -70,11 +75,16 @@ export async function createExecutionAdapter(
     if (type === 'docker') {
       logger?.info('Attempting to create Docker execution adapter', LogCategory.SYSTEM);
       
-      // Create the container manager
+      // Create the container manager (caller must provide projectRoot)
+      if (!options.docker?.projectRoot) {
+        throw new Error('projectRoot must be provided when creating a Docker execution adapter');
+      }
+
       const containerManager = new DockerContainerManager({
-        composeFilePath: options.docker?.composeFilePath,
-        serviceName: options.docker?.serviceName,
-        projectName: options.docker?.projectName,
+        projectRoot: options.docker.projectRoot,
+        composeFilePath: options.docker.composeFilePath,
+        serviceName: options.docker.serviceName,
+        projectName: options.docker.projectName,
         logger
       });
       

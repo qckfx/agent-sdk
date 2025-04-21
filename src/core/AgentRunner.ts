@@ -7,11 +7,9 @@ import {
   AgentRunnerConfig, 
   ConversationResult, 
   ProcessQueryResult, 
-  ToolResultEntry 
 } from '../types/agent.js';
-import { ToolCall, SessionState } from '../types/model.js';
+import { SessionState } from '../types/model.js';
 import { LogCategory, createLogger, LogLevel } from '../utils/logger.js';
-import { MESSAGE_ADDED } from '../events.js';
 
 import { 
   isSessionAborted, 
@@ -19,7 +17,6 @@ import {
   AgentEvents, 
   AgentEventType 
 } from '../utils/sessionUtils.js';
-import { withToolCall } from '../utils/withToolCall.js';
 import { FsmDriver } from './FsmDriver.js';
 import { createContextWindow } from '../types/contextWindow.js';
 
@@ -127,13 +124,42 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         // Run the query through the FSM
         const { response, toolResults, aborted } = await driver.run(query, sessionState);
         
-        // If the operation was aborted, clear the abort status and create a new controller
+        // If the operation was aborted we need to do two things:
+        //   1. Make sure the conversation history is well‑formed by appending
+        //      an assistant acknowledgement.  The previous message will be
+        //      the `tool_result` (a user‑role message).  Without this
+        //      additional assistant message the next user query appears
+        //      immediately after a user message, which frequently causes the
+        //      language model to continue the interrupted tool flow instead
+        //      of responding to the new request.
+        //   2. Clear the abort status and swap in a fresh AbortController so
+        //      subsequent requests can proceed normally.
+        if (aborted) {
+          const msgs = sessionState.contextWindow.getMessages();
+          const last = msgs[msgs.length - 1];
+          if (!last || last.role !== 'assistant') {
+            sessionState.contextWindow.pushAssistant([
+              { type: 'text', text: 'Operation aborted by user' },
+            ]);
+          }
+
+          // We've honoured the abort request – reset the session‑level flag
+          // and prepare for the next interaction.
+          clearSessionAborted(sessionId);  // We've honored the abort request
+          // Create a new AbortController for the next message
+          sessionState.abortController = new AbortController();
+          logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
+        }
+
+        // Original comment (we moved the logic above but keep behaviour the same)
+        /*
         if (aborted) {
           clearSessionAborted(sessionId);  // We've honored the abort request
           // Create a new AbortController for the next message
           sessionState.abortController = new AbortController();
           logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
         }
+        */
         
         // Emit an event to signal processing is completed - will be captured by WebSocketService
         AgentEvents.emit(AgentEventType.PROCESSING_COMPLETED, {

@@ -122,6 +122,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     };
     
     this.logger?.info(`Emitting Docker environment status: ${status}, ready=${isReady}`, LogCategory.SYSTEM);
+    if (error) {
+      this.logger?.error(`Docker environment status error: ${error}`, LogCategory.SYSTEM);
+    }
     AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, statusEvent);
   }
 
@@ -862,10 +865,16 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       return hostPath;
     }
     
-    // Ensure absolute path
-    const absolutePath = path.isAbsolute(hostPath) 
-      ? hostPath 
-      : path.resolve(hostPath);
+    // Ensure absolute path – if the caller provided a relative path we treat
+    // it as relative to the *project* root that was detected by the
+    // DockerContainerManager instead of resolving it against `process.cwd()`.
+    // This makes sure tools like FileReadTool, FileEditTool, FileWriteTool and
+    // BashTool behave consistently regardless of where the JS process was
+    // launched from (e.g. inside node_modules when installed as a dependency).
+
+    const absolutePath = path.isAbsolute(hostPath)
+      ? hostPath
+      : path.resolve(containerInfo.projectPath, hostPath);
     
     // Check if path is within project directory
     if (absolutePath.startsWith(containerInfo.projectPath)) {
@@ -920,9 +929,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       return true;
     }
     
-    const absolutePath = path.isAbsolute(filepath) 
-      ? filepath 
-      : path.resolve(filepath);
+    const absolutePath = path.isAbsolute(filepath)
+      ? filepath
+      : path.resolve(containerInfo.projectPath, filepath);
     
     return absolutePath.startsWith(containerInfo.projectPath);
   }

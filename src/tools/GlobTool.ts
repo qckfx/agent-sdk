@@ -4,13 +4,18 @@
 
 import path from 'path';
 import { glob } from 'glob';
-import { promisify } from 'util';
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
 
-// Update the type for globAsync to ensure string[] return
+/**
+ * The `glob` function from `glob@^10` already returns a `Promise` when no
+ * callback is supplied, so we can use it directly.  Wrapping it with
+ * `util.promisify` (as done previously) results in a promise that never
+ * resolves because the library no longer invokes the callback form.  That
+ * caused GlobTool to appear to “hang”.
+ */
 const globAsync = (pattern: string, options: any): Promise<string[]> => {
-  return promisify(glob)(pattern, options) as Promise<string[]>;
+  return glob(pattern, options) as Promise<string[]>;
 };
 
 // Used for type checking in execute function

@@ -33,8 +33,18 @@ for (const rel of entryPoints) {
   const cjsPath = path.join(outDir, `${rel}.cjs`);
 
   try {
-    if (fs.existsSync(jsPath) && !fs.existsSync(cjsPath)) {
-      fs.copyFileSync(jsPath, cjsPath);
+    // Always overwrite the .cjs shim with the freshly‑built .js file.  This
+    // guarantees that the CommonJS entry points stay perfectly in sync with
+    // their ES module counterparts and prevents subtle bugs where stale
+    // copies (from previous builds or published packages) miss newer
+    // exports – for example `onEnvironmentStatusChanged`.
+
+    if (fs.existsSync(jsPath)) {
+      try {
+        fs.copyFileSync(jsPath, cjsPath);
+      } catch (copyErr) {
+        console.warn(`postbuild-cjs: Failed to copy ${rel}.js → ${rel}.cjs`, copyErr);
+      }
     }
   } catch (err) {
     console.warn(`postbuild-cjs: Unable to create .cjs copy for ${rel}:`, err);

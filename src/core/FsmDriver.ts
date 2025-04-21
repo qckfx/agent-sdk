@@ -82,8 +82,18 @@ export class FsmDriver {
 
     // Record the user message at the very start so that the conversation
     // history always follows the canonical order: user → (tool_use →
-    // tool_result)* → assistant.
-    cw.pushUser(query);
+    // tool_result)* → assistant.  If the caller has already appended the
+    // message (e.g. AgentRunner does this as a convenience) we avoid adding
+    // a duplicate.
+    const currentMessages = cw.getMessages();
+    const lastMsg = currentMessages[currentMessages.length - 1];
+    const lastText = Array.isArray(lastMsg?.content) && lastMsg.content[0]?.type === 'text'
+      ? (lastMsg.content[0] as TextBlock).text
+      : undefined;
+
+    if (!(lastMsg?.role === 'user' && lastText === query)) {
+      cw.pushUser(query);
+    }
 
     // USER_MESSAGE
     this.dispatch({ type: 'USER_MESSAGE' });
