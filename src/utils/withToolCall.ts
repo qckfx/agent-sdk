@@ -20,10 +20,6 @@ export async function withToolCall(
   let result: unknown;
   let aborted = false;
 
-  // Set the current tool execution ID and store the previous one
-  const prev = context.sessionState.currentToolExecutionId;
-  context.sessionState.currentToolExecutionId = 
-       context.sessionState.generateNewToolExecutionId();
   
   try {
     try {
@@ -63,7 +59,7 @@ export async function withToolCall(
     }
 
     // Always append tool_result to conversation history.
-    if (sessionState.contextWindow && toolCall.toolUseId) {
+    if (toolCall.toolUseId) {
       sessionState.contextWindow.pushToolResult(toolCall.toolUseId, result);
     }
 
@@ -78,8 +74,7 @@ export async function withToolCall(
     if (aborted) throw new Error('AbortError');
 
     return result;
-  } finally {
-    // Restore the previous tool execution ID
-    context.sessionState.currentToolExecutionId = prev;
+  } catch (e) {
+    throw e;
   }
 }

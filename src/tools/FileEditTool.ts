@@ -100,7 +100,7 @@ export const createFileEditTool = (): Tool => {
       const encoding = args.encoding as string || 'utf8';
       
       // Check if the file has been read first
-      if (context.sessionState && context.sessionState.contextWindow && 
+      if (context.sessionState && 
           !context.sessionState.contextWindow.hasReadFile(filePath)) {
         context.logger?.warn(`Attempt to edit file ${filePath} without reading it first`);
         return {

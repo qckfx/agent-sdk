@@ -130,7 +130,7 @@ export const createFileWriteTool = (): Tool => {
             }
             
             // If overwrite is enabled, check if the file has been read first
-            if (context.sessionState && context.sessionState.contextWindow && 
+            if (context.sessionState && 
                 !context.sessionState.contextWindow.hasReadFile(filePath)) {
               context.logger?.warn(`Attempt to overwrite file ${filePath} without reading it first`);
               return {

@@ -48,7 +48,6 @@ class AnthropicProviderAdapter implements ModelProvider {
             allowedTools: ['ReadTool', 'GlobTool', 'GrepTool', 'LSTool'],
             cachingEnabled: process.env.QCKFX_DISABLE_CACHING ? false : true,
           },
-          generateNewToolExecutionId: () => `exec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
         }
       });
 

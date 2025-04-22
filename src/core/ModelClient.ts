@@ -87,7 +87,7 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         query: query ? query.substring(0, 50) + (query.length > 50 ? '...' : '') : 'none',
         toolCount: toolDescriptions.length,
         sessionId: sessionState.id || 'unknown',
-        historyLength: sessionState.contextWindow?.getMessages().length || 0,
+        historyLength: sessionState.contextWindow.getMessages().length,
         lastResult: !!sessionState.lastResult,
         hasToolError: !!sessionState.lastToolError
       });

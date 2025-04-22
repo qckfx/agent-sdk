@@ -76,10 +76,6 @@ export interface SessionState {
   e2bSandboxId?: string;
   /** Execution adapter instance */
   executionAdapter?: ExecutionAdapter;
-  /** Current tool execution ID */
-  currentToolExecutionId?: string;
-  /** Generate a new tool execution ID */
-  generateNewToolExecutionId(): string;
   [key: string]: unknown;
 }
 

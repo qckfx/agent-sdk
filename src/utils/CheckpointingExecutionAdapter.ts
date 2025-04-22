@@ -35,8 +35,18 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
   /**
    * Take a checkpoint before a state-changing operation
    * @param reason The reason for the checkpoint
+   * @returns True if checkpoint was created, false if skipped
    */
-  private async cp(reason: string) {
+  private async cp(reason: string): Promise<boolean> {
+    // Get the last message in the context window
+    const lastMessage = this.sessionState.contextWindow.peek();
+    
+    // Skip checkpointing if there's no message to attach to
+    if (!lastMessage) {
+      console.log(`[CheckpointingExecutionAdapter] Skipping checkpoint: no message in context window`);
+      return false;
+    }
+    
     // Get the host repository commit
     const hostInfo = await this.inner.getGitRepositoryInfo();
     const hostSha = hostInfo?.commitSha ?? 'unknown';
@@ -44,7 +54,7 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     // Prepare metadata
     const meta = {
       sessionId: this.sessionId,
-      toolExecutionId: this.sessionState.currentToolExecutionId ?? 'unknown',
+      toolExecutionId: lastMessage.id,
       hostCommit: hostSha,
       reason,
       timestamp: new Date().toISOString()
@@ -61,6 +71,8 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
       shadowCommit: sha,
       bundle
     } as CheckpointPayload);
+    
+    return true;
   }
 
   // State-changing operations that trigger checkpoints
