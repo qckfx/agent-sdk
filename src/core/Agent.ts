@@ -118,7 +118,17 @@ export const createAgent = (config: AgentConfig): Agent => {
     logger,
     
     // Helper methods
-    async processQuery(query, sessionState = { contextWindow: createContextWindow(), abortController: new AbortController(), agentServiceConfig: { defaultModel: '', permissionMode: 'interactive', allowedTools: [], cachingEnabled: true } }) {
+    async processQuery(query, sessionState = { 
+      contextWindow: createContextWindow(), 
+      abortController: new AbortController(), 
+      agentServiceConfig: { 
+        defaultModel: '', 
+        permissionMode: 'interactive', 
+        allowedTools: [], 
+        cachingEnabled: true 
+      },
+      generateNewToolExecutionId: () => `exec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    }) {
       const runner = await _agentRunner();
       return runner.processQuery(query, sessionState);
     },
