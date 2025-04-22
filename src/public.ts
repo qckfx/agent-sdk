@@ -21,6 +21,7 @@ export {
   onCheckpointReady,
   offCheckpointReady,
   CHECKPOINT_READY_EVENT,
+  CheckpointEvents,
 } from './events.js';
 export type { 
   EnvironmentStatusEvent,
