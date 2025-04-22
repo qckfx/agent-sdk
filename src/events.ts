@@ -35,6 +35,11 @@ import { AgentEventType } from './utils/sessionUtils.js';
 export { AgentEventType }; // Export as value for use with EventEmitter
 export type { EnvironmentStatusEvent } from './utils/sessionUtils.js';
 
+// Checkpoint events
+import { CheckpointEvents, CHECKPOINT_READY_EVENT, CheckpointPayload } from './events/checkpoint-events.js';
+export { CheckpointEvents, CHECKPOINT_READY_EVENT };
+export type { CheckpointPayload };
+
 // ---------------------------------------------------------------------------
 // Public helper subscription functions
 // ---------------------------------------------------------------------------
@@ -121,4 +126,30 @@ export function offMessageUpdated(
   listener: (data: MessageUpdatedEvent) => void
 ): void {
   AgentEvents.off(MESSAGE_UPDATED, listener);
+}
+
+/**
+ * Subscribe to checkpoint ready events emitted whenever a state-changing
+ * operation creates a new checkpoint.
+ * 
+ * The callback receives a CheckpointPayload object containing:
+ * - sessionId: The session ID
+ * - toolExecutionId: The ID of the tool execution that triggered the checkpoint
+ * - hostCommit: The current commit of the host repository
+ * - shadowCommit: The new shadow commit SHA
+ * - bundle: The git bundle as a Uint8Array
+ */
+export function onCheckpointReady(
+  listener: (data: CheckpointPayload) => void
+): void {
+  CheckpointEvents.on(CHECKPOINT_READY_EVENT, listener);
+}
+
+/**
+ * Unsubscribe from checkpoint ready events.
+ */
+export function offCheckpointReady(
+  listener: (data: CheckpointPayload) => void
+): void {
+  CheckpointEvents.off(CHECKPOINT_READY_EVENT, listener);
 }

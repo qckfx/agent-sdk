@@ -301,7 +301,31 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       } as FileReadToolErrorResult;
     }
     
-    // Read the file
+    // Special handling for binary/base64 encoding
+    if (encoding === 'base64' || encoding === 'binary') {
+      try {
+        // Read the file directly as a Buffer
+        const data = await fs.promises.readFile(resolvedPath);
+        // Convert to base64 string for consistent representation
+        const base64Content = data.toString('base64');
+        
+        return {
+          success: true as const,
+          path: resolvedPath,
+          content: base64Content,
+          size: data.length,
+          encoding: 'base64'
+        } as FileReadToolSuccessResult;
+      } catch (error) {
+        return {
+          success: false as const,
+          path: filepath,
+          error: `Failed to read file in ${encoding} mode: ${(error as Error).message}`
+        } as FileReadToolErrorResult;
+      }
+    }
+    
+    // For text files, use standard text reading approach
     let content = '';
     if (lineOffset > 0 || lineCount !== undefined) {
       // Use head and tail with nl for pagination, starting line numbers from lineOffset+1

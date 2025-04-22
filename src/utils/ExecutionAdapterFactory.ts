@@ -3,6 +3,8 @@ import { LocalExecutionAdapter } from './LocalExecutionAdapter.js';
 import { DockerExecutionAdapter } from './DockerExecutionAdapter.js';
 import { DockerContainerManager } from './DockerContainerManager.js';
 import { E2BExecutionAdapter } from './E2BExecutionAdapter.js';
+import { CheckpointingExecutionAdapter } from './CheckpointingExecutionAdapter.js';
+import { SessionState } from '../types/model.js';
 import { LogCategory } from './logger.js';
 
 export type ExecutionAdapterType = 'local' | 'docker' | 'e2b';
@@ -48,6 +50,21 @@ export interface ExecutionAdapterFactoryOptions {
     warn: (message: string, ...args: unknown[]) => void;
     error: (message: string, ...args: unknown[]) => void;
   };
+  
+  /**
+   * Repository root path (for checkpointing)
+   */
+  repoRoot?: string;
+  
+  /**
+   * Session ID (for checkpointing)
+   */
+  sessionId?: string;
+  
+  /**
+   * Session state (for checkpointing)
+   */
+  sessionState?: SessionState;
 }
 
 /**
@@ -121,8 +138,22 @@ export async function createExecutionAdapter(
       
       // Environment status events are now emitted by the DockerExecutionAdapter itself
       
+      // Create concrete adapter
+      let concreteAdapter: ExecutionAdapter = dockerAdapter;
+      
+      // Wrap with checkpointing if session info is provided
+      if (options.repoRoot && options.sessionId && options.sessionState) {
+        concreteAdapter = new CheckpointingExecutionAdapter(
+          dockerAdapter,
+          options.repoRoot,
+          options.sessionId,
+          options.sessionState
+        );
+        logger?.info('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
+      }
+      
       return {
-        adapter: dockerAdapter,
+        adapter: concreteAdapter,
         type: 'docker'
       };
     }
@@ -137,8 +168,22 @@ export async function createExecutionAdapter(
       
       const e2bAdapter = await E2BExecutionAdapter.create(options.e2b.sandboxId, { logger });
       
+      // Create concrete adapter
+      let concreteAdapter: ExecutionAdapter = e2bAdapter;
+      
+      // Wrap with checkpointing if session info is provided
+      if (options.repoRoot && options.sessionId && options.sessionState) {
+        concreteAdapter = new CheckpointingExecutionAdapter(
+          e2bAdapter,
+          options.repoRoot,
+          options.sessionId,
+          options.sessionState
+        );
+        logger?.info('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
+      }
+      
       return {
-        adapter: e2bAdapter,
+        adapter: concreteAdapter,
         type: 'e2b'
       };
     }
@@ -165,8 +210,23 @@ export async function createExecutionAdapter(
   // Fall back to local execution
   logger?.info('Creating local execution adapter', LogCategory.SYSTEM);
   
+  // Create concrete adapter
+  const localAdapter = new LocalExecutionAdapter({ logger });
+  let concreteAdapter: ExecutionAdapter = localAdapter;
+  
+  // Wrap with checkpointing if session info is provided
+  if (options.repoRoot && options.sessionId && options.sessionState) {
+    concreteAdapter = new CheckpointingExecutionAdapter(
+      localAdapter,
+      options.repoRoot,
+      options.sessionId,
+      options.sessionState
+    );
+    logger?.info('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
+  }
+  
   return {
-    adapter: new LocalExecutionAdapter({ logger }),
+    adapter: concreteAdapter,
     type: 'local'
   };
 }

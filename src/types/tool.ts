@@ -32,7 +32,7 @@ export interface ExecutionAdapter {
 
   readFile: (filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) => Promise<FileReadToolResult>;
 
-  writeFile: (filepath: string, content: string) => Promise<void>;
+  writeFile: (filepath: string, content: string, encoding?: string) => Promise<void>;
 
   ls: (dirPath: string, showHidden?: boolean, details?: boolean) => Promise<LSToolResult>;
   

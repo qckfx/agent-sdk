@@ -17,8 +17,15 @@ export {
   onMessageUpdated,
   offMessageAdded,
   offMessageUpdated,
+  // Checkpoint events
+  onCheckpointReady,
+  offCheckpointReady,
+  CHECKPOINT_READY_EVENT,
 } from './events.js';
-export type { EnvironmentStatusEvent } from './events.js';
+export type { 
+  EnvironmentStatusEvent,
+  CheckpointPayload 
+} from './events.js';
 
 export type {
   StructuredContent,
@@ -48,3 +55,7 @@ export type {
   FileEditToolSuccessResult,
   FileEditToolErrorResult
 } from './tools/index.js';
+
+// Checkpoint system exports
+export { CheckpointingExecutionAdapter } from './utils/CheckpointingExecutionAdapter.js';
+export type { SnapshotMeta } from './utils/CheckpointManager.js';

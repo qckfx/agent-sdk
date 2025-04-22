@@ -116,4 +116,9 @@ export interface GitRepositoryInfo {
    * Recent commits (hash and message)
    */
   recentCommits: string[];
+  
+  /**
+   * Current commit SHA
+   */
+  commitSha?: string;
 }
