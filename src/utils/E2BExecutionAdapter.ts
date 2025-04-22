@@ -109,7 +109,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async readFile(filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) {
+  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -180,15 +180,15 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async writeFile(filepath: string, content: string) {
+  async writeFile(executionId: string, filepath: string, content: string) {
     await this.sandbox.files.write(filepath, content);
   }
   
-  async executeCommand(command: string, workingDir?: string) {
+  async executeCommand(executionId: string, command: string, workingDir?: string) {
     return await this.sandbox.commands.run(command, { cwd: workingDir });
   }
   
-  async glob(pattern: string, _options?: any): Promise<string[]> {
+  async glob(executionId: string, pattern: string, _options?: any): Promise<string[]> {
     try {
       // First try using the glob command if it exists
       const globCheck = await this.sandbox.commands.run('which glob || echo "not_found"');
@@ -292,7 +292,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async ls(dirPath: string, showHidden: boolean = false, details: boolean = false) {
+  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false) {
     try {
       const exists = await this.sandbox.files.exists(dirPath);
       if (!exists) {
@@ -411,7 +411,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       
       // Run the directory-mapper.sh script in the E2B environment
       const scriptPath = `/usr/local/bin/directory-mapper.sh`;
-      const result = await this.executeCommand(`${scriptPath} "${rootPath}" ${maxDepth}`);
+      const result = await this.sandbox.commands.run(`${scriptPath} "${rootPath}" ${maxDepth}`);
       
       if (result.exitCode !== 0) {
         throw new Error(`Failed to generate directory structure: ${result.stderr}`);
@@ -444,7 +444,8 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
         // Prepend cd to the working directory for all git commands
         const sandboxCommand = `cd "${workingDir}" && ${command}`;
-        return await this.executeCommand(sandboxCommand);
+        const result = await this.sandbox.commands.run(sandboxCommand);
+        return result;
       });
     } catch (error) {
       this.logger?.error('Error retrieving git repository information from E2B sandbox:', error, LogCategory.SYSTEM);

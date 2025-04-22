@@ -151,7 +151,7 @@ export const createLSTool = (): Tool => {
       
       // If not in cache or expired, get fresh data
       const executionAdapter = context.executionAdapter;
-      const result = await executionAdapter.ls(dirPath, showHidden, details);
+      const result = await executionAdapter.ls(context.executionId, dirPath, showHidden, details);
       
       if (result.success) {
         // Apply limit if needed

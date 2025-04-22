@@ -124,7 +124,7 @@ export async function createExecutionAdapter(
       
       // Verify Docker adapter is working by running a simple test command
       try {
-        const { exitCode } = await dockerAdapter.executeCommand('echo "Docker test"');
+        const { exitCode } = await dockerAdapter.executeCommand('docker-test', 'echo "Docker test"');
         if (exitCode !== 0) {
           fallbackReason = 'Docker container is not responding to commands';
           throw new Error(fallbackReason);
@@ -147,7 +147,6 @@ export async function createExecutionAdapter(
           dockerAdapter,
           options.repoRoot,
           options.sessionId,
-          options.sessionState
         );
         logger?.info('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
       }
@@ -177,7 +176,6 @@ export async function createExecutionAdapter(
           e2bAdapter,
           options.repoRoot,
           options.sessionId,
-          options.sessionState
         );
         logger?.info('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
       }
@@ -220,7 +218,6 @@ export async function createExecutionAdapter(
       localAdapter,
       options.repoRoot,
       options.sessionId,
-      options.sessionState
     );
     logger?.info('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
   }

@@ -60,8 +60,6 @@ export interface AgentRunner {
   runConversation(initialQuery: string): Promise<ConversationResult>;
 }
 
-// We'll use the SessionState and ConversationMessage types from model.ts
-
 // Legacy interfaces from the original agent.ts file
 /** @internal */
 export interface AgentMessage {

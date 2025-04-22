@@ -89,8 +89,9 @@ export class ContextWindow {
   // ----------------------------------------------------------------------
 
   public pushUser(text: string): string {
-    return this.push({ role: 'user', content: [{ type: 'text', text }] });
+    const id = this.push({ role: 'user', content: [{ type: 'text', text }] });
     this.validate();
+    return id;
   }
 
   public pushAssistant(blocks: Anthropic.Messages.ContentBlockParam[]): string {

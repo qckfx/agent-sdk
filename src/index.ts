@@ -14,7 +14,6 @@ import { createAgentRunner } from './core/AgentRunner.js';
 import { createToolRegistry } from './core/ToolRegistry.js';
 import { createPermissionManager } from './core/PermissionManager.js';
 import { createModelClient } from './core/ModelClient.js';
-import { createDefaultPromptManager } from './core/PromptManager.js';
 
 // Types
 import { Agent, AgentConfig } from './types/main.js';

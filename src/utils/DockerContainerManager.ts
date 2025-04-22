@@ -94,7 +94,6 @@ export class DockerContainerManager {
     }
 
     this.projectRoot = projectRoot;
-    console.log('🔴🔴🔴 projectRoot', this.projectRoot);
 
     // Build the environment map that will be supplied to every compose call.
     // We intentionally do NOT mutate process.env directly to avoid leaking

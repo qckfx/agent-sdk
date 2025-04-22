@@ -6,7 +6,6 @@
  */
 
 import { ExecutionAdapter } from '../types/tool.js';
-import { SessionState } from '../types/model.js';
 import { GitRepositoryInfo } from '../types/repository.js';
 import { FileEditToolResult } from '../tools/FileEditTool.js';
 import { FileReadToolResult } from '../tools/FileReadTool.js';
@@ -18,16 +17,12 @@ import { CheckpointEvents, CHECKPOINT_READY_EVENT, CheckpointPayload } from '../
  * A wrapper around an ExecutionAdapter that adds checkpointing functionality
  */
 export class CheckpointingExecutionAdapter implements ExecutionAdapter {
-  private shadowRepoRoot: string;
 
   constructor(
     private inner: ExecutionAdapter,
     private repoRoot: string,
     private sessionId: string,
-    private sessionState: SessionState
   ) {
-    this.shadowRepoRoot = `${repoRoot}/.agent-shadow/${sessionId}`;
-    
     // Initialize the checkpoint system
     CheckpointManager.init(repoRoot, sessionId, inner);
   }
@@ -37,15 +32,7 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
    * @param reason The reason for the checkpoint
    * @returns True if checkpoint was created, false if skipped
    */
-  private async cp(reason: string): Promise<boolean> {
-    // Get the last message in the context window
-    const lastMessage = this.sessionState.contextWindow.peek();
-    
-    // Skip checkpointing if there's no message to attach to
-    if (!lastMessage) {
-      console.log(`[CheckpointingExecutionAdapter] Skipping checkpoint: no message in context window`);
-      return false;
-    }
+  private async cp(executionId: string, reason: string): Promise<boolean> {
     
     // Get the host repository commit
     const hostInfo = await this.inner.getGitRepositoryInfo();
@@ -54,7 +41,7 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     // Prepare metadata
     const meta = {
       sessionId: this.sessionId,
-      toolExecutionId: lastMessage.id,
+      toolExecutionId: executionId,
       hostCommit: hostSha,
       reason,
       timestamp: new Date().toISOString()
@@ -77,25 +64,25 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
 
   // State-changing operations that trigger checkpoints
   
-  async writeFile(filepath: string, content: string, encoding?: string): Promise<void> {
+  async writeFile(executionId: string, filepath: string, content: string, encoding?: string): Promise<void> {
     // First take a checkpoint
-    await this.cp('writeFile');
+    await this.cp(executionId, 'writeFile');
     // Then execute the operation
-    return await this.inner.writeFile(filepath, content, encoding);
+    return await this.inner.writeFile(executionId, filepath, content, encoding);
   }
   
-  async editFile(filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
+  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
     // First take a checkpoint
-    await this.cp('editFile');
+    await this.cp(executionId, 'editFile');
     // Then execute the operation
-    return await this.inner.editFile(filepath, searchCode, replaceCode, encoding);
+    return await this.inner.editFile(executionId, filepath, searchCode, replaceCode, encoding);
   }
   
-  async executeCommand(command: string, workingDir?: string) {
+  async executeCommand(executionId: string, command: string, workingDir?: string) {
     // First take a checkpoint
-    await this.cp('bash');
+    await this.cp(executionId, 'bash');
     // Then execute the operation
-    return await this.inner.executeCommand(command, workingDir);
+    return await this.inner.executeCommand(executionId, command, workingDir);
   }
   
   // Read-only operations - direct delegation without checkpointing
@@ -104,19 +91,19 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     return this.inner.getGitRepositoryInfo();
   }
   
-  async glob(pattern: string, options?: any): Promise<string[]> {
-    return this.inner.glob(pattern, options);
+  async glob(executionId: string, pattern: string, options?: any): Promise<string[]> {
+    return this.inner.glob(executionId, pattern, options);
   }
   
-  async readFile(filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolResult> {
-    return this.inner.readFile(filepath, maxSize, lineOffset, lineCount, encoding);
+  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolResult> {
+    return this.inner.readFile(executionId, filepath, maxSize, lineOffset, lineCount, encoding);
   }
   
-  async ls(dirPath: string, showHidden?: boolean, details?: boolean): Promise<LSToolResult> {
-    return this.inner.ls(dirPath, showHidden, details);
+  async ls(executionId: string, dirPath: string, showHidden?: boolean, details?: boolean): Promise<LSToolResult> {
+    return this.inner.ls(executionId, dirPath, showHidden, details);
   }
   
   async generateDirectoryMap(rootPath: string, maxDepth?: number): Promise<string> {
-    return this.inner.generateDirectoryMap(rootPath, maxDepth);
+    return this.inner.generateDirectoryMap(executionId, rootPath, maxDepth);
   }
 }

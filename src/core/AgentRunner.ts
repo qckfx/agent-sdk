@@ -151,16 +151,6 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
           logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
         }
 
-        // Original comment (we moved the logic above but keep behaviour the same)
-        /*
-        if (aborted) {
-          clearSessionAborted(sessionId);  // We've honored the abort request
-          // Create a new AbortController for the next message
-          sessionState.abortController = new AbortController();
-          logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
-        }
-        */
-        
         // Emit an event to signal processing is completed - will be captured by WebSocketService
         AgentEvents.emit(AgentEventType.PROCESSING_COMPLETED, {
           sessionId,
@@ -218,10 +208,8 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         done = result.done;
         
         // If not done, we would get the next user query here
-        // For automated runs, we'd need to handle this differently
         if (!done) {
-          // In a real implementation, this would wait for user input
-          query = 'Continue'; // Placeholder
+          query = 'Continue'; // For automated runs
         }
       }
       
@@ -229,7 +217,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         responses,
         sessionState
       };
-    }
+    },
   };
 }
 

@@ -117,7 +117,7 @@ export const createFileWriteTool = (): Tool => {
         
         // Check if file already exists using the execution adapter
         try {
-          const readResult = await context.executionAdapter.readFile(filePath);
+          const readResult = await context.executionAdapter.readFile(context.executionId, filePath);
           
           if (readResult.success === true) {
             // If overwrite is not enabled, don't allow writing
@@ -149,7 +149,7 @@ export const createFileWriteTool = (): Tool => {
         if (createDir) {
           try {
             // Use bash command through execution adapter to create directory
-            await context.executionAdapter.executeCommand(`mkdir -p ${dirPath}`);
+            await context.executionAdapter.executeCommand(context.executionId, `mkdir -p ${dirPath}`);
           } catch (error: unknown) {
             // If directory creation fails, the writeFile will also fail
             context.logger?.warn(`Failed to create directory: ${dirPath}`, error);
@@ -158,7 +158,7 @@ export const createFileWriteTool = (): Tool => {
         
         // Write the file using the execution adapter
         context.logger?.debug(`Creating file: ${filePath}`);
-        await context.executionAdapter.writeFile(filePath, content);
+        await context.executionAdapter.writeFile(context.executionId, filePath, content, encoding);
         
         return {
           success: true,

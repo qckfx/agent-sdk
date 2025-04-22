@@ -217,6 +217,7 @@ export class FsmDriver {
                 ctx
               ),
               {
+                executionId: cw.peek()!.id,
                 permissionManager,
                 logger,
                 executionAdapter,

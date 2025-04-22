@@ -10,6 +10,7 @@ import { ExecutionAdapter } from '../types/tool.js';
 
 // Define interface for snapshot metadata
 export interface SnapshotMeta {
+  id: string;
   sessionId: string;
   toolExecutionId: string;
   hostCommit: string;
@@ -36,15 +37,16 @@ const gitCommand = (shadowDir: string, cmd: string): string => {
  * Copies the host .gitignore and adds shadow-specific exclusions
  */
 const makeExcludeFile = async (repoRoot: string, shadowDir: string, adapter: ExecutionAdapter): Promise<void> => {
+  const executionId = 'cp-make-exclude-file';
   // Ensure the info directory exists
-  await adapter.executeCommand(`mkdir -p "${shadowDir}/info"`);
+  await adapter.executeCommand(executionId, `mkdir -p "${shadowDir}/info"`);
   
   // Try to read the host .gitignore using cat to avoid line numbering
   let excludeContent = '';
   
   try {
     // Use cat to get raw content without line numbers 
-    const catResult = await adapter.executeCommand(`cat "${repoRoot}/.gitignore" 2>/dev/null`);
+    const catResult = await adapter.executeCommand(executionId, `cat "${repoRoot}/.gitignore" 2>/dev/null`);
     if (catResult.exitCode === 0) {
       excludeContent = catResult.stdout + '\n\n';
     }
@@ -63,7 +65,7 @@ dist/
 `;
   
   // Write to the shadow repo's exclude file
-  await adapter.writeFile(`${shadowDir}/info/exclude`, excludeContent);
+  await adapter.writeFile(executionId, `${shadowDir}/info/exclude`, excludeContent);
 };
 
 /**
@@ -86,25 +88,27 @@ export async function init(
   
   // Create shadow directory path
   const shadowDir = getShadowDir(repoRoot, sessionId);
+
+  const executionId = 'cp-init';
   
   // Initialize a new separate git directory
-  await adapter.executeCommand(`mkdir -p "${repoRoot}/.agent-shadow/${sessionId}"`);
-  await adapter.executeCommand(`git init --separate-git-dir="${shadowDir}" "${repoRoot}"`);
-  await adapter.executeCommand(gitCommand(shadowDir, `config core.worktree "${repoRoot}"`));
+  await adapter.executeCommand(executionId, `mkdir -p "${repoRoot}/.agent-shadow/${sessionId}"`);
+  await adapter.executeCommand(executionId, `git init --separate-git-dir="${shadowDir}" "${repoRoot}"`);
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `config core.worktree "${repoRoot}"`));
   
   // Set up git identity in the shadow repo
-  await adapter.executeCommand(gitCommand(shadowDir, `config user.email "checkpoint@example.com"`));
-  await adapter.executeCommand(gitCommand(shadowDir, `config user.name "Checkpoint System"`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `config user.email "checkpoint@example.com"`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `config user.name "Checkpoint System"`));
   
   // Create exclude file
   await makeExcludeFile(repoRoot, shadowDir, adapter);
   
   // Create initial commit if needed - check if HEAD exists
-  const result = await adapter.executeCommand(gitCommand(shadowDir, `rev-parse --quiet --verify HEAD`));
+  const result = await adapter.executeCommand(executionId, gitCommand(shadowDir, `rev-parse --quiet --verify HEAD`));
   if (result.exitCode !== 0) {
     // Empty repo, needs initial commit
-    await adapter.executeCommand(gitCommand(shadowDir, `add -A .`));
-    await adapter.executeCommand(gitCommand(shadowDir, `commit --allow-empty -m "Initial commit for checkpoint system"`));
+    await adapter.executeCommand(executionId, gitCommand(shadowDir, `add -A .`));
+    await adapter.executeCommand(executionId, gitCommand(shadowDir, `commit --allow-empty -m "Initial commit for checkpoint system"`));
   }
 }
 
@@ -121,33 +125,34 @@ export async function snapshot(
   adapter: ExecutionAdapter,
   repoRoot: string,
 ): Promise<{ sha: string; bundle: Uint8Array }> {
+  const executionId = 'cp-snapshot';
   // Get shadow directory
   const shadowDir = getShadowDir(repoRoot, meta.sessionId);
   
   // Step 1: Add all files
-  await adapter.executeCommand(gitCommand(shadowDir, `add -A .`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `add -A .`));
   
   // Step 2: Create a commit with metadata in the message
   const commitMessage = `${meta.timestamp}::${JSON.stringify(meta)}`;
-  await adapter.executeCommand(gitCommand(shadowDir, `commit --allow-empty -m "${commitMessage}"`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `commit --allow-empty -m "${commitMessage}"`));
   
   // Step 3: Tag the commit
-  await adapter.executeCommand(gitCommand(shadowDir, `tag -f chkpt/${meta.toolExecutionId} HEAD`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `tag -f chkpt/${meta.toolExecutionId} HEAD`));
   
   // Step 4: Get the SHA
-  const shaResult = await adapter.executeCommand(gitCommand(shadowDir, `rev-parse HEAD`));
+  const shaResult = await adapter.executeCommand(executionId, gitCommand(shadowDir, `rev-parse HEAD`));
   const sha = shaResult.stdout.trim();
   
   // Step 5: Create bundle in a temp file with cross-platform compatibility
   // Try different mktemp variants for maximum portability (macOS, Linux, etc.)
   const tmpCmd = 'mktemp 2>/dev/null || mktemp -t bundle';
-  const { stdout } = await adapter.executeCommand(tmpCmd);
+  const { stdout } = await adapter.executeCommand(executionId, tmpCmd);
   const bundlePath = stdout.trim();
   
-  await adapter.executeCommand(gitCommand(shadowDir, `bundle create "${bundlePath}" --all`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, `bundle create "${bundlePath}" --all`));
   
   // Step 6: Read the bundle file with base64 encoding (for greater reliability)
-  const readResult = await adapter.readFile(bundlePath, undefined, undefined, undefined, 'base64');
+  const readResult = await adapter.readFile(executionId, bundlePath, undefined, undefined, undefined, 'base64');
   if (!readResult.success) {
     throw new Error(`Failed to read bundle file: ${readResult.error}`);
   }
@@ -158,7 +163,7 @@ export async function snapshot(
   const bundle = new Uint8Array(buffer);
   
   // Cleanup the temporary bundle file
-  await adapter.executeCommand(`rm "${bundlePath}"`);
+  await adapter.executeCommand(executionId, `rm "${bundlePath}"`);
   
   return { sha, bundle };
 }

@@ -39,8 +39,6 @@ export type {
   GitRepositoryInfo 
 } from '../types/repository.js';
 export type { ExecutionAdapter } from '../types/tool.js';
-export type { SessionState } from '../types/model.js';
-export type { ToolResultEntry } from '../types/agent.js';
 export type { RepositoryEnvironment } from '../types/main.js';
 export type { 
   StructuredContent, 
@@ -52,5 +50,4 @@ export type {
 export { parseStructuredContent } from '../types/message.js';
 
 // Constant event names (but not the EventEmitter instance)
-export { MESSAGE_ADDED, MESSAGE_UPDATED } from '../events.js';
 export type { AgentEventType, EnvironmentStatusEvent } from '../utils/sessionUtils.js';

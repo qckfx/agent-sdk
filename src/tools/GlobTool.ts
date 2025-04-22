@@ -131,7 +131,7 @@ export const createGlobTool = (): Tool => {
         
         // Execute the glob
         context.logger?.debug(`Executing glob: ${pattern} in ${cwd}`);
-        let matches = await globAsync(pattern, options);
+        let matches = await context.executionAdapter.glob(context.executionId, pattern, options);
         
         // Track the total number of matches before truncation
         const totalMatches = matches.length;

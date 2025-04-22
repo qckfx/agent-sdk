@@ -181,6 +181,7 @@ function createToolRegistry(): ToolRegistry {
     /**
      * Execute a tool with callback notifications
      * @param toolId - The ID of the tool to execute
+     * @param toolUseId - The ID of the tool use message
      * @param args - The arguments to pass to the tool
      * @param context - The execution context
      * @returns The result of the tool execution
@@ -191,10 +192,8 @@ function createToolRegistry(): ToolRegistry {
         throw new Error(`Tool ${toolId} not found`);
       }
 
-      const executionId = generateExecutionId(toolUseId);
-
       // Notify start callbacks
-      startCallbacks.forEach(callback => callback(executionId, toolId, toolUseId, args, context));
+      startCallbacks.forEach(callback => callback(context.executionId, toolId, toolUseId, args, context));
       
       const startTime = Date.now();
       try {
@@ -204,17 +203,16 @@ function createToolRegistry(): ToolRegistry {
         // Calculate execution time
         const executionTime = Date.now() - startTime;
        
-        console.log("🟠🟠🟠executeToolWithCallbacks", toolId, args, result, executionTime);
         // Notify complete callbacks
         completeCallbacks.forEach(callback => 
-          callback(executionId, toolId, args, result, executionTime)
+          callback(context.executionId, toolId, args, result, executionTime)
         );
         
         return result;
       } catch (error) {
         // Notify error callbacks
         errorCallbacks.forEach(callback => 
-          callback(executionId, toolId, args, error instanceof Error ? error : new Error(String(error)))
+          callback(context.executionId, toolId, args, error instanceof Error ? error : new Error(String(error)))
         );
         
         // Re-throw the error

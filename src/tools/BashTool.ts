@@ -78,7 +78,7 @@ export const createBashTool = (): Tool => {
       try {
         context.logger?.debug(`Executing bash command: ${commandStr}`);
         const executionAdapter = context.executionAdapter;
-        const {stdout, stderr, exitCode } = await executionAdapter.executeCommand(commandStr, workingDir);
+        const {stdout, stderr, exitCode } = await executionAdapter.executeCommand(context.executionId, commandStr, workingDir);
         
         // Truncate stdout/stderr to prevent context overflow (limit to ~100KB each)
         const maxOutputSize = 100 * 1024; // 100KB

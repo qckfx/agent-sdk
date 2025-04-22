@@ -144,6 +144,6 @@ export const createAgent = (config: AgentConfig): Agent => {
     
     registerTool(tool) {
       toolRegistry.registerTool(tool);
-    }
+    },
   };
 };

@@ -1,0 +1,1 @@
+- Don't add comments when we're deleting code
