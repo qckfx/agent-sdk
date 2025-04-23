@@ -178,6 +178,22 @@ export class ContextWindow {
   public setMessages(messages: Anthropic.Messages.MessageParam[]): void {
     this._messages = messages.map((m) => ({ id: nanoid(), anthropic: m, createdAt: Date.now() }));
   }
+  
+  /**
+   * Removes messages from the context window up to and including the message with the given ID.
+   * @param messageId The ID of the message to roll back to (inclusive)
+   * @returns The number of messages removed
+   */
+  public rollbackToMessage(messageId: string): number {
+    const index = this._messages.findIndex(message => message.id === messageId);
+    if (index === -1) {
+      return 0;
+    }
+    
+    // Remove all messages up to and including the specified message
+    const removed = this._messages.splice(0, index + 1);
+    return removed.length;
+  }
 }
 
 // Factory function for creating new context windows
