@@ -61,7 +61,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * @returns Promise that resolves when container is initialized
    */
   public initializeContainer(): Promise<ContainerInfo | null> {
-    this.logger?.info('Starting Docker container initialization', LogCategory.SYSTEM);
+    console.log('Starting Docker container initialization');
     
     // Emit initializing status
     this.emitEnvironmentStatus('initializing', false);
@@ -70,16 +70,16 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     return this.containerManager.ensureContainer()
       .then(container => {
         if (container) {
-          this.logger?.info('Docker container initialized successfully', LogCategory.SYSTEM);
+          console.log('Docker container initialized successfully', LogCategory.SYSTEM);
           
           // Emit connected and ready status
           this.emitEnvironmentStatus('connected', true);
         } else {
-          this.logger?.warn('Docker container initialization failed', LogCategory.SYSTEM);
+          console.log('Docker container initialization failed');
           
           // Emit error status
           this.emitEnvironmentStatus('error', false, 'Failed to initialize Docker container');
-        }
+        }        
         return container;
       })
       .catch(error => {
@@ -266,10 +266,27 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         };
       }
       
-      // Read file content
-      let command = `nl "${containerPath}"`;
-      if (lineOffset > 0 || lineCount !== undefined) {
-        command = `head -n ${lineOffset + (lineCount || 0)} "${containerPath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`;
+      // Build the command to read file content.  We have two very distinct
+      // modes:
+      //   1)  Regular text read (default) – we pipe the file through `nl` so
+      //       callers receive line numbers for easier display and context.
+      //   2)  Raw/binary read with `encoding === "base64"` – used by the
+      //       checkpointing system to transfer git-bundles out of the
+      //       container.  In this scenario we must *not* run the content
+      //       through `nl` because it would corrupt the binary stream.  We
+      //       instead send the exact bytes encoded as base64 so the caller
+      //       can decode them on the host side.
+      let command: string;
+
+      if (encoding === 'base64') {
+        // `base64 -w0` writes the encoded data without line breaks which makes
+        // it easier to decode afterwards and keeps output size small.
+        command = `base64 -w0 "${containerPath}"`;
+      } else {
+        command = `nl "${containerPath}"`;
+        if (lineOffset > 0 || lineCount !== undefined) {
+          command = `head -n ${lineOffset + (lineCount || 0)} "${containerPath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`;
+        }
       }
       
       const { stdout: content, stderr, exitCode } = await this.executeCommand(executionId, command);
@@ -931,21 +948,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * Check if a path is within the working directory
    */
   private isPathWithinWorkingDir(filepath: string, containerInfo: ContainerInfo): boolean {
-    // Special case for workspace path inside container
-    if (filepath === containerInfo.workspacePath) {
-      return true;
-    }
-
-    // Allow /tmp directory access
-    if (filepath.startsWith('/tmp/')) {
-      return true;
-    }
-    
-    const absolutePath = path.isAbsolute(filepath)
-      ? filepath
-      : path.resolve(containerInfo.projectPath, filepath);
-    
-    return absolutePath.startsWith(containerInfo.projectPath);
+    // Only allow paths within /workspace or /tmp
+    return filepath.startsWith(containerInfo.workspacePath) || filepath.startsWith('/tmp/');
   }
 
   /**

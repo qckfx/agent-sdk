@@ -9,6 +9,14 @@ import { ConversationMessage } from './conversation.js';
 export class ContextWindow {
   // Internal conversation history (wrapper objects)
   private _messages: ConversationMessage[];
+
+  /**
+   * The most recent checkpoint identifier (toolExecutionId) that was
+   * applicable when the last message was recorded.  New messages inherit this
+   * value so that every ConversationMessage knows what repository state is
+   * safe to roll back to.
+   */
+  private _lastCheckpointId?: string;
   
   // Private file tracking
   private _filesRead: Set<string>;
@@ -17,11 +25,32 @@ export class ContextWindow {
     // If we were given raw Anthropic messages, wrap them so we maintain a
     // consistent internal shape.  This scenario happens mainly in tests.
     if (messages) {
-      this._messages = messages.map((m) => ({ id: nanoid(), anthropic: m, createdAt: Date.now() }));
+      this._messages = messages.map((m) => ({
+        id: nanoid(),
+        anthropic: m,
+        createdAt: Date.now(),
+        lastCheckpointId: this._lastCheckpointId,
+      }));
     } else {
       this._messages = [];
     }
     this._filesRead = new Set<string>();
+  }
+
+  /**
+   * Get the identifier of the latest checkpoint known to the context
+   */
+  public getLastCheckpointId(): string | undefined {
+    return this._lastCheckpointId;
+  }
+
+  /**
+   * Update the context's notion of the most recent checkpoint.  All
+   * subsequently pushed messages will store this value so that rollbacks can
+   * resolve the correct commit even for read‑only events.
+   */
+  public setLastCheckpointId(id?: string): void {
+    this._lastCheckpointId = id;
   }
   
   /**
@@ -80,7 +109,12 @@ export class ContextWindow {
 
   public push(message: Anthropic.Messages.MessageParam): string {
     const id = nanoid();
-    this._messages.push({ id, anthropic: message, createdAt: Date.now() });
+    this._messages.push({
+      id,
+      anthropic: message,
+      createdAt: Date.now(),
+      lastCheckpointId: this._lastCheckpointId,
+    });
     return id;
   }
 
@@ -176,7 +210,12 @@ export class ContextWindow {
   }
   
   public setMessages(messages: Anthropic.Messages.MessageParam[]): void {
-    this._messages = messages.map((m) => ({ id: nanoid(), anthropic: m, createdAt: Date.now() }));
+    this._messages = messages.map((m) => ({
+      id: nanoid(),
+      anthropic: m,
+      createdAt: Date.now(),
+      lastCheckpointId: this._lastCheckpointId,
+    }));
   }
   
   /**
@@ -192,6 +231,12 @@ export class ContextWindow {
     
     // Remove all messages up to and including the specified message
     const removed = this._messages.splice(0, index + 1);
+
+    // After trimming, update our cached checkpoint to match the newest
+    // remaining message so that subsequent pushes inherit the correct value.
+    const latest = this._messages[this._messages.length - 1];
+    this._lastCheckpointId = latest?.lastCheckpointId;
+
     return removed.length;
   }
 }

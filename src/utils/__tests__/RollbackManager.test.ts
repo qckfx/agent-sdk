@@ -31,6 +31,10 @@ describe('RollbackManager', () => {
     // Add some messages to the context window
     mockContextWindow.pushUser('Hello');
     mockContextWindow.pushAssistant([{ type: 'text', text: 'Hi there' }]);
+    // Simulate that a checkpoint with ID 'chkpt-123' was created before the
+    // third message was added.
+    mockContextWindow.setLastCheckpointId('chkpt-123');
+
     const rollbackToId = mockContextWindow.pushUser('How are you?');
     mockContextWindow.pushAssistant([{ type: 'text', text: 'I am doing well' }]);
     
@@ -75,13 +79,14 @@ describe('RollbackManager', () => {
       'mock-session-id',
       mockSessionState.executionAdapter,
       '/mock/repo/root',
-      messageToRollbackTo,
+      'chkpt-123',
     );
     
     // Verify setSessionAborted was called
     expect(setSessionAborted).toHaveBeenCalledWith('mock-session-id');
     
-    // Verify the context window was updated
+    // Verify the context window was updated –  up to and including the target
+    // message (index 2) should be removed, leaving 1 message.
     expect(mockContextWindow.getLength()).toBe(1);
     
     // Verify AgentEvents.emit was called with the correct arguments
@@ -116,11 +121,12 @@ describe('RollbackManager', () => {
       'non-existent-id',
     );
     
-    // Context window should still have all 4 messages
+    // Context window should still have all 4 messages because message ID was
+    // not found.
     expect(mockContextWindow.getLength()).toBe(4);
     
-    // Other operations should still happen
-    expect(CheckpointManager.restore).toHaveBeenCalled();
+    // No checkpoint should be restored when the message is not found.
+    expect(CheckpointManager.restore).not.toHaveBeenCalled();
     expect(AgentEvents.emit).toHaveBeenCalled();
   });
 });

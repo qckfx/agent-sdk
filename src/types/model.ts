@@ -76,6 +76,7 @@ export interface SessionState {
   e2bSandboxId?: string;
   /** Execution adapter instance */
   executionAdapter?: ExecutionAdapter;
+
   [key: string]: unknown;
 }
 

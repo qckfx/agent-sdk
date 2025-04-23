@@ -27,36 +27,60 @@ export async function rollbackSession(
   sessionId: string,
   sessionState: SessionState,
   repoRoot: string,
-  toolExecutionId: string,
-): Promise<string> {
+  messageId: string,
+): Promise<string | undefined> {
   if (!sessionState.executionAdapter) {
     throw new Error('Execution adapter not found');
   }
-  // If there is potentially an operation in‑flight we honour the specification
-  // by signalling an abort first.  The AbortSignal propagated throughout the
-  // agent runtime will attempt to cancel any current model/tool work.
+
+  // Always abort any in‑flight operation first – this cooperates with tools
+  // that honour the session's AbortSignal.
   setSessionAborted(sessionId);
 
-  // Perform the actual restoration.  The shadow repo checkout will overwrite
-  // the worktree to match the desired checkpoint state.
-  const restoredSha = await CheckpointManager.restore(
-    sessionId,
-    sessionState.executionAdapter,
-    repoRoot,
-    toolExecutionId,
-  );
+  // --------------------------------------------------------------------
+  // 1. Work out which checkpoint (if any) we need to restore.
+  // --------------------------------------------------------------------
 
-  // Update the context window by removing messages up to and including the one we're rolling back to
-  if (sessionState.contextWindow) {
-    const removedCount = sessionState.contextWindow.rollbackToMessage(toolExecutionId);
+  const ctx = sessionState.contextWindow;
+  let checkpointId: string | undefined;
+
+  const targetMsg = ctx
+    ?.getConversationMessages()
+    .find((m) => m.id === messageId);
+
+  checkpointId = targetMsg?.lastCheckpointId;
+
+  // --------------------------------------------------------------------
+  // 2. Restore the repository state *only* when we have a checkpoint.
+  // --------------------------------------------------------------------
+
+  let restoredSha: string | undefined = undefined;
+
+  if (checkpointId) {
+    restoredSha = await CheckpointManager.restore(
+      sessionId,
+      sessionState.executionAdapter,
+      repoRoot,
+      checkpointId,
+    );
+  }
+
+  // --------------------------------------------------------------------
+  // 3. Trim the context window so it matches the requested timeline.
+  // --------------------------------------------------------------------
+
+  if (ctx) {
+    const removedCount = ctx.rollbackToMessage(messageId);
     console.log(`Rolled back context window by removing ${removedCount} messages`);
   }
 
-  // Notify listeners that the rollback is complete so that the UI or other
-  // services can refresh state (e.g. file trees, diff views, etc.)
+  // --------------------------------------------------------------------
+  // 4. Notify listeners so that UIs can refresh.
+  // --------------------------------------------------------------------
+
   AgentEvents.emit(AgentEventType.ROLLBACK_COMPLETED, {
     sessionId: sessionState.sessionId,
-    commitSha: restoredSha,
+    commitSha: restoredSha ?? '',
   });
 
   return restoredSha;

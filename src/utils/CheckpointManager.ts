@@ -154,7 +154,7 @@ export async function snapshot(
   await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `bundle create "${bundlePath}" --all`));
   
   // Step 6: Read the bundle file with base64 encoding (for greater reliability)
-  const readResult = await adapter.readFile(executionId, bundlePath, undefined, undefined, undefined, 'base64');
+  const readResult = await adapter.readFile(executionId, bundlePath, 1024 * 1024 * 10, undefined, undefined, 'base64');
   if (!readResult.success) {
     throw new Error(`Failed to read bundle file: ${readResult.error}`);
   }

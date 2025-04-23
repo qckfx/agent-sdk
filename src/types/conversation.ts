@@ -29,4 +29,17 @@ export interface ConversationMessage {
    * required by the user right now, but adding it is effectively free.)
    */
   createdAt: number;
+
+  /**
+   * The tool‑execution identifier of the most recent checkpoint *at the time
+   * this message was recorded*.  This allows the runtime to restore the
+   * repository to a consistent state when rolling back to any arbitrary
+   * message – including those that did not themselves create a checkpoint
+   * (e.g. read‑only operations).
+   *
+   * The value corresponds to the `toolExecutionId` that CheckpointManager tags
+   * as `chkpt/<toolExecutionId>` in the session‑scoped shadow git repository.
+   * It may be `undefined` if no checkpoint has been created yet.
+   */
+  lastCheckpointId?: string;
 }

@@ -19,6 +19,7 @@ import {
 } from '../utils/sessionUtils.js';
 import { FsmDriver } from './FsmDriver.js';
 import { createContextWindow } from '../types/contextWindow.js';
+import { attachCheckpointSync } from '../utils/CheckpointSync.js';
 
 /**
  * Creates an agent runner to orchestrate the agent process
@@ -98,6 +99,9 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         sessionState.abortController = new AbortController();
         console.log(`[AgentRunner] Created new AbortController for session ${sessionId}`);
       }
+
+      // Keep the session's ContextWindow synced with checkpoints (idempotent)
+      attachCheckpointSync(sessionState);
       
       // Add user message to conversation history if needed
       if (sessionState.contextWindow.getLength() === 0 || 
