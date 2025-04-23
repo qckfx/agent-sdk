@@ -104,6 +104,6 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
   }
   
   async generateDirectoryMap(rootPath: string, maxDepth?: number): Promise<string> {
-    return this.inner.generateDirectoryMap(executionId, rootPath, maxDepth);
+    return this.inner.generateDirectoryMap(rootPath, maxDepth);
   }
 }

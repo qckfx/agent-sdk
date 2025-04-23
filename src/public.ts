@@ -18,11 +18,16 @@ export {
   offCheckpointReady,
   CHECKPOINT_READY_EVENT,
   CheckpointEvents,
+  // Rollback events
+  onRollbackCompleted,
 } from './events.js';
 export type { 
   EnvironmentStatusEvent,
   CheckpointPayload 
 } from './events.js';
+
+// Rollback helper
+export { rollbackSession } from './utils/RollbackManager.js';
 
 export type {
   StructuredContent,

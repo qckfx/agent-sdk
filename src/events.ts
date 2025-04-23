@@ -61,6 +61,18 @@ export function onProcessingCompleted(
 }
 
 /**
+ * Subscribe to rollback completed events.
+ *
+ * The callback receives an object containing the `sessionId` and the commit
+ * SHA that the repository was reset to.
+ */
+export function onRollbackCompleted(
+  listener: (data: { sessionId: string; commitSha: string }) => void,
+): void {
+  AgentEvents.on(AgentEventType.ROLLBACK_COMPLETED, listener);
+}
+
+/**
  * Subscribe to checkpoint ready events emitted whenever a state-changing
  * operation creates a new checkpoint.
  * 

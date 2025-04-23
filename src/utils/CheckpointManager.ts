@@ -10,7 +10,6 @@ import { ExecutionAdapter } from '../types/tool.js';
 
 // Define interface for snapshot metadata
 export interface SnapshotMeta {
-  id: string;
   sessionId: string;
   toolExecutionId: string;
   hostCommit: string;
@@ -26,10 +25,12 @@ const getShadowDir = (repoRoot: string, sessionId: string): string => {
 };
 
 /**
- * Build a git command with the correct --git-dir prefix to target the shadow repo
+ * Build a git command with the correct --git-dir and --work-tree prefixes to target the shadow repo
+ * 
+ * This ensures we operate on the shadow repo without affecting the user's .git directory
  */
-const gitCommand = (shadowDir: string, cmd: string): string => {
-  return `git --git-dir="${shadowDir}" ${cmd}`;
+const gitCommand = (shadowDir: string, repoRoot: string, cmd: string): string => {
+  return `git --git-dir="${shadowDir}" --work-tree="${repoRoot}" ${cmd}`;
 };
 
 /**
@@ -91,24 +92,25 @@ export async function init(
 
   const executionId = 'cp-init';
   
-  // Initialize a new separate git directory
+  // Initialize a new bare git repository for our shadow
   await adapter.executeCommand(executionId, `mkdir -p "${repoRoot}/.agent-shadow/${sessionId}"`);
-  await adapter.executeCommand(executionId, `git init --separate-git-dir="${shadowDir}" "${repoRoot}"`);
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `config core.worktree "${repoRoot}"`));
+  
+  // Create a bare repo instead of using --separate-git-dir
+  await adapter.executeCommand(executionId, `git init --bare "${shadowDir}"`);
   
   // Set up git identity in the shadow repo
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `config user.email "checkpoint@example.com"`));
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `config user.name "Checkpoint System"`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `config user.email "checkpoint@example.com"`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `config user.name "Checkpoint System"`));
   
   // Create exclude file
   await makeExcludeFile(repoRoot, shadowDir, adapter);
   
   // Create initial commit if needed - check if HEAD exists
-  const result = await adapter.executeCommand(executionId, gitCommand(shadowDir, `rev-parse --quiet --verify HEAD`));
+  const result = await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `rev-parse --quiet --verify HEAD`));
   if (result.exitCode !== 0) {
     // Empty repo, needs initial commit
-    await adapter.executeCommand(executionId, gitCommand(shadowDir, `add -A .`));
-    await adapter.executeCommand(executionId, gitCommand(shadowDir, `commit --allow-empty -m "Initial commit for checkpoint system"`));
+    await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `add -A .`));
+    await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `commit --allow-empty -m "Initial commit for checkpoint system"`));
   }
 }
 
@@ -129,18 +131,18 @@ export async function snapshot(
   // Get shadow directory
   const shadowDir = getShadowDir(repoRoot, meta.sessionId);
   
-  // Step 1: Add all files
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `add -A .`));
+  // Step 1: Add all files (using --git-dir/--work-tree pattern)
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `add -A .`));
   
   // Step 2: Create a commit with metadata in the message
   const commitMessage = `${meta.timestamp}::${JSON.stringify(meta)}`;
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `commit --allow-empty -m "${commitMessage}"`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `commit --allow-empty -m "${commitMessage}"`));
   
   // Step 3: Tag the commit
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `tag -f chkpt/${meta.toolExecutionId} HEAD`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `tag -f chkpt/${meta.toolExecutionId} HEAD`));
   
   // Step 4: Get the SHA
-  const shaResult = await adapter.executeCommand(executionId, gitCommand(shadowDir, `rev-parse HEAD`));
+  const shaResult = await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `rev-parse HEAD`));
   const sha = shaResult.stdout.trim();
   
   // Step 5: Create bundle in a temp file with cross-platform compatibility
@@ -149,7 +151,7 @@ export async function snapshot(
   const { stdout } = await adapter.executeCommand(executionId, tmpCmd);
   const bundlePath = stdout.trim();
   
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, `bundle create "${bundlePath}" --all`));
+  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `bundle create "${bundlePath}" --all`));
   
   // Step 6: Read the bundle file with base64 encoding (for greater reliability)
   const readResult = await adapter.readFile(executionId, bundlePath, undefined, undefined, undefined, 'base64');
@@ -166,4 +168,56 @@ export async function snapshot(
   await adapter.executeCommand(executionId, `rm "${bundlePath}"`);
   
   return { sha, bundle };
+}
+
+/**
+ * Restore the repository working tree to a specific checkpoint commit.
+ *
+ * The checkpoint commits live in the session‑scoped *shadow repository* that
+ * mirrors the host worktree. Restoring copies the files from the shadow repo
+ * to the worktree using git checkout with explicit work-tree path.
+ *
+ * NOTE:  This operation **will discard** any uncommitted modifications in the
+ * worktree.  Callers are expected to checkpoint first if they might need to
+ * recover those changes.
+ *
+ * @param sessionId  The session whose shadow repository should be used.
+ * @param adapter    Execution adapter used to run git commands.
+ * @param repoRoot   Absolute path to the host repository root.
+ * @param toolExecutionId The tool execution ID to restore to (will be used to find the tag)
+ * @returns          The commit SHA that was checked out.
+ */
+export async function restore(
+  sessionId: string,
+  adapter: ExecutionAdapter,
+  repoRoot: string,
+  toolExecutionId: string,
+): Promise<string> {
+  const executionId = 'cp-restore';
+
+  // Determine the target revision – default to HEAD if none supplied
+  const targetRef = `chkpt/${toolExecutionId}`;
+
+  const shadowDir = getShadowDir(repoRoot, sessionId);
+
+  // Resolve the ref to a full commit SHA for the return value
+  const revParseRes = await adapter.executeCommand(
+    executionId,
+    gitCommand(shadowDir, repoRoot, `rev-parse ${targetRef}`),
+  );
+  if (revParseRes.exitCode !== 0) {
+    throw new Error(`Unable to resolve checkpoint reference '${targetRef}': ${revParseRes.stderr}`);
+  }
+  const resolvedSha = revParseRes.stdout.trim();
+
+  // Use checkout to restore the files into the work tree
+  const checkoutRes = await adapter.executeCommand(
+    executionId,
+    gitCommand(shadowDir, repoRoot, `checkout -f ${resolvedSha}`),
+  );
+  if (checkoutRes.exitCode !== 0) {
+    throw new Error(`Failed to restore checkpoint ${resolvedSha}: ${checkoutRes.stderr}`);
+  }
+
+  return resolvedSha;
 }

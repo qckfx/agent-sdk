@@ -44,6 +44,9 @@ console.log(result.response);
 - Support for multiple execution environments (local, Docker, E2B)
 - Permission management for tool executions
 - Model provider abstraction (starting with Anthropic Claude)
+- Git-based checkpointing system for safe action rollbacks
+  - Creates a temporary bare repository under `.agent-shadow/` without modifying user's repo
+  - Allows reverting to previous states if agent makes unwanted changes
 
 ## Documentation
 

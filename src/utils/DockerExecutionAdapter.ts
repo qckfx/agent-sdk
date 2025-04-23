@@ -24,6 +24,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   
   // Git information helper for optimized git operations
   private gitInfoHelper: GitInfoHelper;
+  public initialized = false;
 
   /**
    * Create a Docker execution adapter with a container manager
@@ -47,7 +48,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     
     // Start container initialization immediately in the background
     // Fire and forget - we don't await this promise in the constructor
-    this.initializeContainer().catch(error => {
+    this.initializeContainer().then(() => {
+      this.initialized = true;
+    }).catch(error => {
       this.logger?.error(`Background Docker initialization failed: ${(error as Error).message}`, error, LogCategory.SYSTEM);
     });
   }
@@ -864,6 +867,10 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           hostPath[containerInfo.workspacePath.length] === '/'))) {
       return hostPath;
     }
+
+    if (hostPath.startsWith('/tmp/')) {
+      return hostPath;
+    }
     
     // Ensure absolute path – if the caller provided a relative path we treat
     // it as relative to the *project* root that was detected by the
@@ -926,6 +933,11 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   private isPathWithinWorkingDir(filepath: string, containerInfo: ContainerInfo): boolean {
     // Special case for workspace path inside container
     if (filepath === containerInfo.workspacePath) {
+      return true;
+    }
+
+    // Allow /tmp directory access
+    if (filepath.startsWith('/tmp/')) {
       return true;
     }
     

@@ -52,26 +52,16 @@ export interface ExecutionAdapterFactoryOptions {
   };
   
   /**
-   * Repository root path (for checkpointing)
-   */
-  repoRoot?: string;
-  
-  /**
    * Session ID (for checkpointing)
    */
-  sessionId?: string;
-  
-  /**
-   * Session state (for checkpointing)
-   */
-  sessionState?: SessionState;
+  sessionId: string;
 }
 
 /**
  * Factory function to create the appropriate execution adapter
  */
 export async function createExecutionAdapter(
-  options: ExecutionAdapterFactoryOptions = {}
+  options: ExecutionAdapterFactoryOptions
 ): Promise<{
   adapter: ExecutionAdapter;
   type: ExecutionAdapterType;
@@ -82,7 +72,8 @@ export async function createExecutionAdapter(
     logger
   } = options;
   
-  logger?.info(`Creating execution adapter: Requested type = ${type}, default = docker`, 'system');
+  console.log(`Creating execution adapter: Requested type = ${type}, default = docker`, 'system');
+  console.log('Options:', JSON.stringify(options, null, 2));
   
   // Track reasons for fallback for logging
   let fallbackReason = '';
@@ -136,20 +127,30 @@ export async function createExecutionAdapter(
       
       logger?.info('Successfully created Docker execution adapter', LogCategory.SYSTEM);
       
-      // Environment status events are now emitted by the DockerExecutionAdapter itself
-      
       // Create concrete adapter
       let concreteAdapter: ExecutionAdapter = dockerAdapter;
+
+      const res = await dockerAdapter.executeCommand('get-pwd', 'pwd');
+      const pwd = res.stdout.trim();
       
-      // Wrap with checkpointing if session info is provided
-      if (options.repoRoot && options.sessionId && options.sessionState) {
-        concreteAdapter = new CheckpointingExecutionAdapter(
-          dockerAdapter,
-          options.repoRoot,
-          options.sessionId,
-        );
-        logger?.info('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
+      let attempts = 0;
+      while (!dockerAdapter.initialized && attempts < 10) {
+        console.log('Waiting for Docker container to initialize...', attempts);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
       }
+
+      if (!dockerAdapter.initialized) {
+        throw new Error('Docker container failed to initialize');
+      }
+      
+      // Wrap with checkpointing
+      concreteAdapter = new CheckpointingExecutionAdapter(
+        dockerAdapter,
+        pwd,
+        options.sessionId,
+      );
+      console.log('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
       
       return {
         adapter: concreteAdapter,
@@ -169,16 +170,16 @@ export async function createExecutionAdapter(
       
       // Create concrete adapter
       let concreteAdapter: ExecutionAdapter = e2bAdapter;
+
+      const res = await e2bAdapter.executeCommand('get-pwd', 'pwd');
+      const pwd = res.stdout.trim();
       
-      // Wrap with checkpointing if session info is provided
-      if (options.repoRoot && options.sessionId && options.sessionState) {
-        concreteAdapter = new CheckpointingExecutionAdapter(
-          e2bAdapter,
-          options.repoRoot,
-          options.sessionId,
-        );
-        logger?.info('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
-      }
+      concreteAdapter = new CheckpointingExecutionAdapter(
+        e2bAdapter,
+        pwd,
+        options.sessionId,
+      );
+      console.log('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
       
       return {
         adapter: concreteAdapter,
@@ -211,16 +212,18 @@ export async function createExecutionAdapter(
   // Create concrete adapter
   const localAdapter = new LocalExecutionAdapter({ logger });
   let concreteAdapter: ExecutionAdapter = localAdapter;
+ 
+  const res = await localAdapter.executeCommand('get-pwd', 'pwd');
+  const pwd = res.stdout.trim();
+
+  // Wrap with checkpointing 
+  concreteAdapter = new CheckpointingExecutionAdapter(
+    localAdapter,
+    pwd,
+    options.sessionId,
+  );
+  console.log('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
   
-  // Wrap with checkpointing if session info is provided
-  if (options.repoRoot && options.sessionId && options.sessionState) {
-    concreteAdapter = new CheckpointingExecutionAdapter(
-      localAdapter,
-      options.repoRoot,
-      options.sessionId,
-    );
-    logger?.info('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
-  }
   
   return {
     adapter: concreteAdapter,

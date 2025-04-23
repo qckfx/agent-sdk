@@ -54,6 +54,15 @@ export enum AgentEventType {
    * @property {string} response - The response text from the agent
    */
   PROCESSING_COMPLETED = 'processing_completed'
+
+  ,
+  /**
+   * Emitted when a rollback operation successfully completes.
+   * @event
+   * @type {{ sessionId: string; commitSha: string }} data – details of the
+   *   rollback that was applied.
+   */
+  ROLLBACK_COMPLETED = 'rollback_completed'
 }
 
 /**
