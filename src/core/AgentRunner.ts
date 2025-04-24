@@ -133,7 +133,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         } = await driver.run(query, sessionState);
 
         // We may overwrite `response` later when suppression is requested.
-        let response = driverResponse;
+        let response: string | undefined = driverResponse;
         
         // If the operation was aborted we need to do two things:
         //   1. Make sure the conversation history is well‑formed by appending

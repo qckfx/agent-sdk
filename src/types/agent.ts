@@ -40,6 +40,7 @@ export interface ProcessQueryResult {
     toolResults: ToolResultEntry[];
     iterations: number;
   };
+  // Response may be undefined if a rollback occurred during the query.
   response?: string;
   sessionState: SessionState;
   done: boolean;
