@@ -35,6 +35,11 @@ export async function rollbackSession(
 
   // Always abort any in‑flight operation first – this cooperates with tools
   // that honour the session's AbortSignal.
+  // Signal an abort for any operation currently in-flight.
+  // NOTE: we set a session-level flag *before* emitting the abort so that
+  // the AgentRunner can decide to skip its usual acknowledgement message.
+  (sessionState as any).skipAbortAck = true;
+
   setSessionAborted(sessionId);
 
   // --------------------------------------------------------------------
