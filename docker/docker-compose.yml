@@ -3,9 +3,11 @@ version: '3'
 
 services:
   agent-sandbox:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    # The sandbox image is published to a registry so that users don't need to
+    # build it themselves.  You can override the image tag by exporting
+    # DOCKER_AGENT_IMAGE when you run `docker compose`.
+    image: ${DOCKER_AGENT_IMAGE:-ghcr.io/earlywormteam/agent-sandbox:latest}
+    pull_policy: always
     volumes:
       # Mount the caller's project root into the container.  The
       # HOST_PROJECT_ROOT environment variable is injected automatically by

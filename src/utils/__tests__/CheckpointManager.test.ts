@@ -97,7 +97,7 @@ describe('CheckpointManager', () => {
       
       if (cmd.includes('mktemp')) {
         return Promise.resolve({
-          stdout: '/tmp/temp-bundle-12345',
+          stdout: 'SNAPSHA:abc1234\nSNAPFILE:/tmp/temp-bundle-12345\nSNAPEND\n',
           stderr: '',
           exitCode: 0
         });

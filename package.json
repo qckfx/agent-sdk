@@ -77,7 +77,10 @@
     "eval:build": "npm run build && node dist/eval/index.js",
     "test": "vitest run",
     "docs": "typedoc",
-        "prepare": "npm run build",
+    "docker:fix": "./scripts/fix-docker-mapper.sh",
+    "docker:build": "docker build -t ghcr.io/earlywormteam/agent-sandbox:latest -f docker/Dockerfile .",
+    "docker:publish": "npm run docker:build && docker push ghcr.io/earlywormteam/agent-sandbox:latest",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

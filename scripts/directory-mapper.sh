@@ -76,7 +76,13 @@ fi
 # Step 2: Stream FILE_LIST through awk to build a nested tree
 # -----------------------------------------------------------------------------
 
-"${FILE_LIST_CMD[@]}" | sort | awk -v max_depth="$MAX_DEPTH" -v indent_unit="  " '
+# Exclude the agent shadow repository irrespective of .gitignore so accidental
+# visibility of the checkpoint data never clutters the map.
+
+"${FILE_LIST_CMD[@]}" | \
+  grep -v "/\.agent-shadow/" | \
+  grep -v "^\.agent-shadow/" | \
+  sort | awk -v max_depth="$MAX_DEPTH" -v indent_unit="  " '
   function print_dir(depth, name,    pad) {
     pad="";
     for (i=0; i<depth; i++) pad=pad indent_unit;

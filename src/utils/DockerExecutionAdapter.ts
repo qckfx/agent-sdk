@@ -1001,12 +1001,84 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       // Get container working directory
       const workingDir = containerInfo.workspacePath;
       
-      // Use the GitInfoHelper with a custom command executor that executes in the Docker container
-      return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
-        // Prepend cd to the working directory for all git commands
+      /*
+       * Running ~a dozen separate `docker exec` calls for every field we need is
+       * surprisingly expensive (≈0.1-0.2 s each).  To speed things up we batch
+       * all git commands required by `GitInfoHelper` into a single shell script
+       * that is executed once inside the container.  The script prints a unique
+       * marker before each command’s output; we then split the combined stdout
+       * and serve the captured text back to `GitInfoHelper` on demand.  From
+       * the helper’s perspective nothing has changed – it still calls individual
+       * git commands – but they are now answered from an in-memory cache created
+       * by a single `docker exec`.
+       */
+
+      // The exact command strings GitInfoHelper issues (keep in sync!)
+      const gitCommands: Record<string, string> = {
+        cmd1: "git rev-parse --is-inside-work-tree 2>/dev/null || echo false",
+        cmd2: "git rev-parse --git-dir 2>/dev/null",
+        cmd3: "git remote show origin 2>/dev/null | grep 'HEAD branch' | cut -d ':' -f 2 | xargs",
+        cmd4: "git for-each-ref --format='%(refname:short)' refs/heads/ | grep -E '^(main|master|trunk)$' | head -1",
+        cmd5: "git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown",
+        cmd6: "git status --porcelain",
+        cmd7: "git rev-parse HEAD 2>/dev/null || echo ''",
+        cmd8: "git log -5 --pretty=format:'%h %s'",
+        cmd9: "git diff --name-only",
+        cmd10: "git diff --name-only --staged",
+        cmd11: "git ls-files --others --exclude-standard",
+        cmd12: "git ls-files --deleted"
+      };
+
+      // Build the batching script – print a marker before each command output.
+      const markers = Object.keys(gitCommands);
+      const scriptLines: string[] = [`cd "${workingDir}"`];
+      for (const marker of markers) {
+        scriptLines.push(`echo ${marker}`);
+        // To preserve newlines exactly we invoke each command with `|| true` so
+        // the script continues even if the git command exits non-zero.
+        scriptLines.push(`${gitCommands[marker]} || true`);
+      }
+
+      const batchCommand = scriptLines.join(' && ');
+
+      // Run the batch inside the container.
+      const batchResult = await this.executeCommand('docker-git-info-batch', batchCommand);
+
+      if (batchResult.exitCode !== 0) {
+        this.logger?.warn(`Batched git info command failed – falling back to individual exec: ${batchResult.stderr}`, LogCategory.SYSTEM);
+        // Fall back to old behaviour.
+        return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
+          const containerCommand = `cd "${workingDir}" && ${command}`;
+          return await this.executeCommand('docker-git-info', containerCommand);
+        });
+      }
+
+      // Parse the batched output into a map marker -> output
+      const outputs: Record<string, string> = {};
+      let current: string | null = null;
+      for (const line of batchResult.stdout.split('\n')) {
+        if (markers.includes(line.trim())) {
+          current = line.trim();
+          outputs[current] = '';
+        } else if (current) {
+          outputs[current] += (outputs[current] ? '\n' : '') + line;
+        }
+      }
+
+      // Provide an executor that serves the cached outputs.
+      const cachedExecutor = async (command: string) => {
+        // Find matching marker – allow minor differences in whitespace/redirects
+        for (const [marker, cmd] of Object.entries(gitCommands)) {
+          if (command.trim() === cmd || command.trim().startsWith(cmd.split(' ')[0])) {
+            return { stdout: outputs[marker] || '', stderr: '', exitCode: 0 };
+          }
+        }
+        // If we reach here, the command is unexpected; run it directly (rare).
         const containerCommand = `cd "${workingDir}" && ${command}`;
-        return await this.executeCommand('docker-git-info', containerCommand);
-      });
+        return await this.executeCommand('docker-git-info-extra', containerCommand);
+      };
+
+      return await this.gitInfoHelper.getGitRepositoryInfo(cachedExecutor);
     } catch (error) {
       this.logger?.error('Error retrieving git repository information from container:', error, LogCategory.SYSTEM);
       return null;

@@ -8,6 +8,12 @@
 
 import { ExecutionAdapter } from '../types/tool.js';
 
+// ---------------------------------------------------------------------------
+// Utilities to keep the shadow repository out of the user's "git status"
+// ---------------------------------------------------------------------------
+import fs from 'fs';
+import path from 'path';
+
 // Define interface for snapshot metadata
 export interface SnapshotMeta {
   sessionId: string;
@@ -31,6 +37,36 @@ const getShadowDir = (repoRoot: string, sessionId: string): string => {
  */
 const gitCommand = (shadowDir: string, repoRoot: string, cmd: string): string => {
   return `git --git-dir="${shadowDir}" --work-tree="${repoRoot}" ${cmd}`;
+};
+
+/**
+ * Ensure `.agent-shadow/` is ignored by the host repository so that it does
+ * not appear in `git status`. This adds the pattern to `.git/info/exclude`, a
+ * repo-local ignore file that is never committed.
+ */
+const ensureShadowDirIgnored = (repoRoot: string): void => {
+  try {
+    const gitDir = path.join(repoRoot, '.git');
+    if (!fs.existsSync(gitDir)) return; // not a git repo
+
+    const infoDir = path.join(gitDir, 'info');
+    const excludePath = path.join(infoDir, 'exclude');
+
+    if (!fs.existsSync(infoDir)) {
+      fs.mkdirSync(infoDir, { recursive: true });
+    }
+
+    const entry = '.agent-shadow/';
+    if (fs.existsSync(excludePath)) {
+      const text = fs.readFileSync(excludePath, 'utf8');
+      if (text.includes(entry)) return; // already ignored
+    }
+
+    const comment = '# added by qckfx agent – ignore session shadow repository';
+    fs.appendFileSync(excludePath, `\n${comment}\n${entry}\n`);
+  } catch {
+    // Silently ignore – inability to edit the exclude file is non-fatal.
+  }
 };
 
 /**
@@ -81,6 +117,8 @@ export async function init(
   sessionId: string,
   adapter: ExecutionAdapter,
 ): Promise<void> {
+  // Make sure the host repo does not show .agent-shadow/ as an untracked dir
+  ensureShadowDirIgnored(repoRoot);
   // Ensure we're in a git repo
   const gitInfo = await adapter.getGitRepositoryInfo();
   if (!gitInfo || !gitInfo.isGitRepository) {
@@ -91,27 +129,52 @@ export async function init(
   const shadowDir = getShadowDir(repoRoot, sessionId);
 
   const executionId = 'cp-init';
+
+  // ----------------------------------------------------------------------
+  // Initialise the *shadow* repository in ONE shell invocation to minimise
+  // process-spawn overhead (especially noticeable inside containers).
+  // ----------------------------------------------------------------------
+
+  const oneShotCmdParts = [
+    // Create the parent directory (idempotent)
+    `mkdir -p "${repoRoot}/.agent-shadow"`,
+
+    // Clone the bare, shared shadow repo only if the session directory does
+    // not exist yet.  "||" is intentional – we skip the clone when the dir
+    // is already there from a previous run.
+    `[ -d "${shadowDir}" ] || git clone --quiet --shared --no-hardlinks --depth 1 --bare "${repoRoot}" "${shadowDir}"`,
+
+    // Configure author information (also idempotent)
+    `git --git-dir="${shadowDir}" config user.email "checkpoint@example.com"`,
+    `git --git-dir="${shadowDir}" config user.name "Checkpoint System"`,
+
+    // ------------------------------------------------------------------
+    // Set up the info/exclude file in one go – copy host .gitignore (if any)
+    // and append our additional patterns.
+    // ------------------------------------------------------------------
+    `mkdir -p "${shadowDir}/info"`,
+
+    // The subshell captures .gitignore (may be empty) and appends extra lines.
+    `(` +
+      `cat "${repoRoot}/.gitignore" 2>/dev/null || true;` +
+      `echo;` +
+      `echo '# Checkpoint exclusions';` +
+      `echo 'node_modules/';` +
+      `echo '.git/';` +
+      `echo 'dist/';` +
+      `echo '*.log';` +
+      `echo '.agent-shadow/';` +
+    `) > "${shadowDir}/info/exclude"`
+  ];
+
+  await adapter.executeCommand(executionId, oneShotCmdParts.join(' && '));
   
-  // Initialize a new bare git repository for our shadow
-  await adapter.executeCommand(executionId, `mkdir -p "${repoRoot}/.agent-shadow/${sessionId}"`);
+  // Exclude file already created by the one-shot command above.
   
-  // Create a bare repo instead of using --separate-git-dir
-  await adapter.executeCommand(executionId, `git init --bare "${shadowDir}"`);
-  
-  // Set up git identity in the shadow repo
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `config user.email "checkpoint@example.com"`));
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `config user.name "Checkpoint System"`));
-  
-  // Create exclude file
-  await makeExcludeFile(repoRoot, shadowDir, adapter);
-  
-  // Create initial commit if needed - check if HEAD exists
-  const result = await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `rev-parse --quiet --verify HEAD`));
-  if (result.exitCode !== 0) {
-    // Empty repo, needs initial commit
-    await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `add -A .`));
-    await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `commit --allow-empty -m "Initial commit for checkpoint system"`));
-  }
+  // We intentionally DO NOT create an initial commit here – doing so required
+  // staging the entire work-tree which negated the speed-up we gain from the
+  // shallow, shared clone.  The first call to `snapshot()` will create the
+  // initial commit automatically.
 }
 
 /**
@@ -132,42 +195,66 @@ export async function snapshot(
   const shadowDir = getShadowDir(repoRoot, meta.sessionId);
   
   // Step 1: Add all files (using --git-dir/--work-tree pattern)
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `add -A .`));
-  
-  // Step 2: Create a commit with metadata in the message
-  const commitMessage = `${meta.timestamp}::${JSON.stringify(meta)}`;
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `commit --allow-empty -m "${commitMessage}"`));
-  
-  // Step 3: Tag the commit
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `tag -f chkpt/${meta.toolExecutionId} HEAD`));
-  
-  // Step 4: Get the SHA
-  const shaResult = await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `rev-parse HEAD`));
-  const sha = shaResult.stdout.trim();
-  
-  // Step 5: Create bundle in a temp file with cross-platform compatibility
-  // Try different mktemp variants for maximum portability (macOS, Linux, etc.)
-  const tmpCmd = 'mktemp 2>/dev/null || mktemp -t bundle';
-  const { stdout } = await adapter.executeCommand(executionId, tmpCmd);
-  const bundlePath = stdout.trim();
-  
-  await adapter.executeCommand(executionId, gitCommand(shadowDir, repoRoot, `bundle create "${bundlePath}" --all`));
-  
-  // Step 6: Read the bundle file with base64 encoding (for greater reliability)
-  const readResult = await adapter.readFile(executionId, bundlePath, 1024 * 1024 * 10, undefined, undefined, 'base64');
-  if (!readResult.success) {
-    throw new Error(`Failed to read bundle file: ${readResult.error}`);
+  // ---------------------------------------------------------------------
+  // Snapshot via standalone shell script (scripts/snapshot.sh)
+  // ---------------------------------------------------------------------
+
+  const rawCommitMessage = `${meta.timestamp}::${JSON.stringify(meta)}`;
+  // Escape single quotes so the entire message can be passed as one
+  // single-quoted shell argument.
+  const escapedMsg = rawCommitMessage.replace(/'/g, `'"'"'`);
+
+  // Absolute path inside the container set by Dockerfile COPY
+  const scriptPath = '/usr/local/bin/snapshot.sh';
+
+  const command = `${scriptPath} "${shadowDir}" "${repoRoot}" '${escapedMsg}' "${meta.toolExecutionId}"`;
+
+  const { stdout } = await adapter.executeCommand(executionId, command);
+
+  const lines = stdout.split('\n');
+  const shaLine = lines.find(l => l.startsWith('SNAPSHA:'));
+  if (!shaLine) {
+    // Attach up to the last 2000 characters of stdout for debugging so the
+    // caller can see where the script aborted (step markers, git error, …)
+    const tail = stdout.length > 2000 ? stdout.slice(-2000) : stdout;
+    throw new Error(`Snapshot failed: SHA marker not found. Output tail:\n${tail}`);
   }
-  
-  // Convert the base64 content to Uint8Array
-  const contentStr = readResult.content;
-  const buffer = Buffer.from(contentStr, 'base64');
-  const bundle = new Uint8Array(buffer);
-  
-  // Cleanup the temporary bundle file
-  await adapter.executeCommand(executionId, `rm "${bundlePath}"`);
-  
-  return { sha, bundle };
+  const sha = shaLine.replace('SNAPSHA:', '').trim();
+
+  // Retrieve the temp bundle path
+  const fileLine = lines.find(l => l.startsWith('SNAPFILE:'));
+  if (!fileLine) {
+    const tail = stdout.length > 2000 ? stdout.slice(-2000) : stdout;
+    throw new Error(`Snapshot failed: bundle file marker not found. Output tail:\n${tail}`);
+  }
+  const bundlePath = fileLine.replace('SNAPFILE:', '').trim();
+
+  // Ensure the END marker is present (acts as sync point)
+  if (!lines.includes('SNAPEND')) {
+    const tail = stdout.length > 2000 ? stdout.slice(-2000) : stdout;
+    throw new Error(`Snapshot failed: bundle end marker missing. Output tail:\n${tail}`);
+  }
+
+  // Read the bundle file as base64 via the adapter – allow up to 50 MB
+  const readRes: any = await (adapter as any).readFile(
+    executionId,
+    bundlePath,
+    50 * 1024 * 1024, // 50 MB
+    undefined,
+    undefined,
+    'base64',
+  );
+
+  if (!readRes || !readRes.success) {
+    throw new Error(`Snapshot failed: unable to read bundle file (${readRes?.error || 'unknown error'})`);
+  }
+
+  const bundleBuffer = Buffer.from(readRes.content as string, 'base64');
+
+  // Clean-up temporary bundle file (best-effort)
+  await adapter.executeCommand(executionId, `rm -f "${bundlePath}"`).catch(() => {});
+
+  return { sha, bundle: new Uint8Array(bundleBuffer) };
 }
 
 /**

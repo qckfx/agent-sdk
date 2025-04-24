@@ -23,9 +23,20 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     private repoRoot: string,
     private sessionId: string,
   ) {
-    // Initialize the checkpoint system
-    CheckpointManager.init(repoRoot, sessionId, inner);
+    // Kick-off initialization **asynchronously** but keep a handle so that we
+    // can await it before the first snapshot.  Not awaiting here prevented the
+    // shadow repository from being fully set-up when the very first
+    // state-changing operation arrived, resulting in "not a git repository"
+    // failures inside `CheckpointManager.snapshot()`.
+    this._initPromise = CheckpointManager.init(repoRoot, sessionId, inner);
   }
+
+  /**
+   * Promise that resolves once the shadow repository is ready.  All
+   * checkpoint-taking operations must await this to guarantee that the shadow
+   * repo exists before we attempt to commit into it.
+   */
+  private _initPromise: Promise<void>;
 
   /**
    * Take a checkpoint before a state-changing operation
@@ -33,6 +44,11 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
    * @returns True if checkpoint was created, false if skipped
    */
   private async cp(executionId: string, reason: string): Promise<boolean> {
+
+    // Ensure the shadow repository has finished initializing.  If
+    // initialization failed we'll surface the error here.
+    await this._initPromise;
+
     
     // Get the host repository commit
     const hostInfo = await this.inner.getGitRepositoryInfo();
