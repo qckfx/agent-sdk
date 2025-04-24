@@ -12,10 +12,13 @@ RUN chown -R agent:agent /app
 # Copy utility scripts - do this as root before switching to agent user
 COPY scripts/binary-replace.sh /usr/local/bin/binary-replace.sh
 COPY scripts/directory-mapper.sh /usr/local/bin/directory-mapper.sh
+COPY scripts/snapshot.sh /usr/local/bin/snapshot.sh
 RUN chmod +x /usr/local/bin/binary-replace.sh && \
     chmod +x /usr/local/bin/directory-mapper.sh && \
+    chmod +x /usr/local/bin/snapshot.sh && \
     chown agent:agent /usr/local/bin/binary-replace.sh && \
-    chown agent:agent /usr/local/bin/directory-mapper.sh
+    chown agent:agent /usr/local/bin/directory-mapper.sh && \
+    chown agent:agent /usr/local/bin/snapshot.sh
 
 # Switch to non-root user
 USER agent

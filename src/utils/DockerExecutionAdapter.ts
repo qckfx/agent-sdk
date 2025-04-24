@@ -24,6 +24,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   
   // Git information helper for optimized git operations
   private gitInfoHelper: GitInfoHelper;
+  public initialized = false;
 
   /**
    * Create a Docker execution adapter with a container manager
@@ -47,7 +48,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     
     // Start container initialization immediately in the background
     // Fire and forget - we don't await this promise in the constructor
-    this.initializeContainer().catch(error => {
+    this.initializeContainer().then(() => {
+      this.initialized = true;
+    }).catch(error => {
       this.logger?.error(`Background Docker initialization failed: ${(error as Error).message}`, error, LogCategory.SYSTEM);
     });
   }
@@ -58,7 +61,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * @returns Promise that resolves when container is initialized
    */
   public initializeContainer(): Promise<ContainerInfo | null> {
-    this.logger?.info('Starting Docker container initialization', LogCategory.SYSTEM);
+    console.log('Starting Docker container initialization');
     
     // Emit initializing status
     this.emitEnvironmentStatus('initializing', false);
@@ -67,16 +70,16 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     return this.containerManager.ensureContainer()
       .then(container => {
         if (container) {
-          this.logger?.info('Docker container initialized successfully', LogCategory.SYSTEM);
+          console.log('Docker container initialized successfully', LogCategory.SYSTEM);
           
           // Emit connected and ready status
           this.emitEnvironmentStatus('connected', true);
         } else {
-          this.logger?.warn('Docker container initialization failed', LogCategory.SYSTEM);
+          console.log('Docker container initialization failed');
           
           // Emit error status
           this.emitEnvironmentStatus('error', false, 'Failed to initialize Docker container');
-        }
+        }        
         return container;
       })
       .catch(error => {
@@ -131,7 +134,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Execute a command in the Docker container
    */
-  async executeCommand(command: string, workingDir?: string): Promise<{
+  async executeCommand(executionId: string, command: string, workingDir?: string): Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
@@ -196,7 +199,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Read a file from the container
    */
-  async readFile(filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolSuccessResult | FileReadToolErrorResult> {
+  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolSuccessResult | FileReadToolErrorResult> {
     try {
       if (!encoding) {
         encoding = 'utf8';
@@ -222,7 +225,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const containerPath = this.toContainerPath(filepath, containerInfo);
       
       // Check if file exists
-      const { exitCode: fileExists } = await this.executeCommand(`[ -f "${containerPath}" ]`);
+      const { exitCode: fileExists } = await this.executeCommand(executionId, `[ -f "${containerPath}" ]`);
       if (fileExists !== 0) {
         // Format path for display
         const displayPath = this.formatPathForDisplay(filepath, containerInfo);
@@ -236,7 +239,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       }
       
       // Check file size
-      const { stdout: fileSizeStr } = await this.executeCommand(`stat -c %s "${containerPath}"`);
+      const { stdout: fileSizeStr } = await this.executeCommand(executionId, `stat -c %s "${containerPath}"`);
       const fileSize = parseInt(fileSizeStr.trim(), 10);
       
       if (isNaN(fileSize)) {
@@ -263,13 +266,30 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         };
       }
       
-      // Read file content
-      let command = `nl "${containerPath}"`;
-      if (lineOffset > 0 || lineCount !== undefined) {
-        command = `head -n ${lineOffset + (lineCount || 0)} "${containerPath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`;
+      // Build the command to read file content.  We have two very distinct
+      // modes:
+      //   1)  Regular text read (default) – we pipe the file through `nl` so
+      //       callers receive line numbers for easier display and context.
+      //   2)  Raw/binary read with `encoding === "base64"` – used by the
+      //       checkpointing system to transfer git-bundles out of the
+      //       container.  In this scenario we must *not* run the content
+      //       through `nl` because it would corrupt the binary stream.  We
+      //       instead send the exact bytes encoded as base64 so the caller
+      //       can decode them on the host side.
+      let command: string;
+
+      if (encoding === 'base64') {
+        // `base64 -w0` writes the encoded data without line breaks which makes
+        // it easier to decode afterwards and keeps output size small.
+        command = `base64 -w0 "${containerPath}"`;
+      } else {
+        command = `nl "${containerPath}"`;
+        if (lineOffset > 0 || lineCount !== undefined) {
+          command = `head -n ${lineOffset + (lineCount || 0)} "${containerPath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`;
+        }
       }
       
-      const { stdout: content, stderr, exitCode } = await this.executeCommand(command);
+      const { stdout: content, stderr, exitCode } = await this.executeCommand(executionId, command);
       
       if (exitCode !== 0) {
         return {
@@ -282,7 +302,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       // If we need to report pagination info
       if (lineOffset > 0 || lineCount !== undefined) {
         // Get total lines
-        const { stdout: lineCountStr } = await this.executeCommand(`wc -l < "${containerPath}"`);
+        const { stdout: lineCountStr } = await this.executeCommand(executionId, `wc -l < "${containerPath}"`);
         const totalLines = parseInt(lineCountStr.trim(), 10);
         
         const startLine = lineOffset;
@@ -332,7 +352,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Write content to a file in the container
    */
-  async writeFile(filepath: string, content: string): Promise<void> {
+  async writeFile(executionId: string, filepath: string, content: string): Promise<void> {
     try {
       // Get container info
       const containerInfo = await this.containerManager.getContainerInfo();
@@ -348,7 +368,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const containerPath = this.toContainerPath(filepath, containerInfo);
       
       // Create directory if it doesn't exist
-      await this.executeCommand(`mkdir -p "$(dirname "${containerPath}")"`);
+      await this.executeCommand(executionId, `mkdir -p "$(dirname "${containerPath}")"`);
       
       // The issue appears to be with the heredoc approach truncating content
       // Use a more robust two-step approach: write to temp file then copy it
@@ -362,21 +382,21 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       if (content.length > maxChunkSize) {
         // For large files, write in chunks
-        await this.executeCommand(`touch "${tempFilePath}"`); // Create empty file
+        await this.executeCommand(executionId, `touch "${tempFilePath}"`); // Create empty file
         
         // Write content in chunks
         for (let i = 0; i < content.length; i += maxChunkSize) {
           const chunk = content.substring(i, i + maxChunkSize);
           // Append chunk to temp file
-          await this.executeCommand(`cat >> "${tempFilePath}" << 'CHUNK_EOF'\n${chunk}\nCHUNK_EOF`);
+          await this.executeCommand(executionId, `cat >> "${tempFilePath}" << 'CHUNK_EOF'\n${chunk}\nCHUNK_EOF`);
         }
       } else {
         // For smaller files, write in one go
-        await this.executeCommand(`cat > "${tempFilePath}" << 'EOF_QCKFX'\n${content}\nEOF_QCKFX`);
+        await this.executeCommand(executionId, `cat > "${tempFilePath}" << 'EOF_QCKFX'\n${content}\nEOF_QCKFX`);
       }
       
       // Verify temp file was written correctly
-      const { stdout: verifySize } = await this.executeCommand(`stat -c %s "${tempFilePath}"`);
+      const { stdout: verifySize } = await this.executeCommand(executionId, `stat -c %s "${tempFilePath}"`);
       const tempFileSize = parseInt(verifySize.trim(), 10);
       
       if (isNaN(tempFileSize) || tempFileSize === 0) {
@@ -384,10 +404,10 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       }
       
       // Move temp file to destination
-      await this.executeCommand(`cp "${tempFilePath}" "${containerPath}" && rm "${tempFilePath}"`);
+      await this.executeCommand(executionId, `cp "${tempFilePath}" "${containerPath}" && rm "${tempFilePath}"`);
       
       // Verify destination file was written correctly
-      const { stdout: finalSize } = await this.executeCommand(`stat -c %s "${containerPath}"`);
+      const { stdout: finalSize } = await this.executeCommand(executionId, `stat -c %s "${containerPath}"`);
       const finalFileSize = parseInt(finalSize.trim(), 10);
       
       if (isNaN(finalFileSize) || finalFileSize === 0) {
@@ -409,7 +429,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * Edit a file by replacing content
    * Uses a binary-safe approach to handle files with special characters
    */
-  async editFile(filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolSuccessResult | FileEditToolErrorResult> {
+  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolSuccessResult | FileEditToolErrorResult> {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -435,7 +455,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       }
       
       // For the UI display, we want to read with line numbers (for the UI only)
-      const fileResult = await this.readFile(filepath);
+      const fileResult = await this.readFile(executionId, filepath);
       if (!fileResult.success) {
         return {
           success: false as const,
@@ -460,28 +480,28 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       try {
         // Create temporary directory
-        await this.executeCommand(`mkdir -p "${tempDir}"`);
+        await this.executeCommand(executionId, `mkdir -p "${tempDir}"`);
         
         // Normalize line endings consistently (only this normalization)
         const normalizedSearchCode = searchCode.replace(/\r\n/g, '\n');
         const normalizedReplaceCode = replaceCode.replace(/\r\n/g, '\n');
         
         // Write search and replace content to temporary files using base64 to preserve all characters
-        await this.executeCommand(`echo '${Buffer.from(normalizedSearchCode).toString('base64')}' | base64 -d > "${searchFile}"`);
-        await this.executeCommand(`echo '${Buffer.from(normalizedReplaceCode).toString('base64')}' | base64 -d > "${replaceFile}"`);
+        await this.executeCommand(executionId, `echo '${Buffer.from(normalizedSearchCode).toString('base64')}' | base64 -d > "${searchFile}"`);
+        await this.executeCommand(executionId, `echo '${Buffer.from(normalizedReplaceCode).toString('base64')}' | base64 -d > "${replaceFile}"`);
         
         // Make a copy of the original file for processing
-        await this.executeCommand(`cp "${containerPath}" "${originalFile}"`);
+        await this.executeCommand(executionId, `cp "${containerPath}" "${originalFile}"`);
         
         // Fix line endings in original file if needed (normalize to Unix)
-        await this.executeCommand(`tr -d '\\r' < "${originalFile}" > "${originalFile}.unix" && mv "${originalFile}.unix" "${originalFile}"`);
+        await this.executeCommand(executionId, `tr -d '\\r' < "${originalFile}" > "${originalFile}.unix" && mv "${originalFile}.unix" "${originalFile}"`);
         
         // Use the pre-installed binary-replace.sh script
         // This avoids creating a script on the fly and is more reliable
         this.logger?.debug(`Running binary-replace.sh to edit file: ${originalFile}`, LogCategory.TOOLS);
         
         // Verify the binary-replace.sh script exists
-        const { exitCode: scriptExists } = await this.executeCommand(`which binary-replace.sh`);
+        const { exitCode: scriptExists } = await this.executeCommand(executionId, `which binary-replace.sh`);
         if (scriptExists !== 0) {
           throw new Error("The binary-replace.sh script is not available in the container");
         }
@@ -496,23 +516,23 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         
         try {
           // Check that all files exist before running the script
-          const { exitCode: origExists } = await this.executeCommand(`[ -f "${originalFile}" ]`);
-          const { exitCode: searchExists } = await this.executeCommand(`[ -f "${searchFile}" ]`);
-          const { exitCode: replaceExists } = await this.executeCommand(`[ -f "${replaceFile}" ]`);
+          const { exitCode: origExists } = await this.executeCommand(executionId, `[ -f "${originalFile}" ]`);
+          const { exitCode: searchExists } = await this.executeCommand(executionId, `[ -f "${searchFile}" ]`);
+          const { exitCode: replaceExists } = await this.executeCommand(executionId, `[ -f "${replaceFile}" ]`);
           
           if (origExists !== 0 || searchExists !== 0 || replaceExists !== 0) {
             throw new Error("One or more required files do not exist");
           }
           
           // Explicitly check write permissions to container path 
-          const { exitCode: writeCheck, stderr: writeCheckErr } = await this.executeCommand(`touch "${containerPath}.writecheck" && rm "${containerPath}.writecheck"`);
+          const { exitCode: writeCheck, stderr: writeCheckErr } = await this.executeCommand(executionId, `touch "${containerPath}.writecheck" && rm "${containerPath}.writecheck"`);
           
           if (writeCheck !== 0) {
             throw new Error(`No write permission for file: ${containerPath}`);
           }
           
           // Run the script with full error output
-          const result = await this.executeCommand(
+          const result = await this.executeCommand(executionId,
             `binary-replace.sh "${originalFile}" "${searchFile}" "${replaceFile}" "${newFile}" 2>&1`
           );
           
@@ -522,7 +542,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           
           
           // Verify the output file exists after script execution
-          const { exitCode: outputExists } = await this.executeCommand(`[ -f "${newFile}" ] && echo "Output file exists" || echo "Output file missing"`);
+          const { exitCode: outputExists } = await this.executeCommand(executionId, `[ -f "${newFile}" ] && echo "Output file exists" || echo "Output file missing"`);
         } catch (execError) {
           console.error(`[ERROR] Failed to execute binary-replace.sh: ${(execError as Error).message}`);
           // We'll set error message but continue to handle it in the next section
@@ -533,7 +553,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         // Handle script exit codes based on our binary-replace.sh script
         if (scriptExitCode === 2) {
           // Pattern not found (now exit code 2 in our script)
-          await this.executeCommand(`rm -rf "${tempDir}"`);
+          await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
           
           const displayPath = this.formatPathForDisplay(filepath, containerInfo);
           return {
@@ -546,7 +566,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         
         if (scriptExitCode === 3) {
           // Multiple occurrences found (now exit code 3 in our script)
-          await this.executeCommand(`rm -rf "${tempDir}"`);
+          await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
           
           const displayPath = this.formatPathForDisplay(filepath, containerInfo);
           return {
@@ -559,7 +579,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         
         if (scriptExitCode !== 0) {
           // Other error
-          await this.executeCommand(`rm -rf "${tempDir}"`);
+          await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
           
           const displayPath = this.formatPathForDisplay(filepath, containerInfo);
           return {
@@ -571,11 +591,11 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         }
         
         // Verify the file was created and has content
-        const { exitCode: newFileExists } = await this.executeCommand(`[ -f "${newFile}" ] && [ -s "${newFile}" ]`);
+        const { exitCode: newFileExists } = await this.executeCommand(executionId, `[ -f "${newFile}" ] && [ -s "${newFile}" ]`);
         if (newFileExists !== 0) {
           
           // Clean up temporary files
-          await this.executeCommand(`rm -rf "${tempDir}"`);
+          await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
           
           return {
             success: false as const,
@@ -586,13 +606,13 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         }
         
         // Copy the new file back to the original location
-        await this.executeCommand(`cp "${newFile}" "${containerPath}"`);
+        await this.executeCommand(executionId, `cp "${newFile}" "${containerPath}"`);
         
         // Clean up temporary files
-        await this.executeCommand(`rm -rf "${tempDir}"`);
+        await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
       } catch (processingError) {
         // Clean up temporary files on error
-        await this.executeCommand(`rm -rf "${tempDir}"`).catch(() => {
+        await this.executeCommand(executionId, `rm -rf "${tempDir}"`).catch(() => {
           // Ignore cleanup errors
         });
         
@@ -601,7 +621,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       // For display purposes, we need to re-read the file with line numbers
       // to show the correct result with the line numbers intact
-      const newFileResult = await this.readFile(filepath);
+      const newFileResult = await this.readFile(executionId, filepath);
       
       // Log results of re-reading the file
       if (newFileResult.success) {
@@ -631,7 +651,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Find files matching a glob pattern
    */
-  async glob(pattern: string, _options?: any): Promise<string[]> {
+  async glob(executionId: string, pattern: string, _options?: any): Promise<string[]> {
     try {
       // Get container info
       const containerInfo = await this.containerManager.getContainerInfo();
@@ -645,7 +665,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         : pattern;
       
       // Use find command with -path for glob-like behavior
-      const { stdout, exitCode } = await this.executeCommand(`find ${containerInfo.workspacePath} -path "${containerPattern}" -type f | sort`);
+      const { stdout, exitCode } = await this.executeCommand(executionId, `find ${containerInfo.workspacePath} -path "${containerPattern}" -type f | sort`);
       
       if (exitCode !== 0 || !stdout.trim()) {
         return [];
@@ -664,7 +684,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * List directory contents
    */
-  async ls(dirPath: string, showHidden: boolean = false, details: boolean = false): Promise<LSToolSuccessResult | LSToolErrorResult> {
+  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false): Promise<LSToolSuccessResult | LSToolErrorResult> {
     try {
       // Get container info
       const containerInfo = await this.containerManager.getContainerInfo();
@@ -680,7 +700,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const containerPath = this.toContainerPath(dirPath, containerInfo);
       
       // Check if directory exists
-      const { exitCode } = await this.executeCommand(`[ -d "${containerPath}" ]`);
+      const { exitCode } = await this.executeCommand(executionId, `[ -d "${containerPath}" ]`);
       
       if (exitCode !== 0) {
         return {
@@ -702,7 +722,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         command = `ls -1${showHidden ? 'a' : ''} "${containerPath}" ${showHidden ? '' : '| grep -v "^\\..*"'}`;
       }
       
-      const { stdout, stderr, exitCode: lsExitCode } = await this.executeCommand(command);
+      const { stdout, stderr, exitCode: lsExitCode } = await this.executeCommand(executionId, command);
       
       if (lsExitCode !== 0) {
         return {
@@ -775,7 +795,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       } else {
         // For simple listing, just do an ls -la anyway to get the file types correctly
         // This avoids multiple commands and is more efficient
-        const { stdout: detailedOutput } = await this.executeCommand(`ls -la "${containerPath}"`);
+        const { stdout: detailedOutput } = await this.executeCommand(executionId, `ls -la "${containerPath}"`);
         const detailedLines = detailedOutput.trim().split('\n');
         
         // Parse detailed output to get file types
@@ -864,6 +884,10 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           hostPath[containerInfo.workspacePath.length] === '/'))) {
       return hostPath;
     }
+
+    if (hostPath.startsWith('/tmp/')) {
+      return hostPath;
+    }
     
     // Ensure absolute path – if the caller provided a relative path we treat
     // it as relative to the *project* root that was detected by the
@@ -924,16 +948,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * Check if a path is within the working directory
    */
   private isPathWithinWorkingDir(filepath: string, containerInfo: ContainerInfo): boolean {
-    // Special case for workspace path inside container
-    if (filepath === containerInfo.workspacePath) {
-      return true;
-    }
-    
-    const absolutePath = path.isAbsolute(filepath)
-      ? filepath
-      : path.resolve(containerInfo.projectPath, filepath);
-    
-    return absolutePath.startsWith(containerInfo.projectPath);
+    // Only allow paths within /workspace or /tmp
+    return filepath.startsWith(containerInfo.workspacePath) || filepath.startsWith('/tmp/');
   }
 
   /**
@@ -948,7 +964,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       // Run the directory-mapper.sh script in the container
       const scriptPath = `/usr/local/bin/directory-mapper.sh`;
-      const result = await this.executeCommand(`${scriptPath} "${rootPath}" ${maxDepth}`);
+      const result = await this.executeCommand('docker-directory-mapper', `${scriptPath} "${rootPath}" ${maxDepth}`);
       
       if (result.exitCode !== 0) {
         throw new Error(`Failed to generate directory structure: ${result.stderr}`);
@@ -985,12 +1001,84 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       // Get container working directory
       const workingDir = containerInfo.workspacePath;
       
-      // Use the GitInfoHelper with a custom command executor that executes in the Docker container
-      return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
-        // Prepend cd to the working directory for all git commands
+      /*
+       * Running ~a dozen separate `docker exec` calls for every field we need is
+       * surprisingly expensive (≈0.1-0.2 s each).  To speed things up we batch
+       * all git commands required by `GitInfoHelper` into a single shell script
+       * that is executed once inside the container.  The script prints a unique
+       * marker before each command’s output; we then split the combined stdout
+       * and serve the captured text back to `GitInfoHelper` on demand.  From
+       * the helper’s perspective nothing has changed – it still calls individual
+       * git commands – but they are now answered from an in-memory cache created
+       * by a single `docker exec`.
+       */
+
+      // The exact command strings GitInfoHelper issues (keep in sync!)
+      const gitCommands: Record<string, string> = {
+        cmd1: "git rev-parse --is-inside-work-tree 2>/dev/null || echo false",
+        cmd2: "git rev-parse --git-dir 2>/dev/null",
+        cmd3: "git remote show origin 2>/dev/null | grep 'HEAD branch' | cut -d ':' -f 2 | xargs",
+        cmd4: "git for-each-ref --format='%(refname:short)' refs/heads/ | grep -E '^(main|master|trunk)$' | head -1",
+        cmd5: "git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown",
+        cmd6: "git status --porcelain",
+        cmd7: "git rev-parse HEAD 2>/dev/null || echo ''",
+        cmd8: "git log -5 --pretty=format:'%h %s'",
+        cmd9: "git diff --name-only",
+        cmd10: "git diff --name-only --staged",
+        cmd11: "git ls-files --others --exclude-standard",
+        cmd12: "git ls-files --deleted"
+      };
+
+      // Build the batching script – print a marker before each command output.
+      const markers = Object.keys(gitCommands);
+      const scriptLines: string[] = [`cd "${workingDir}"`];
+      for (const marker of markers) {
+        scriptLines.push(`echo ${marker}`);
+        // To preserve newlines exactly we invoke each command with `|| true` so
+        // the script continues even if the git command exits non-zero.
+        scriptLines.push(`${gitCommands[marker]} || true`);
+      }
+
+      const batchCommand = scriptLines.join(' && ');
+
+      // Run the batch inside the container.
+      const batchResult = await this.executeCommand('docker-git-info-batch', batchCommand);
+
+      if (batchResult.exitCode !== 0) {
+        this.logger?.warn(`Batched git info command failed – falling back to individual exec: ${batchResult.stderr}`, LogCategory.SYSTEM);
+        // Fall back to old behaviour.
+        return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
+          const containerCommand = `cd "${workingDir}" && ${command}`;
+          return await this.executeCommand('docker-git-info', containerCommand);
+        });
+      }
+
+      // Parse the batched output into a map marker -> output
+      const outputs: Record<string, string> = {};
+      let current: string | null = null;
+      for (const line of batchResult.stdout.split('\n')) {
+        if (markers.includes(line.trim())) {
+          current = line.trim();
+          outputs[current] = '';
+        } else if (current) {
+          outputs[current] += (outputs[current] ? '\n' : '') + line;
+        }
+      }
+
+      // Provide an executor that serves the cached outputs.
+      const cachedExecutor = async (command: string) => {
+        // Find matching marker – allow minor differences in whitespace/redirects
+        for (const [marker, cmd] of Object.entries(gitCommands)) {
+          if (command.trim() === cmd || command.trim().startsWith(cmd.split(' ')[0])) {
+            return { stdout: outputs[marker] || '', stderr: '', exitCode: 0 };
+          }
+        }
+        // If we reach here, the command is unexpected; run it directly (rare).
         const containerCommand = `cd "${workingDir}" && ${command}`;
-        return await this.executeCommand(containerCommand);
-      });
+        return await this.executeCommand('docker-git-info-extra', containerCommand);
+      };
+
+      return await this.gitInfoHelper.getGitRepositoryInfo(cachedExecutor);
     } catch (error) {
       this.logger?.error('Error retrieving git repository information from container:', error, LogCategory.SYSTEM);
       return null;

@@ -28,3 +28,6 @@ types-test/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Shadow git repository for checkpointing
+.agent-shadow/

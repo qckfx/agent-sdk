@@ -1,6 +1,6 @@
 {
   "name": "@qckfx/agent",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "description": "qckfx AI Agent SDK",
   "main": "./dist/cjs/index.js",
@@ -77,8 +77,10 @@
     "eval:build": "npm run build && node dist/eval/index.js",
     "test": "vitest run",
     "docs": "typedoc",
-        "prepare": "npm run build",
-    "prepublishOnly": "npm run build"
+    "docker:fix": "./scripts/fix-docker-mapper.sh",
+    "docker:build": "docker build -t ghcr.io/earlywormteam/agent-sandbox:latest -f docker/Dockerfile .",
+    "docker:publish": "npm run docker:build && docker push ghcr.io/earlywormteam/agent-sandbox:latest",
+    "prepare": "npm run build",
   },
   "keywords": [
     "ai",

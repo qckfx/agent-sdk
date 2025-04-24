@@ -181,7 +181,8 @@ export class GitInfoHelper {
           currentBranch,
           defaultBranch: this.staticGitCache.defaultBranch,
           status: { type: 'clean' },
-          recentCommits
+          recentCommits,
+          commitSha: headCommit
         };
       } else {
         // Repository is dirty, use the already fetched details
@@ -196,7 +197,8 @@ export class GitInfoHelper {
             untrackedFiles: untrackedFilesCmd.stdout.split('\n').filter(Boolean),
             deletedFiles: deletedFilesCmd.stdout.split('\n').filter(Boolean)
           },
-          recentCommits
+          recentCommits,
+          commitSha: headCommit
         };
       }
       

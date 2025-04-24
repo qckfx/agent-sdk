@@ -140,7 +140,7 @@ export const createGrepTool = (): Tool => {
         // Execute the command
         context.logger?.debug(`Executing grep: ${command}`);
         // We need stdout but stderr is unused
-        const { stdout } = await execAsync(command);
+        const { stdout } = await context.executionAdapter.executeCommand(context.executionId, command);
         
         // Parse the results
         const lines = stdout.trim().split('\n');

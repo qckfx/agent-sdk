@@ -3,6 +3,8 @@ import { LocalExecutionAdapter } from './LocalExecutionAdapter.js';
 import { DockerExecutionAdapter } from './DockerExecutionAdapter.js';
 import { DockerContainerManager } from './DockerContainerManager.js';
 import { E2BExecutionAdapter } from './E2BExecutionAdapter.js';
+import { CheckpointingExecutionAdapter } from './CheckpointingExecutionAdapter.js';
+import { SessionState } from '../types/model.js';
 import { LogCategory } from './logger.js';
 
 export type ExecutionAdapterType = 'local' | 'docker' | 'e2b';
@@ -48,13 +50,18 @@ export interface ExecutionAdapterFactoryOptions {
     warn: (message: string, ...args: unknown[]) => void;
     error: (message: string, ...args: unknown[]) => void;
   };
+  
+  /**
+   * Session ID (for checkpointing)
+   */
+  sessionId: string;
 }
 
 /**
  * Factory function to create the appropriate execution adapter
  */
 export async function createExecutionAdapter(
-  options: ExecutionAdapterFactoryOptions = {}
+  options: ExecutionAdapterFactoryOptions
 ): Promise<{
   adapter: ExecutionAdapter;
   type: ExecutionAdapterType;
@@ -65,7 +72,8 @@ export async function createExecutionAdapter(
     logger
   } = options;
   
-  logger?.info(`Creating execution adapter: Requested type = ${type}, default = docker`, 'system');
+  console.log(`Creating execution adapter: Requested type = ${type}, default = docker`, 'system');
+  console.log('Options:', JSON.stringify(options, null, 2));
   
   // Track reasons for fallback for logging
   let fallbackReason = '';
@@ -107,7 +115,7 @@ export async function createExecutionAdapter(
       
       // Verify Docker adapter is working by running a simple test command
       try {
-        const { exitCode } = await dockerAdapter.executeCommand('echo "Docker test"');
+        const { exitCode } = await dockerAdapter.executeCommand('docker-test', 'echo "Docker test"');
         if (exitCode !== 0) {
           fallbackReason = 'Docker container is not responding to commands';
           throw new Error(fallbackReason);
@@ -119,10 +127,33 @@ export async function createExecutionAdapter(
       
       logger?.info('Successfully created Docker execution adapter', LogCategory.SYSTEM);
       
-      // Environment status events are now emitted by the DockerExecutionAdapter itself
+      // Create concrete adapter
+      let concreteAdapter: ExecutionAdapter = dockerAdapter;
+
+      const res = await dockerAdapter.executeCommand('get-pwd', 'pwd');
+      const pwd = res.stdout.trim();
+      
+      let attempts = 0;
+      while (!dockerAdapter.initialized && attempts < 10) {
+        console.log('Waiting for Docker container to initialize...', attempts);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      if (!dockerAdapter.initialized) {
+        throw new Error('Docker container failed to initialize');
+      }
+      
+      // Wrap with checkpointing
+      concreteAdapter = new CheckpointingExecutionAdapter(
+        dockerAdapter,
+        pwd,
+        options.sessionId,
+      );
+      console.log('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
       
       return {
-        adapter: dockerAdapter,
+        adapter: concreteAdapter,
         type: 'docker'
       };
     }
@@ -137,8 +168,21 @@ export async function createExecutionAdapter(
       
       const e2bAdapter = await E2BExecutionAdapter.create(options.e2b.sandboxId, { logger });
       
+      // Create concrete adapter
+      let concreteAdapter: ExecutionAdapter = e2bAdapter;
+
+      const res = await e2bAdapter.executeCommand('get-pwd', 'pwd');
+      const pwd = res.stdout.trim();
+      
+      concreteAdapter = new CheckpointingExecutionAdapter(
+        e2bAdapter,
+        pwd,
+        options.sessionId,
+      );
+      console.log('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
+      
       return {
-        adapter: e2bAdapter,
+        adapter: concreteAdapter,
         type: 'e2b'
       };
     }
@@ -165,8 +209,24 @@ export async function createExecutionAdapter(
   // Fall back to local execution
   logger?.info('Creating local execution adapter', LogCategory.SYSTEM);
   
+  // Create concrete adapter
+  const localAdapter = new LocalExecutionAdapter({ logger });
+  let concreteAdapter: ExecutionAdapter = localAdapter;
+ 
+  const res = await localAdapter.executeCommand('get-pwd', 'pwd');
+  const pwd = res.stdout.trim();
+
+  // Wrap with checkpointing 
+  concreteAdapter = new CheckpointingExecutionAdapter(
+    localAdapter,
+    pwd,
+    options.sessionId,
+  );
+  console.log('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
+  
+  
   return {
-    adapter: new LocalExecutionAdapter({ logger }),
+    adapter: concreteAdapter,
     type: 'local'
   };
 }

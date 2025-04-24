@@ -14,7 +14,6 @@ import { createAgentRunner } from './core/AgentRunner.js';
 import { createToolRegistry } from './core/ToolRegistry.js';
 import { createPermissionManager } from './core/PermissionManager.js';
 import { createModelClient } from './core/ModelClient.js';
-import { createDefaultPromptManager } from './core/PromptManager.js';
 
 // Types
 import { Agent, AgentConfig } from './types/main.js';
@@ -129,7 +128,16 @@ const createAgent = (config: AgentConfig): Agent => {
     logger,
     
     // Helper methods
-    async processQuery(query, sessionState = { contextWindow: createContextWindow(), abortController: new AbortController(), agentServiceConfig: { defaultModel: '', permissionMode: 'interactive', allowedTools: [], cachingEnabled: true } }) {
+    async processQuery(query, sessionState = { 
+      contextWindow: createContextWindow(), 
+      abortController: new AbortController(), 
+      agentServiceConfig: { 
+        defaultModel: '', 
+        permissionMode: 'interactive', 
+        allowedTools: [], 
+        cachingEnabled: true 
+      },
+    }) {
       const runner = await _agentRunner();
       return runner.processQuery(query, sessionState);
     },
@@ -150,5 +158,16 @@ const createAgent = (config: AgentConfig): Agent => {
   };
 };
 
-// Only export createAgent from this file
+// Export checkpoint-related functionality
+export {
+  CheckpointEvents,
+  CHECKPOINT_READY_EVENT,
+  onCheckpointReady,
+  offCheckpointReady
+} from './events.js';
+export type { CheckpointPayload } from './events.js';
+export type { SnapshotMeta } from './utils/CheckpointManager.js';
+export { CheckpointingExecutionAdapter } from './utils/CheckpointingExecutionAdapter.js';
+
+// Only export createAgent from this file as default
 export { createAgent };

@@ -13,12 +13,21 @@ export {
   onAbortSession,
   onEnvironmentStatusChanged,
   onProcessingCompleted,
-  onMessageAdded,
-  onMessageUpdated,
-  offMessageAdded,
-  offMessageUpdated,
+  // Checkpoint events
+  onCheckpointReady,
+  offCheckpointReady,
+  CHECKPOINT_READY_EVENT,
+  CheckpointEvents,
+  // Rollback events
+  onRollbackCompleted,
 } from './events.js';
-export type { EnvironmentStatusEvent } from './events.js';
+export type { 
+  EnvironmentStatusEvent,
+  CheckpointPayload 
+} from './events.js';
+
+// Rollback helper
+export { rollbackSession } from './utils/RollbackManager.js';
 
 export type {
   StructuredContent,
@@ -33,7 +42,8 @@ export type {
 // Core types
 export type { Agent, AgentConfig } from './types/main.js';
 export type { Tool, ToolContext } from './types/tool.js';
-export type { ToolParameter } from './types/agent.js';
+export type { ToolParameter, ProcessQueryResult, ConversationResult, AgentMessage, AgentResponse, ToolResultEntry } from './types/agent.js';
+export type { SessionState } from './types/model.js';
 
 // Tool result types
 export type {
@@ -48,3 +58,7 @@ export type {
   FileEditToolSuccessResult,
   FileEditToolErrorResult
 } from './tools/index.js';
+
+// Checkpoint system exports
+export { CheckpointingExecutionAdapter } from './utils/CheckpointingExecutionAdapter.js';
+export type { SnapshotMeta } from './utils/CheckpointManager.js';

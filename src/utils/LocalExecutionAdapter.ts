@@ -66,7 +66,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     this.logger?.info(`Emitting local environment status: ${status}, ready=${isReady}`, LogCategory.SYSTEM);
     AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, statusEvent);
   }
-  async executeCommand(command: string, workingDir?: string) {
+  async executeCommand(executionId: string, command: string, workingDir?: string) {
     try {
       const options = workingDir ? { cwd: workingDir } : undefined;
       const result = await execAsync(command, options);
@@ -95,7 +95,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
    * Edit a file by replacing content
    * Uses a binary-safe approach to handle files with special characters and line endings
    */
-  async editFile(filepath: string, searchCode: string, replaceCode: string, encoding?: string) {
+  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string) {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -191,7 +191,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
           // Execute the binary-replace script to do the replacement
           try {
             const { exitCode, stdout, stderr } = 
-              await this.executeCommand(`"${binaryReplaceScript}" "${originalFile}" "${searchFile}" "${replaceFile}" "${newFile}"`);
+              await this.executeCommand(executionId, `"${binaryReplaceScript}" "${originalFile}" "${searchFile}" "${replaceFile}" "${newFile}"`);
             
             if (exitCode !== 0) {
               // Handle specific exit codes from the script
@@ -237,7 +237,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         await writeFileAsync(resolvedPath, newContent, encoding as BufferEncoding);
         
         // Clean up temporary directory
-        await this.executeCommand(`rm -rf "${tempDir}"`);
+        await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
         
         return {
           success: true as const,
@@ -247,7 +247,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         } as FileEditToolSuccessResult;
       } catch (processingError) {
         // Clean up temporary directory on error
-        await this.executeCommand(`rm -rf "${tempDir}"`).catch(() => {
+        await this.executeCommand(executionId, `rm -rf "${tempDir}"`).catch(() => {
           // Ignore cleanup errors
         });
         
@@ -263,11 +263,11 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async glob(pattern: string, options: any = {}): Promise<string[]> {
+  async glob(executionId: string, pattern: string, options: any = {}): Promise<string[]> {
     return globAsync(pattern, options) as Promise<string[]>;
   }
 
-  async readFile(filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) {
+  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -301,7 +301,31 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       } as FileReadToolErrorResult;
     }
     
-    // Read the file
+    // Special handling for binary/base64 encoding
+    if (encoding === 'base64' || encoding === 'binary') {
+      try {
+        // Read the file directly as a Buffer
+        const data = await fs.promises.readFile(resolvedPath);
+        // Convert to base64 string for consistent representation
+        const base64Content = data.toString('base64');
+        
+        return {
+          success: true as const,
+          path: resolvedPath,
+          content: base64Content,
+          size: data.length,
+          encoding: 'base64'
+        } as FileReadToolSuccessResult;
+      } catch (error) {
+        return {
+          success: false as const,
+          path: filepath,
+          error: `Failed to read file in ${encoding} mode: ${(error as Error).message}`
+        } as FileReadToolErrorResult;
+      }
+    }
+    
+    // For text files, use standard text reading approach
     let content = '';
     if (lineOffset > 0 || lineCount !== undefined) {
       // Use head and tail with nl for pagination, starting line numbers from lineOffset+1
@@ -351,7 +375,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
    * Write content to a file
    * Uses a more robust approach for handling larger files
    */
-  async writeFile(filePath: string, content: string, encoding?: string) {
+  async writeFile(executionId: string, filePath: string, content: string, encoding?: string) {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -402,7 +426,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
           });
         } finally {
           // Clean up temp directory
-          await this.executeCommand(`rm -rf "${tempDir}"`).catch(() => {
+          await this.executeCommand(executionId, `rm -rf "${tempDir}"`).catch(() => {
             // Ignore cleanup errors
           });
         }
@@ -412,7 +436,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async ls(dirPath: string, showHidden: boolean = false, details: boolean = false) {
+  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false) {
     try {
       // Resolve the path
       const resolvedPath = path.resolve(dirPath);
@@ -531,7 +555,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       }
       
       // Execute the script
-      const { stdout, stderr, exitCode } = await this.executeCommand(`"${scriptPath}" "${rootPath}" ${maxDepth}`);
+      const { stdout, stderr, exitCode } = await this.executeCommand('local-directory-mapper', `"${scriptPath}" "${rootPath}" ${maxDepth}`);
       
       if (exitCode !== 0) {
         throw new Error(`Failed to generate directory structure: ${stderr}`);
@@ -560,7 +584,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       // Use the dedicated GitInfoHelper for optimized, parallel git operations
       return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
         // Pass our executeCommand implementation to the helper
-        return await this.executeCommand(command);
+        return await this.executeCommand('local-git-info', command);
       });
     } catch (error) {
       this.logger?.error('Error retrieving git repository information:', error, LogCategory.SYSTEM);

@@ -3,17 +3,54 @@
  */
 
 import { Anthropic } from '@anthropic-ai/sdk';
+import { nanoid } from 'nanoid';
+import { ConversationMessage } from './conversation.js';
 
 export class ContextWindow {
-  // Public conversation history
-  private _messages: Anthropic.Messages.MessageParam[];
+  // Internal conversation history (wrapper objects)
+  private _messages: ConversationMessage[];
+
+  /**
+   * The most recent checkpoint identifier (toolExecutionId) that was
+   * applicable when the last message was recorded.  New messages inherit this
+   * value so that every ConversationMessage knows what repository state is
+   * safe to roll back to.
+   */
+  private _lastCheckpointId?: string;
   
   // Private file tracking
   private _filesRead: Set<string>;
   
   constructor(messages?: Anthropic.Messages.MessageParam[]) {
-    this._messages = messages || [];
+    // If we were given raw Anthropic messages, wrap them so we maintain a
+    // consistent internal shape.  This scenario happens mainly in tests.
+    if (messages) {
+      this._messages = messages.map((m) => ({
+        id: nanoid(),
+        anthropic: m,
+        createdAt: Date.now(),
+        lastCheckpointId: this._lastCheckpointId,
+      }));
+    } else {
+      this._messages = [];
+    }
     this._filesRead = new Set<string>();
+  }
+
+  /**
+   * Get the identifier of the latest checkpoint known to the context
+   */
+  public getLastCheckpointId(): string | undefined {
+    return this._lastCheckpointId;
+  }
+
+  /**
+   * Update the context's notion of the most recent checkpoint.  All
+   * subsequently pushed messages will store this value so that rollbacks can
+   * resolve the correct commit even for read‑only events.
+   */
+  public setLastCheckpointId(id?: string): void {
+    this._lastCheckpointId = id;
   }
   
   /**
@@ -44,30 +81,61 @@ export class ContextWindow {
     return Array.from(this._filesRead);
   }
 
+  /**
+   * Return ONLY the Anthropic messages for callers that speak the original
+   * API.  No new code inside the repo should rely on positional indexes; use
+   * the wrapper objects instead when you need metadata.
+   */
   public getMessages(): Anthropic.Messages.MessageParam[] {
-    return this._messages;
+    return this._messages.map((m) => m.anthropic);
   }
 
-  public push(message: Anthropic.Messages.MessageParam): void {
-    this._messages.push(message);
+  /**
+   * Return the full wrapper objects (mostly for internal use / debugging).
+   */
+  public getConversationMessages(): ConversationMessage[] {
+    return this._messages;
+  }
+  
+  /**
+   * Returns the last message in the conversation, or undefined if there are no messages.
+   */
+  public peek(): ConversationMessage | undefined {
+    if (this._messages.length === 0) {
+      return undefined;
+    }
+    return this._messages[this._messages.length - 1];
+  }
+
+  public push(message: Anthropic.Messages.MessageParam): string {
+    const id = nanoid();
+    this._messages.push({
+      id,
+      anthropic: message,
+      createdAt: Date.now(),
+      lastCheckpointId: this._lastCheckpointId,
+    });
+    return id;
   }
 
   // ----------------------------------------------------------------------
   // Typed helper methods to make conversation‑history mutations safer.
   // ----------------------------------------------------------------------
 
-  public pushUser(text: string): void {
-    this.push({ role: 'user', content: [{ type: 'text', text }] });
+  public pushUser(text: string): string {
+    const id = this.push({ role: 'user', content: [{ type: 'text', text }] });
     this.validate();
+    return id;
   }
 
-  public pushAssistant(blocks: Anthropic.Messages.ContentBlockParam[]): void {
-    this.push({ role: 'assistant', content: blocks });
+  public pushAssistant(blocks: Anthropic.Messages.ContentBlockParam[]): string {
+    const id = this.push({ role: 'assistant', content: blocks });
     this.validate();
+    return id;
   }
 
-  public pushToolUse(toolUse: { id: string; name: string; input: Record<string, unknown> }): void {
-    this.push({
+  public pushToolUse(toolUse: { id: string; name: string; input: Record<string, unknown> }): string {
+    const id = this.push({
       role: 'assistant',
       content: [
         {
@@ -79,10 +147,11 @@ export class ContextWindow {
       ],
     });
     this.validate();
+    return id;
   }
 
-  public pushToolResult(toolUseId: string, result: unknown): void {
-    this.push({
+  public pushToolResult(toolUseId: string, result: unknown): string {
+    const id = this.push({
       role: 'user',
       content: [
         {
@@ -93,6 +162,7 @@ export class ContextWindow {
       ],
     });
     this.validate();
+    return id;
   }
 
   // ----------------------------------------------------------------------
@@ -105,7 +175,7 @@ export class ContextWindow {
     if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test') return;
 
     for (let i = 0; i < this._messages.length; i++) {
-      const msg = this._messages[i];
+      const msg = this._messages[i].anthropic;
       const first = Array.isArray(msg.content) ? (msg.content[0] as any) : undefined;
 
       if (first?.type === 'tool_use') {
@@ -116,10 +186,11 @@ export class ContextWindow {
         // appended (either the tool_result or an abort).
         if (!next) continue;
 
+        const nextMsg = next.anthropic;
         const ok =
-          Array.isArray(next.content) &&
-          next.content[0]?.type === 'tool_result' &&
-          next.content[0]?.tool_use_id === first.id;
+          Array.isArray(nextMsg.content) &&
+          nextMsg.content[0]?.type === 'tool_result' &&
+          nextMsg.content[0]?.tool_use_id === first.id;
 
         if (!ok) {
           throw new Error(
@@ -139,7 +210,34 @@ export class ContextWindow {
   }
   
   public setMessages(messages: Anthropic.Messages.MessageParam[]): void {
-    this._messages = messages;
+    this._messages = messages.map((m) => ({
+      id: nanoid(),
+      anthropic: m,
+      createdAt: Date.now(),
+      lastCheckpointId: this._lastCheckpointId,
+    }));
+  }
+  
+  /**
+   * Removes messages from the context window up to and including the message with the given ID.
+   * @param messageId The ID of the message to roll back to (inclusive)
+   * @returns The number of messages removed
+   */
+  public rollbackToMessage(messageId: string): number {
+    const index = this._messages.findIndex(message => message.id === messageId);
+    if (index === -1) {
+      return 0;
+    }
+    
+    // Remove all messages up to and including the specified message
+    const removed = this._messages.splice(0, index + 1);
+
+    // After trimming, update our cached checkpoint to match the newest
+    // remaining message so that subsequent pushes inherit the correct value.
+    const latest = this._messages[this._messages.length - 1];
+    this._lastCheckpointId = latest?.lastCheckpointId;
+
+    return removed.length;
   }
 }
 

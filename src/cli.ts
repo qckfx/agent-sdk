@@ -219,7 +219,7 @@ const startChat = async (options: {
       permissionMode: 'interactive',
       allowedTools: ['ReadTool', 'GlobTool', 'GrepTool', 'LSTool'],
       cachingEnabled: options.caching !== false // Enable caching by default
-    }
+    },
   };
   cliLogger.info('Agent ready. Type your query (or "exit" to quit, "/help" for help):', LogCategory.USER_INTERACTION);
   

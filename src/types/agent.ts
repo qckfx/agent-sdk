@@ -40,6 +40,7 @@ export interface ProcessQueryResult {
     toolResults: ToolResultEntry[];
     iterations: number;
   };
+  // Response may be undefined if a rollback occurred during the query.
   response?: string;
   sessionState: SessionState;
   done: boolean;
@@ -59,8 +60,6 @@ export interface AgentRunner {
   processQuery(query: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
   runConversation(initialQuery: string): Promise<ConversationResult>;
 }
-
-// We'll use the SessionState and ConversationMessage types from model.ts
 
 // Legacy interfaces from the original agent.ts file
 /** @internal */

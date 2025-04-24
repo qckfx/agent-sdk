@@ -119,7 +119,7 @@ export const createFileReadTool = (): Tool => {
       const executionAdapter = context.executionAdapter;
       
       try {
-        const result = await executionAdapter.readFile(filePath, maxSize, lineOffset, lineCount, encoding);
+        const result = await executionAdapter.readFile(context.executionId, filePath, maxSize, lineOffset, lineCount, encoding);
         
         // If successful (result.success is true), record the file read in the contextWindow
         if (result.success === true && context.sessionState && context.sessionState.contextWindow) {

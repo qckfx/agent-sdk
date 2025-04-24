@@ -47,7 +47,7 @@ class AnthropicProviderAdapter implements ModelProvider {
             permissionMode: process.env.QCKFX_PERMISSION_MODE as 'auto' | 'interactive' || 'interactive',
             allowedTools: ['ReadTool', 'GlobTool', 'GrepTool', 'LSTool'],
             cachingEnabled: process.env.QCKFX_DISABLE_CACHING ? false : true,
-          }
+          },
         }
       });
 

@@ -162,12 +162,13 @@ export class FsmDriver {
             // MODEL_TOOL_CALL path
             currentToolCall = toolCallChat.toolCall;
             
-            // Add tool_use to conversation history
-            cw.pushToolUse({
+            // Add tool_use to conversation history and capture the wrapper id
+            const msgId = cw.pushToolUse({
               id: currentToolCall.toolUseId,
               name: currentToolCall.toolId,
               input: currentToolCall.args as Record<string, unknown>
             });
+
             
             // Move to waiting for tool result
             this.dispatch({
@@ -216,6 +217,7 @@ export class FsmDriver {
                 ctx
               ),
               {
+                executionId: cw.peek()!.id,
                 permissionManager,
                 logger,
                 executionAdapter,
@@ -232,6 +234,7 @@ export class FsmDriver {
               break;
             }
           }
+
 
           // Move to waiting for model final
           this.dispatch({ type: 'TOOL_FINISHED' });

@@ -82,15 +82,6 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       if (options?.signal?.aborted) {
         return { toolChosen: false, aborted: true };
       }
-      console.log('⚠️ MODEL_CLIENT getToolCall called with:', {
-        queryLength: query ? query.length : 0,
-        query: query ? query.substring(0, 50) + (query.length > 50 ? '...' : '') : 'none',
-        toolCount: toolDescriptions.length,
-        sessionId: sessionState.id || 'unknown',
-        historyLength: sessionState.contextWindow?.getMessages().length || 0,
-        lastResult: !!sessionState.lastResult,
-        hasToolError: !!sessionState.lastToolError
-      });
       
       // Format tools for Claude
       const claudeTools = this.formatToolsForClaude(toolDescriptions);
@@ -113,17 +104,8 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         sessionState
       };
       
-      console.log('⚠️ MODEL_CLIENT sending request to modelProvider with:', {
-        hasQuery: !!query, 
-        toolCount: claudeTools.length,
-        historyLength: sessionState.contextWindow.getLength() || 0,
-        sessionId: sessionState.id || 'unknown'
-      });
-      
       let response;
       try {
-        console.log('⚠️ MODEL_CLIENT calling modelProvider...');
-
         // Guard against orphaned tool calls
         const msgs = sessionState.contextWindow.getMessages();
         if (msgs.length > 0) {
@@ -181,7 +163,6 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
           response = await modelProvider(request);
         }
 
-        console.log('⚠️ MODEL_CLIENT received response from modelProvider');
       } catch (error) {
         if ((error as Error).message === 'AbortError') {
           return { toolChosen: false, aborted: true };
@@ -198,26 +179,11 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       // Check if Claude wants to use a tool - look for tool_use in the content
       const hasTool = response.content && response.content.some(c => c.type === "tool_use");
       
-      console.log('⚠️ MODEL_CLIENT response analysis:', {
-        hasTool,
-        contentLength: response.content?.length || 0,
-        contentTypes: response.content?.map(c => c.type),
-        hasToolUse: response.content?.some(c => c.type === "tool_use"),
-        sessionId: sessionState.id || 'unknown'
-      });
-      
       if (hasTool && response.content) {
         // Extract the tool use from the response and check its type
         const toolUse = response.content.find(isToolUseBlock);
         
         if (toolUse) {
-          console.log('⚠️ MODEL_CLIENT toolUse found:', {
-            toolUseName: toolUse.name,
-            toolUseId: toolUse.id,
-            hasInput: !!toolUse.input,
-            inputSize: Object.keys(toolUse.input).length
-          });
-        
         // Add the assistant's tool use response to the conversation history only if not aborted
         // NOTE: We no longer mutate the ContextWindow here. The caller (e.g. the
         // FsmDriver) is responsible for appending the `tool_use` message once it
@@ -239,18 +205,10 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
             aborted: isSessionAborted(getSessionId(sessionState)) // Check current abort status
           };
           
-          console.log('⚠️ MODEL_CLIENT returning tool call:', {
-            toolId: toolCallResponse.toolCall.toolId,
-            toolUseId: toolCallResponse.toolCall.toolUseId,
-            argsKeys: Object.keys(toolCallResponse.toolCall.args),
-            isAborted: toolCallResponse.aborted
-          });
-          
           return toolCallResponse;
         }
       }
       
-      console.log('⚠️ MODEL_CLIENT returning no tool chosen response');
       return {response: response, toolChosen: false, aborted: isSessionAborted(getSessionId(sessionState))};
     },
     

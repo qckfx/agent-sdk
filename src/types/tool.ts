@@ -20,21 +20,21 @@ export enum ToolCategory {
 }
 
 export interface ExecutionAdapter {
-  executeCommand: (command: string, workingDir?: string) => Promise<{
+  executeCommand: (executionId: string, command: string, workingDir?: string) => Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
   }>;
 
-  editFile: (filepath: string, searchCode: string, replaceCode: string, encoding?: string) => Promise<FileEditToolResult>;
+  editFile: (executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string) => Promise<FileEditToolResult>;
 
-  glob: (pattern: string, options?: any) => Promise<string[]>;
+  glob: (executionId: string, pattern: string, options?: any) => Promise<string[]>;
 
-  readFile: (filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) => Promise<FileReadToolResult>;
+  readFile: (executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) => Promise<FileReadToolResult>;
 
-  writeFile: (filepath: string, content: string) => Promise<void>;
+  writeFile: (executionId: string, filepath: string, content: string, encoding?: string) => Promise<void>;
 
-  ls: (dirPath: string, showHidden?: boolean, details?: boolean) => Promise<LSToolResult>;
+  ls: (executionId: string, dirPath: string, showHidden?: boolean, details?: boolean) => Promise<LSToolResult>;
   
   /**
    * Generates a structured directory map for the specified path
@@ -90,6 +90,7 @@ export interface ToolConfig {
 }
 
 export interface ToolContext {
+  executionId: string;
   permissionManager?: PermissionManager;
   logger?: {
     debug: (message: string, ...args: unknown[]) => void;

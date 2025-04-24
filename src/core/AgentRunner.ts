@@ -19,6 +19,7 @@ import {
 } from '../utils/sessionUtils.js';
 import { FsmDriver } from './FsmDriver.js';
 import { createContextWindow } from '../types/contextWindow.js';
+import { attachCheckpointSync } from '../utils/CheckpointSync.js';
 
 /**
  * Creates an agent runner to orchestrate the agent process
@@ -98,6 +99,9 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         sessionState.abortController = new AbortController();
         console.log(`[AgentRunner] Created new AbortController for session ${sessionId}`);
       }
+
+      // Keep the session's ContextWindow synced with checkpoints (idempotent)
+      attachCheckpointSync(sessionState);
       
       // Add user message to conversation history if needed
       if (sessionState.contextWindow.getLength() === 0 || 
@@ -122,7 +126,14 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         });
         
         // Run the query through the FSM
-        const { response, toolResults, aborted } = await driver.run(query, sessionState);
+        const {
+          response: driverResponse,
+          toolResults,
+          aborted,
+        } = await driver.run(query, sessionState);
+
+        // We may overwrite `response` later when suppression is requested.
+        let response: string | undefined = driverResponse;
         
         // If the operation was aborted we need to do two things:
         //   1. Make sure the conversation history is well‑formed by appending
@@ -135,12 +146,20 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         //   2. Clear the abort status and swap in a fresh AbortController so
         //      subsequent requests can proceed normally.
         if (aborted) {
+          const skipAck = (sessionState as any).skipAbortAck === true;
+
           const msgs = sessionState.contextWindow.getMessages();
           const last = msgs[msgs.length - 1];
-          if (!last || last.role !== 'assistant') {
+          if (!skipAck && (!last || last.role !== 'assistant')) {
             sessionState.contextWindow.pushAssistant([
               { type: 'text', text: 'Operation aborted by user' },
             ]);
+          }
+
+          // If we skipped the acknowledgement we don't want to return it to
+          // higher layers – treat as no assistant response for this turn.
+          if (skipAck) {
+            response = undefined;
           }
 
           // We've honoured the abort request – reset the session‑level flag
@@ -148,19 +167,15 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
           clearSessionAborted(sessionId);  // We've honored the abort request
           // Create a new AbortController for the next message
           sessionState.abortController = new AbortController();
+
+          // Clear one-shot suppression flag so future aborts still generate
+          // the acknowledgement message.
+          if ((sessionState as any).skipAbortAck) {
+            delete (sessionState as any).skipAbortAck;
+          }
           logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
         }
 
-        // Original comment (we moved the logic above but keep behaviour the same)
-        /*
-        if (aborted) {
-          clearSessionAborted(sessionId);  // We've honored the abort request
-          // Create a new AbortController for the next message
-          sessionState.abortController = new AbortController();
-          logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
-        }
-        */
-        
         // Emit an event to signal processing is completed - will be captured by WebSocketService
         AgentEvents.emit(AgentEventType.PROCESSING_COMPLETED, {
           sessionId,
@@ -218,10 +233,8 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         done = result.done;
         
         // If not done, we would get the next user query here
-        // For automated runs, we'd need to handle this differently
         if (!done) {
-          // In a real implementation, this would wait for user input
-          query = 'Continue'; // Placeholder
+          query = 'Continue'; // For automated runs
         }
       }
       
@@ -229,7 +242,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         responses,
         sessionState
       };
-    }
+    },
   };
 }
 

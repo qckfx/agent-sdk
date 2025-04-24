@@ -94,7 +94,6 @@ export class DockerContainerManager {
     }
 
     this.projectRoot = projectRoot;
-    console.log('🔴🔴🔴 projectRoot', this.projectRoot);
 
     // Build the environment map that will be supplied to every compose call.
     // We intentionally do NOT mutate process.env directly to avoid leaking
@@ -408,8 +407,23 @@ export class DockerContainerManager {
       const workdirOption = workingDir ? `-w "${workingDir}"` : '';
       
       // Execute command in container
+      //
+      // NOTE: We explicitly raise the `maxBuffer` limit for `child_process.exec`.
+      // The default (1 MiB) is not enough when we intentionally stream larger
+      // blobs over stdout – for example when the checkpoint manager dumps a
+      // git-bundle and subsequently pipes it through base64 inside the
+      // container.  A moderately sized repository can easily exceed that
+      // threshold which would make Node abort with
+      //   "Error: stdout maxBuffer length exceeded".
+      //
+      // The upper bound of 100 MiB is an arbitrary but reasonable compromise
+      // between accommodating sizeable archives and preventing unbounded
+      // memory usage in the host process.  We keep the limit local to this
+      // helper so other exec calls (e.g. in LocalExecutionAdapter) are not
+      // affected unintentionally.
       const { stdout, stderr } = await execAsync(
-        `docker exec ${workdirOption} ${containerInfo.id} bash -c "${command.replace(/"/g, '\\"')}"`
+        `docker exec ${workdirOption} ${containerInfo.id} bash -c "${command.replace(/"/g, '\\"')}"`,
+        { maxBuffer: 100 * 1024 * 1024 }, // 100 MiB
       );
       
       return {
