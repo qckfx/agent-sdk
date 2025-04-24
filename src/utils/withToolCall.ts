@@ -58,18 +58,46 @@ export async function withToolCall(
       }
     }
 
-    // Always append tool_result to conversation history.
+    // --------------------------------------------------------------
+    // Decide whether we should append the `tool_result` message.  If
+    // a rollback occurred while the tool was executing the accompanying
+    // `tool_use` message may have been removed from the ContextWindow.
+    // Adding a result in that case would break the required ordering
+    // (tool_use must be immediately followed by the corresponding
+    // tool_result).
+    // --------------------------------------------------------------
+
+    let shouldAppendResult = true;
+
     if (toolCall.toolUseId) {
-      sessionState.contextWindow.pushToolResult(toolCall.toolUseId, result);
+      const lastMsg = sessionState.contextWindow.peek();
+      const firstBlock = Array.isArray(lastMsg?.anthropic.content)
+        ? (lastMsg!.anthropic.content[0] as any)
+        : undefined;
+
+      const stillHasToolUse =
+        firstBlock?.type === 'tool_use' && firstBlock.id === toolCall.toolUseId;
+
+      if (stillHasToolUse) {
+        sessionState.contextWindow.pushToolResult(toolCall.toolUseId, result);
+      } else {
+        // ContextWindow has been rolled back – skip appending the result.
+        console.warn(
+          `[withToolCall] Skipping tool_result for toolUseId=${toolCall.toolUseId} because context was rolled back`,
+        );
+        shouldAppendResult = false;
+      }
     }
 
-    toolResults.push({
-      toolId: toolCall.toolId,
-      args: toolCall.args as Record<string, unknown>,
-      result,
-      toolUseId: toolCall.toolUseId,
-      aborted,
-    });
+    if (shouldAppendResult) {
+      toolResults.push({
+        toolId: toolCall.toolId,
+        args: toolCall.args as Record<string, unknown>,
+        result,
+        toolUseId: toolCall.toolUseId,
+        aborted,
+      });
+    }
 
     if (aborted) throw new Error('AbortError');
 
