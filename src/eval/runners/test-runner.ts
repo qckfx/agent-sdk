@@ -6,7 +6,7 @@ import { createAgentRunner } from '../../core/AgentRunner.js';
 import { createModelClient } from '../../core/ModelClient.js';
 import { createToolRegistry } from '../../core/ToolRegistry.js';
 import { createPermissionManager } from '../../core/PermissionManager.js';
-import { createAnthropicProvider } from '../../providers/AnthropicProvider.js';
+import { LLMFactory } from '../../providers/index.js';
 import { PromptManager } from '../../core/PromptManager.js';
 import { LogLevel, createLogger } from '../../utils/logger.js';
 import { TestCase, MetricsData, SystemPromptConfig, AgentExecutionHistory, TestRunWithHistory } from '../models/types.js';
@@ -63,7 +63,7 @@ export async function runTestCase(
   });
   
   // Initialize the provider with the specified system prompt
-  const provider = createAnthropicProvider({
+  const provider = LLMFactory.createProvider({
     model: systemPrompt.model || 'claude-3-7-sonnet-20250219',
     logger
   });

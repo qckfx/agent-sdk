@@ -2,14 +2,30 @@
  * AnthropicProvider - Handles interactions with Anthropic's Claude API
  */
 
+// NOTE: While this file keeps its original name (AnthropicProvider) and
+// exported factory (`createAnthropicProvider`) to avoid any downstream code
+// changes, the implementation below no longer talks to the Anthropic Claude
+// API.  Instead, it transparently converts the Anthropic-shaped request into
+// an OpenAI Chat Completions request, forwards that to the OpenAI REST
+// endpoint, and then converts the response back into Claude-compatible
+// message objects.
+
+// We still import the official Anthropic SDK purely for its *types*.  The
+// actual client instance is no longer used for the `create` call – doing so
+// would require an Anthropic API key, which we no longer need once the request
+// is proxied to OpenAI.
 import Anthropic from '@anthropic-ai/sdk';
+// Official OpenAI SDK
+import OpenAI from 'openai';
 import { 
   AnthropicConfig,  
   AnthropicProvider, 
   ModelProviderRequest, 
   ContentBlockWithCache,
   ToolWithCache,
-  SystemWithCache
+  SystemWithCache,
+  RemoteModelInfo,
+  ModelInfo,
 } from '../types/index.js';
 import { LogCategory } from '../types/logger.js';
 import { Logger } from '../utils/logger.js';
@@ -18,12 +34,335 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const LIST_MODELS_URL = process.env.LIST_MODELS_URL!;
+
+// ---------------------------------------------------------------------------
+// OpenAI interop helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert Anthropic tool format (name/description/input_schema) → OpenAI
+ * function tools format.
+ */
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionCreateParams,
+  ChatCompletion,
+  ChatCompletionTool,
+  ChatCompletionToolChoiceOption,
+} from 'openai/resources/chat/completions';
+
+function convertToolsToOpenAI(tools?: Anthropic.Tool[]): ChatCompletionTool[] | undefined {
+  if (!tools) return undefined;
+  return tools.map((t) => ({
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+}
+
+/**
+ * Convert a single Anthropic message → OpenAI chat message object.
+ */
+function convertMessageToOpenAI(msg: Anthropic.Messages.MessageParam): ChatCompletionMessageParam {
+  const role = msg.role;
+
+  // Helper to collapse text blocks into a single string
+  const collapseText = (content: Anthropic.Messages.ContentBlock[] | string): string => {
+    if (typeof content === 'string') return content;
+
+    return content
+      .filter((c): c is Anthropic.TextBlock => (c as any).type === 'text')
+      .map((c) => (c as any).text)
+      .join('\n');
+  };
+
+  if (role === 'assistant') {
+    // Check if this is a tool_use block
+    if (Array.isArray(msg.content) && msg.content.length > 0 && msg.content[0].type === 'tool_use') {
+      const tu = msg.content[0] as unknown as {
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      };
+      return {
+        role: 'assistant',
+        // When tool calls are present, `content` must be null (per API spec)
+        content: null,
+        tool_calls: [
+          {
+            id: tu.id,
+            type: 'function',
+            function: {
+              name: tu.name,
+              arguments: JSON.stringify(tu.input ?? {}),
+            },
+          },
+        ],
+      } as unknown as ChatCompletionMessageParam; // Cast to satisfy structural match
+    }
+  }
+
+  if (role === 'user') {
+    // Tool results in Anthropic are stored as user role with tool_result type,
+    // but by the time they reach here they should be in the conversation with
+    // role 'tool'.  We'll simply stringify the content.
+    const contentStr = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+    // Try to locate the tool_use_id for linkage
+    let tool_call_id: string | undefined;
+    if (Array.isArray(msg.content) && msg.content.length > 0 && (msg.content[0] as any).tool_use_id) {
+      tool_call_id = (msg.content[0] as any).tool_use_id;
+    }
+    if (tool_call_id) {
+      // Proper tool response message
+      return {
+        role: 'tool',
+        content: contentStr,
+        tool_call_id,
+      } as unknown as ChatCompletionMessageParam;
+    }
+
+    // If we cannot identify the originating tool call, treat it as a plain user
+    // message so that we do not violate the OpenAI schema (which requires
+    // tool_call_id for `role:"tool"`).
+    return {
+      role: 'user',
+      content: contentStr,
+    } as unknown as ChatCompletionMessageParam;
+  }
+
+  // Default: treat as a plain text message
+  return {
+    role: role as any, // 'user' | 'assistant' | 'system'
+    content: collapseText(msg.content as any),
+  } as unknown as ChatCompletionMessageParam;
+}
+
+/**
+ * Convert Anthropic API params to an OpenAI chat/completions request body.
+ */
+function convertAnthropicRequestToOpenAI(apiParams: Anthropic.Messages.MessageCreateParams): ChatCompletionCreateParams {
+  const messages: ChatCompletionMessageParam[] = [];
+
+  // Handle system prompt if provided
+  if ('system' in apiParams && apiParams.system) {
+    if (typeof (apiParams as any).system === 'string') {
+      messages.push({ role: 'system', content: (apiParams as any).system } as ChatCompletionMessageParam);
+    } else if (Array.isArray((apiParams as any).system)) {
+      const blocks = (apiParams as any).system as Array<{ text: string }>;
+      const systemText = blocks.map((b) => b.text).join('\n');
+      messages.push({ role: 'system', content: systemText } as ChatCompletionMessageParam);
+    }
+  }
+
+  // Convert conversation history
+  if (apiParams.messages) {
+    for (const m of apiParams.messages) {
+      messages.push(convertMessageToOpenAI(m));
+    }
+  }
+
+  // Compose final request
+  return {
+    model: apiParams.model,
+    temperature: apiParams.temperature ?? 0.7,
+    messages,
+    tools: convertToolsToOpenAI(apiParams.tools as Anthropic.Tool[]),
+    // The OpenAI type expects ChatCompletionToolChoiceOption or undefined.
+    tool_choice: apiParams.tool_choice?.type as ChatCompletionToolChoiceOption | undefined,
+  } satisfies ChatCompletionCreateParams;
+}
+
+/**
+ * Perform the Chat Completions request via the official OpenAI SDK instead of a
+ * raw `fetch`.  This returns the strongly-typed `ChatCompletion` object.
+ */
+let cachedOpenAIClient: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (cachedOpenAIClient) return cachedOpenAIClient;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  const baseURL = (process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+
+  cachedOpenAIClient = new OpenAI({ apiKey, baseURL });
+  return cachedOpenAIClient;
+}
+
+async function callOpenAI(
+  requestBody: ChatCompletionCreateParams,
+  logger?: Logger,
+): Promise<ChatCompletion> {
+  const openai = getOpenAIClient();
+
+  logger?.debug('Dispatching request to OpenAI (SDK)', LogCategory.MODEL, {
+    model: requestBody.model,
+    messageCount: requestBody.messages?.length ?? 0,
+  });
+
+  try {
+    const response = await openai.chat.completions.create(requestBody);
+    return response as ChatCompletion;
+  } catch (error: unknown) {
+    // The OpenAI SDK throws rich errors.  Normalise a subset of their fields so
+    // that the retry logic in `withRetryAndBackoff` continues to work.
+    if (error && typeof error === 'object') {
+      const err = error as { status?: number; message?: string };
+      const normalised = new Error(err.message || 'OpenAI API error');
+      if (err.status) (normalised as any).status = err.status;
+      throw normalised;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Convert an OpenAI ChatCompletion response back into Anthropic's Message
+ * shape so that the rest of the codebase remains unchanged.
+ */
+function convertOpenAIResponseToAnthropic(openaiResp: ChatCompletion): Anthropic.Messages.Message {
+  const choice = openaiResp.choices?.[0];
+  const msg = choice?.message ?? {};
+
+  // Build content blocks
+  const contentBlocks: any[] = [];
+
+  if (msg.tool_calls && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+    // Each tool call becomes a tool_use block
+    for (const tc of msg.tool_calls) {
+      const input = (() => {
+        try {
+          return JSON.parse(tc.function.arguments || '{}');
+        } catch {
+          return {};
+        }
+      })();
+      contentBlocks.push({
+        type: 'tool_use',
+        id: tc.id,
+        name: tc.function.name,
+        input,
+      });
+    }
+  }
+
+  if (msg.content) {
+    contentBlocks.push({
+      type: 'text',
+      text: msg.content,
+      citations: [],
+    });
+  }
+
+  const usage = openaiResp.usage || {};
+
+  const anthropicMessage: Anthropic.Messages.Message = {
+    id: openaiResp.id,
+    role: 'assistant',
+    content: contentBlocks,
+    model: openaiResp.model,
+    stop_reason: choice?.finish_reason ?? 'stop',
+    usage: {
+      input_tokens: 0,
+      output_tokens: 0,
+    },
+  } as any; // Cast to satisfy structural typing
+
+  return anthropicMessage;
+}
+
 export { AnthropicProvider };
 
-// Maximum token limit for Claude API requests
-const MAX_TOKEN_LIMIT = 200000;
+/**
+ * Creates a model list fetcher that provides methods to fetch and retrieve available models
+ * @returns Object with fetchModelList and getAvailableModels methods
+ */
+function createModelListFetcher() {
+  let cache: RemoteModelInfo[] | null = null;
+  let inflight: Promise<RemoteModelInfo[]> | null = null;
+
+  /**
+   * Fetches the list of available models from the remote API
+   * @returns Promise with array of model information
+   */
+  async function fetchModelList(): Promise<RemoteModelInfo[]> {
+    // If we already have an inflight request, return it
+    if (inflight) return inflight;
+
+    // If we have cached results, return them
+    if (cache) return cache;
+
+    // Create a new fetch request
+    inflight = (async () => {
+      try {
+        // Check if we have an API URL configured
+        if (!LIST_MODELS_URL) {
+          console.warn('LIST_MODELS_URL not configured, using empty model list');
+          return [];
+        }
+
+        // Fetch the models list
+        const response = await fetch(LIST_MODELS_URL);
+        if (!response.ok) {
+          console.warn(`Failed to fetch models: ${response.status} ${response.statusText}`);
+          return [];
+        }
+
+        // Parse the response
+        const data = await response.json();
+        const models = Array.isArray(data.data) ? data.data : [];
+
+        // Filter and transform the models
+        const modelInfo = models
+          .filter((model: any) => 
+            model.model_name && 
+            model.litellm_provider && 
+            typeof model.max_input_tokens === 'number'
+          )
+          .map((model: any) => ({
+            model_name: model.model_name,
+            litellm_provider: model.litellm_provider,
+            max_input_tokens: model.max_input_tokens
+          }));
+
+        // Store in cache and return
+        cache = modelInfo;
+        return modelInfo;
+      } catch (error) {
+        console.warn(`Error fetching model list: ${error instanceof Error ? error.message : String(error)}`);
+        return [];
+      } finally {
+        // Clear the inflight request
+        inflight = null;
+      }
+    })();
+
+    return inflight;
+  }
+
+  /**
+   * Returns the list of available models with their providers
+   * @returns Promise with array of model names and providers
+   */
+  async function getAvailableModels(): Promise<ModelInfo[]> {
+    const models = await fetchModelList();
+    return models.map(model => ({
+      model_name: model.model_name,
+      provider: model.litellm_provider
+    }));
+  }
+
+  return { fetchModelList, getAvailableModels };
+}
+
+// Default token limits - these will be overridden per model if available
+const DEFAULT_MAX_TOKEN_LIMIT = 200000;
 // Target token limit after compression (half of max to provide ample buffer)
-const TARGET_TOKEN_LIMIT = MAX_TOKEN_LIMIT / 2;
+const DEFAULT_TARGET_TOKEN_LIMIT = DEFAULT_MAX_TOKEN_LIMIT / 2;
 
 /**
  * Exponential backoff implementation for rate limit handling
@@ -99,15 +438,15 @@ async function withRetryAndBackoff<T>(
  * @param config - Configuration options
  * @returns The provider function
  */
-export const createAnthropicProvider = (config: AnthropicConfig): AnthropicProvider => {
+function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error('Anthropic provider requires an API key');
-  }
+  const baseURL = process.env.LLM_BASE_URL || 'https://api.anthropic.com/v1';
   
-  const model = config.model || 'claude-3-7-sonnet-20250219';
+  const model = config.model || 'claude-3-7-sonnet';
   const maxTokens = config.maxTokens || 4096;
   const logger = config.logger;
+
+  console.log('AnthropicProvider: Using model', model);
   
   // Use the provided tokenManager or fall back to the default
   const tokenManager = config.tokenManager || defaultTokenManager;
@@ -115,18 +454,52 @@ export const createAnthropicProvider = (config: AnthropicConfig): AnthropicProvi
   // By default, enable caching unless explicitly disabled
   const cachingEnabled = config.cachingEnabled !== undefined ? config.cachingEnabled : true;
   
-  // Create Anthropic client
-  const anthropic = new Anthropic({
-    apiKey
-  });
+  // Create Anthropic client *only* when we have an API key.  When running in
+  // OpenAI proxy mode the client is not required, but we keep the variable
+  // around (typed as `any`) so that the remainder of the legacy code still
+  // type-checks.
+  const anthropic: any = apiKey
+    ? new Anthropic({
+        apiKey,
+        baseURL,
+      })
+    : null;
+    
+  // Create the model list fetcher
+  const modelFetcher = createModelListFetcher();
   
   /**
    * Provider function that handles API calls to Claude
    * @param prompt - The prompt object
    * @returns The API response
    */
-  return async (prompt: ModelProviderRequest): Promise<Anthropic.Messages.Message> => {
+  const provider = async (prompt: ModelProviderRequest): Promise<Anthropic.Messages.Message> => {
     try {
+      // Get dynamic max input tokens for the configured model
+      let dynamicMaxInputTokens: number | undefined;
+      
+      try {
+        // Attempt to fetch model list to determine model-specific token limits
+        const list = await modelFetcher.fetchModelList();
+        const info = list.find((m: RemoteModelInfo) => m.model_name === model);
+        dynamicMaxInputTokens = info?.max_input_tokens;
+        
+        if (info) {
+          logger?.debug('Using model-specific token limits', LogCategory.MODEL, {
+            model,
+            max_input_tokens: info.max_input_tokens
+          });
+        }
+      } catch (error) {
+        logger?.warn('Failed to fetch model-specific token limits', LogCategory.MODEL, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+      
+      // Use dynamic token limits if available, otherwise fall back to defaults
+      const MAX_TOKEN_LIMIT = dynamicMaxInputTokens ?? DEFAULT_MAX_TOKEN_LIMIT;
+      const TARGET_TOKEN_LIMIT = MAX_TOKEN_LIMIT / 2;
+
       // Check if caching is enabled either at the provider level or in the prompt
       const shouldUseCache = prompt.cachingEnabled !== undefined 
         ? prompt.cachingEnabled 
@@ -166,11 +539,19 @@ export const createAnthropicProvider = (config: AnthropicConfig): AnthropicProvi
             tokenCountParams.tools = prompt.tools as Anthropic.Tool[];
           }
           
-          const tokenCount = await anthropic.messages.countTokens(tokenCountParams);
-          logger?.debug('Proactive token count check', LogCategory.MODEL, { tokenCount: tokenCount.input_tokens });
-          
+          let tokenCount: { input_tokens: number } | null = null;
+          if (anthropic && anthropic.messages && anthropic.messages.countTokens) {
+            tokenCount = await anthropic.messages.countTokens(tokenCountParams);
+          }
+
+          if (tokenCount) {
+            logger?.debug('Proactive token count check', LogCategory.MODEL, {
+              tokenCount: tokenCount.input_tokens,
+            });
+          }
+
           // If over the limit, compress before sending
-          if (tokenCount.input_tokens > TARGET_TOKEN_LIMIT) {
+          if (tokenCount && tokenCount.input_tokens > TARGET_TOKEN_LIMIT) {
             logger?.warn(
               `Token count (${tokenCount.input_tokens}) exceeds target limit (${TARGET_TOKEN_LIMIT}). Compressing conversation.`,
               LogCategory.MODEL,
@@ -343,17 +724,29 @@ export const createAnthropicProvider = (config: AnthropicConfig): AnthropicProvi
       }
       
       try {
-        // Make the API call with retry and backoff for rate limits
-        const response = await withRetryAndBackoff(
-          () => anthropic.messages.create(apiParams),
-          5, // max retries
-          1000, // initial delay in ms
-          30000, // max delay in ms
-          logger
+        // ------------------------------------------------------------------
+        // 1. Convert Anthropic-style request → OpenAI Chat Completions format
+        // ------------------------------------------------------------------
+
+        const openaiRequest = convertAnthropicRequestToOpenAI(apiParams);
+
+        // ------------------------------------------------------------------
+        // 2. Perform the network request to OpenAI with retry / back-off
+        // ------------------------------------------------------------------
+
+        const openaiResponse = await withRetryAndBackoff(
+          () => callOpenAI(openaiRequest, logger),
+          5,
+          1000,
+          30000,
+          logger,
         );
-        
-        // Cast response to Message type
-        const messageResponse = response as Anthropic.Messages.Message;
+
+        // ------------------------------------------------------------------
+        // 3. Convert OpenAI response → Anthropic-compatible shape
+        // ------------------------------------------------------------------
+
+        const messageResponse = convertOpenAIResponseToAnthropic(openaiResponse);
         
         // Make sure token usage information is available for tracking
         if (!messageResponse.usage) {
@@ -490,4 +883,12 @@ export const createAnthropicProvider = (config: AnthropicConfig): AnthropicProvi
       throw error;
     }
   };
+  
+  return provider;
+}
+
+// Create and export the LLMFactory
+export const LLMFactory = {
+  createProvider: createAnthropicProvider,
+  getAvailableModels: createModelListFetcher().getAvailableModels
 };

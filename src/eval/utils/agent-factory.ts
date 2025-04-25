@@ -5,7 +5,7 @@
  * leveraging the PromptManager for consistent prompt handling.
  */
 
-import { createAnthropicProvider } from '../../providers/AnthropicProvider.js';
+import { LLMFactory } from '../../providers/index.js';
 import { createModelClient } from '../../core/ModelClient.js';
 import { createPromptManager } from '../../core/PromptManager.js';
 import { createFilteredToolRegistry } from './tools.js';
@@ -27,7 +27,7 @@ const logger = createLogger({
  */
 export function createProviderFromConfig(config: AgentConfiguration) {
   // Create the model provider
-  return createAnthropicProvider({
+  return LLMFactory.createProvider({
     model: config.model,
     logger
   });

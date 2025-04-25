@@ -31,7 +31,7 @@ export interface AgentConfig {
    * The model provider to use for generating responses
    * @example
    * ```typescript
-   * const modelProvider = createAnthropicProvider({
+   * const modelProvider = LLMFactory.createProvider({
    *   model: 'claude-3-7-sonnet-20250219'
    * });
    * ```

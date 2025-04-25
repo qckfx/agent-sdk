@@ -5,6 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ModelProviderRequest, TokenManager } from './model.js';
 import { Logger } from '../utils/logger.js';
+import { ModelInfo } from './provider.js';
 
 /**
  * Cache control configuration for prompt caching
@@ -114,7 +115,25 @@ export interface AnthropicResponse {
   };
 }
 
+/**
+ * Type for the Anthropic provider function
+ */
 export type AnthropicProvider = (prompt: ModelProviderRequest) => Promise<Anthropic.Messages.Message>;
+
+/**
+ * Factory interface with methods to create providers and get available models
+ */
+export interface LLMFactory {
+  /**
+   * Creates a provider instance
+   */
+  createProvider(config: AnthropicConfig): AnthropicProvider;
+  
+  /**
+   * Returns a list of available models with their providers
+   */
+  getAvailableModels(): Promise<ModelInfo[]>;
+}
 
 /**
  * Type guard to check if a content block is a TextBlock
