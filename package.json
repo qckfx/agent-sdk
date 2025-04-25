@@ -80,7 +80,7 @@
     "docker:fix": "./scripts/fix-docker-mapper.sh",
     "docker:build": "docker build -t ghcr.io/earlywormteam/agent-sandbox:latest -f docker/Dockerfile .",
     "docker:publish": "npm run docker:build && docker push ghcr.io/earlywormteam/agent-sandbox:latest",
-    "prepare": "npm run build",
+    "prepare": "npm run build"
   },
   "keywords": [
     "ai",
