@@ -55,13 +55,14 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
     /**
      * Process a user query
      * @param query - The user's query
+     * @param model - The model to use for this query
      * @param sessionState - Current session state 
      * @returns The result of processing the query
      * 
      * NOTE: The query is always appended to the end of the conversation 
      * history before this call is made.
      */
-    async processQuery(query: string, sessionState: SessionState): Promise<ProcessQueryResult> {
+    async processQuery(query: string, model: string, sessionState: SessionState): Promise<ProcessQueryResult> {
       const sessionId = sessionState.id as string;
       
       // Validate sessionId
@@ -130,7 +131,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
           response: driverResponse,
           toolResults,
           aborted,
-        } = await driver.run(query, sessionState);
+        } = await driver.run(query, sessionState, model);
 
         // We may overwrite `response` later when suppression is requested.
         let response: string | undefined = driverResponse;
@@ -208,16 +209,17 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
     /**
      * Run a conversation loop until completion
      * @param initialQuery - The initial user query
+     * @param model - The model to use for this conversation
      * @returns The final result
      */
-    async runConversation(initialQuery: string): Promise<ConversationResult> {
+    async runConversation(initialQuery: string, model: string): Promise<ConversationResult> {
       let query = initialQuery;
       let sessionState: Record<string, unknown> = { contextWindow: createContextWindow() };
       let done = false;
       const responses: string[] = [];
       
       while (!done) {
-        const result = await this.processQuery(query, sessionState);
+        const result = await this.processQuery(query, model, sessionState);
         
         if (result.error) {
           logger.error('Error in conversation:', result.error, LogCategory.SYSTEM);

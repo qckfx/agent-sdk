@@ -128,7 +128,7 @@ const createAgent = (config: AgentConfig): Agent => {
     logger,
     
     // Helper methods
-    async processQuery(query, sessionState = { 
+    async processQuery(query, model, sessionState = { 
       contextWindow: createContextWindow(), 
       abortController: new AbortController(), 
       agentServiceConfig: { 
@@ -139,7 +139,7 @@ const createAgent = (config: AgentConfig): Agent => {
       },
     }) {
       const runner = await _agentRunner();
-      return runner.processQuery(query, sessionState);
+      return runner.processQuery(query, model, sessionState);
     },
     
     /**
@@ -147,9 +147,9 @@ const createAgent = (config: AgentConfig): Agent => {
      * @param initialQuery - The initial user query
      * @returns The conversation results
      */
-    async runConversation(initialQuery) {
+    async runConversation(initialQuery, model) {
       const runner = await _agentRunner();
-      return runner.runConversation(initialQuery);
+      return runner.runConversation(initialQuery, model);
     },
     
     registerTool(tool) {

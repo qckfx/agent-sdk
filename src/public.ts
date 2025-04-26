@@ -7,6 +7,7 @@
 // Primary API
 export { createAgent } from './core/Agent.js';
 export { createTool } from './tools/createTool.js';
+export { LLMFactory } from './providers/index.js';
 
 // Event helpers (safe, read‑only API surface)
 export {

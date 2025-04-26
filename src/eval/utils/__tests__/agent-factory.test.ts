@@ -7,13 +7,19 @@ import { createAgentFromConfig } from '../agent-factory';
 import { AgentConfiguration } from '../../models/ab-types';
 
 // Mock dependencies
-vi.mock('../../../providers/AnthropicProvider', () => ({
-  createAnthropicProvider: vi.fn(() => ({
-    model: 'mock-model',
-    generateMessage: vi.fn(),
-    getToolCall: vi.fn(),
-    generateResponse: vi.fn()
-  }))
+vi.mock('../../../providers/index', () => ({
+  LLMFactory: {
+    createProvider: vi.fn(() => ({
+      model: 'mock-model',
+      generateMessage: vi.fn(),
+      getToolCall: vi.fn(),
+      generateResponse: vi.fn()
+    })),
+    getAvailableModels: vi.fn().mockResolvedValue([
+      { model_name: 'mock-model-1', provider: 'mock-provider' },
+      { model_name: 'mock-model-2', provider: 'mock-provider' }
+    ])
+  }
 }));
 
 vi.mock('../../../core/ModelClient', () => ({
@@ -46,7 +52,7 @@ vi.mock('../tools', () => ({
 }));
 
 // Import the mocked modules 
-import { createAnthropicProvider } from '../../../providers/AnthropicProvider';
+import { LLMFactory } from '../../../providers/index';
 import { createModelClient } from '../../../core/ModelClient';
 import { createPromptManager } from '../../../core/PromptManager'; 
 import { createFilteredToolRegistry } from '../tools';
@@ -74,7 +80,7 @@ describe('Agent Factory', () => {
     const agent = await createAgentFromConfig(config);
     
     // Assert
-    expect(createAnthropicProvider).toHaveBeenCalled();
+    expect(LLMFactory.createProvider).toHaveBeenCalled();
     expect(createModelClient).toHaveBeenCalled();
     expect(createPromptManager).toHaveBeenCalledWith(
       'You are a helpful AI assistant',

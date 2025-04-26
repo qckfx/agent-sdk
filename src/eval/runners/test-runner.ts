@@ -6,7 +6,7 @@ import { createAgentRunner } from '../../core/AgentRunner.js';
 import { createModelClient } from '../../core/ModelClient.js';
 import { createToolRegistry } from '../../core/ToolRegistry.js';
 import { createPermissionManager } from '../../core/PermissionManager.js';
-import { createAnthropicProvider } from '../../providers/AnthropicProvider.js';
+import { LLMFactory } from '../../providers/index.js';
 import { PromptManager } from '../../core/PromptManager.js';
 import { LogLevel, createLogger } from '../../utils/logger.js';
 import { TestCase, MetricsData, SystemPromptConfig, AgentExecutionHistory, TestRunWithHistory } from '../models/types.js';
@@ -63,7 +63,7 @@ export async function runTestCase(
   });
   
   // Initialize the provider with the specified system prompt
-  const provider = createAnthropicProvider({
+  const provider = LLMFactory.createProvider({
     model: systemPrompt.model || 'claude-3-7-sonnet-20250219',
     logger
   });
@@ -136,7 +136,7 @@ export async function runTestCase(
   
   try {
     // Run the test case
-    const result = await runner.processQuery(testCase.instructions, { contextWindow: createContextWindow() });
+    const result = await runner.processQuery(testCase.instructions, systemPrompt.model || 'claude-3-7-sonnet-20250219', { contextWindow: createContextWindow() });
     
     // Determine success based on the result - no error means success by default
     success = !result.error;
@@ -334,7 +334,8 @@ export async function runTestCaseWithHistory(
     const sessionState = { contextWindow: createContextWindow() };
     
     // Run the test case with session state
-    const result = await runner.processQuery(testCase.instructions, sessionState);
+    // Use a default model since PromptManager doesn't have getDefaultModel
+    const result = await runner.processQuery(testCase.instructions, 'claude-3-7-sonnet-20250219', sessionState);
     
     // Record execution duration
     const duration = (Date.now() - startTime) / 1000;

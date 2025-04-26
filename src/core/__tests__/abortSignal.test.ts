@@ -71,7 +71,8 @@ describe('AbortSignal propagation', () => {
     };
 
     const promise = client.generateResponse(
-      'hi', 
+      'hi',
+      'claude-3-7-sonnet-20250219', // Add the required model parameter
       [], 
       sessionState, 
       sessionState.abortController ? { signal: sessionState.abortController.signal } : undefined
@@ -136,7 +137,7 @@ describe('AbortSignal propagation', () => {
     
     // Process a query through AgentRunner - this should detect the abort,
     // return early, and clean up the abort status automatically
-    await agentRunner.processQuery('test query', sessionState);
+    await agentRunner.processQuery('test query', 'claude-3-7-sonnet-20250219', sessionState);
 
     // Verify abort status is cleared automatically by AgentRunner
     expect(isSessionAborted('session-2')).toBe(false);

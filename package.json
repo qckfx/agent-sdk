@@ -49,13 +49,27 @@
   },
   "typesVersions": {
     "*": {
-      "browser": ["dist/esm/browser/index.d.ts"],
-      "browser/internals": ["dist/esm/browser/internals/index.d.ts"],
-      "node": ["dist/esm/node/index.d.ts"],
-      "node/tools": ["dist/esm/src/tools/index.d.ts"],
-      "node/providers": ["dist/esm/src/providers/index.d.ts"],
-      "node/internals": ["dist/esm/src/internals/index.d.ts"],
-      "types/*": ["dist/esm/src/types/*.d.ts"]
+      "browser": [
+        "dist/esm/browser/index.d.ts"
+      ],
+      "browser/internals": [
+        "dist/esm/browser/internals/index.d.ts"
+      ],
+      "node": [
+        "dist/esm/node/index.d.ts"
+      ],
+      "node/tools": [
+        "dist/esm/src/tools/index.d.ts"
+      ],
+      "node/providers": [
+        "dist/esm/src/providers/index.d.ts"
+      ],
+      "node/internals": [
+        "dist/esm/src/internals/index.d.ts"
+      ],
+      "types/*": [
+        "dist/esm/src/types/*.d.ts"
+      ]
     }
   },
   "files": [
@@ -98,6 +112,7 @@
     "dotenv": "^16.0.3",
     "e2b": "^1.2.5",
     "glob": "^11.0.1",
+    "openai": "^4.96.0",
     "ora": "^7.0.1",
     "prompts": "^2.4.2",
     "uuid": "^11.1.0",

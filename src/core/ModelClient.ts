@@ -67,12 +67,14 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
     /**
      * Get a tool call recommendation from the model
      * @param query - The user's query
+     * @param model - The model to use for this query
      * @param toolDescriptions - Descriptions of available tools
      * @param sessionState - Current session state
      * @returns The recommended tool call
      */
     async getToolCall(
       query: string,
+      model: string,
       toolDescriptions: ToolDescription[],
       sessionState: SessionState,
       options?: { signal?: AbortSignal }
@@ -101,7 +103,9 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         systemMessage: systemMessages[0],
         temperature: temperature,
         // Pass the conversation history in a way AnthropicProvider can use
-        sessionState
+        sessionState,
+        // Include the model parameter
+        model: model
       };
       
       let response;
@@ -215,12 +219,14 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
     /**
      * Generate a response to the user based on tool execution results
      * @param query - The original user query
+     * @param model - The model to use for this query
      * @param toolDescriptions - Descriptions of available tools
      * @param sessionState - Current session state
      * @returns The generated response
      */
     async generateResponse(
       query: string,
+      model: string,
       toolDescriptions: ToolDescription[],
       sessionState: SessionState,
       options?: { tool_choice?: { type: string }; signal?: AbortSignal }
@@ -243,7 +249,9 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         systemMessages,
         // Include systemMessage for backward compatibility
         systemMessage: systemMessages[0],
-        temperature
+        temperature,
+        // Include the model parameter
+        model: model
       };
       
       // Add optional tool_choice if provided

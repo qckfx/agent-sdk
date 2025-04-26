@@ -31,7 +31,7 @@ export interface AgentConfig {
    * The model provider to use for generating responses
    * @example
    * ```typescript
-   * const modelProvider = createAnthropicProvider({
+   * const modelProvider = LLMFactory.createProvider({
    *   model: 'claude-3-7-sonnet-20250219'
    * });
    * ```
@@ -122,18 +122,20 @@ export interface Agent {
   /**
    * Process a single query with the agent
    * @param query The natural language query to process
+   * @param model The model to use for this query
    * @param sessionState Optional session state (creates new session if not provided)
    * @returns A Promise resolving to the query result
    */
-  processQuery(query: string, sessionState?: SessionState): Promise<ProcessQueryResult>;
+  processQuery(query: string, model: string, sessionState?: SessionState): Promise<ProcessQueryResult>;
   
   /**
    * Run a simplified automated conversation
    * This method is primarily used for testing and evaluation purposes
    * @param initialQuery The initial user query
+   * @param model The model to use for this conversation
    * @returns A Promise resolving to the conversation result
    */
-  runConversation(initialQuery: string): Promise<ConversationResult>;
+  runConversation(initialQuery: string, model: string): Promise<ConversationResult>;
   
   /**
    * Register a new tool with the agent

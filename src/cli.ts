@@ -5,7 +5,7 @@
 
 import { program } from 'commander';
 import { createAgent } from './public.js';
-import { createAnthropicProvider } from './providers/AnthropicProvider.js';
+import { LLMFactory } from './providers/index.js';
 import { createLogger, LogLevel, LogCategory } from './utils/logger.js';
 import * as dotenv from 'dotenv';
 import { SessionState, ToolResultEntry } from './types/index.js';
@@ -175,7 +175,7 @@ const startChat = async (options: {
   });
   
   // Create the model provider
-  const modelProvider = createAnthropicProvider({
+  const modelProvider = LLMFactory.createProvider({
     model: options.model,
     cachingEnabled: options.caching !== false // Enable caching by default
   });
@@ -307,7 +307,7 @@ const startChat = async (options: {
         }).start();
         
         // Process the query
-        result = await agent.processQuery(query, sessionState);
+        result = await agent.processQuery(query, options.model || 'claude-3-7-sonnet-20250219', sessionState);
         spinner.succeed('Response ready');
       } catch (error) {
         // Make sure spinner is stopped on error

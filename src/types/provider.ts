@@ -24,3 +24,20 @@ export interface GenerateOptions {
   maxTokens?: number;
   temperature?: number;
 }
+
+/**
+ * Interface for model information retrieved from remote API
+ */
+export interface RemoteModelInfo {
+  model_name: string;
+  litellm_provider: string;
+  max_input_tokens: number;
+}
+
+/**
+ * Interface for simplified model information returned to clients
+ */
+export interface ModelInfo {
+  model_name: string;
+  provider: string;
+}

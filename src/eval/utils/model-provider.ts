@@ -4,7 +4,7 @@
  * Creates a model provider for the AI judge to evaluate agent execution.
  */
 
-import { createAnthropicProvider } from '../../providers/AnthropicProvider.js';
+import { LLMFactory } from '../../providers/index.js';
 import { createContextWindow } from '../../types/contextWindow.js';
 import { createLogger, LogLevel } from '../../utils/logger.js';
 import { ModelProvider, ProcessQueryOptions } from '../runners/judge.js';
@@ -17,13 +17,13 @@ type MessageParam = any;
  * A simple adapter that makes AnthropicProvider compatible with the ModelProvider interface
  */
 class AnthropicProviderAdapter implements ModelProvider {
-  private provider: ReturnType<typeof createAnthropicProvider>;
+  private provider: ReturnType<typeof LLMFactory.createProvider>;
   private logger = createLogger({
     level: LogLevel.INFO,
     prefix: 'JudgeProvider'
   });
 
-  constructor(provider: ReturnType<typeof createAnthropicProvider>) {
+  constructor(provider: ReturnType<typeof LLMFactory.createProvider>) {
     this.provider = provider;
   }
 
@@ -43,12 +43,13 @@ class AnthropicProviderAdapter implements ModelProvider {
           contextWindow: createContextWindow([userMessage]),
           abortController: new AbortController(), // Add abortController to satisfy SessionState type
           agentServiceConfig: {
-            defaultModel: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet-20250219',
+            defaultModel: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet',
             permissionMode: process.env.QCKFX_PERMISSION_MODE as 'auto' | 'interactive' || 'interactive',
             allowedTools: ['ReadTool', 'GlobTool', 'GrepTool', 'LSTool'],
             cachingEnabled: process.env.QCKFX_DISABLE_CACHING ? false : true,
           },
-        }
+        },
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet'
       });
 
       // Extract the text content from the response
@@ -74,8 +75,8 @@ class AnthropicProviderAdapter implements ModelProvider {
  */
 export function createJudgeModelProvider(): ModelProvider {
   // Create an Anthropic provider
-  const anthropicProvider = createAnthropicProvider({
-    model: 'claude-3-7-sonnet-20250219'
+  const anthropicProvider = LLMFactory.createProvider({
+    model: 'claude-3-7-sonnet'
   });
 
   // Wrap it in the adapter
