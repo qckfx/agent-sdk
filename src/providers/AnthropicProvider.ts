@@ -30,6 +30,7 @@ import {
 import { LogCategory } from '../types/logger.js';
 import { Logger } from '../utils/logger.js';
 import { tokenManager as defaultTokenManager } from '../utils/TokenManager.js';
+import { z } from 'zod';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -282,6 +283,24 @@ export { AnthropicProvider };
  * @returns Object with fetchModelList and getAvailableModels methods
  */
 function createModelListFetcher() {
+  // Define Zod schema for model response
+  const ModelInfoSchema = z.object({
+    model_name: z.string(),
+    model_info: z.object({
+      litellm_provider: z.string().optional(),
+      key: z.string().optional(),
+      max_input_tokens: z.number().optional(),
+      max_tokens: z.number().optional(),
+    }),
+    litellm_params: z.object({
+      model: z.string().optional(),
+    }).optional(),
+  });
+
+  const ModelListResponseSchema = z.object({
+    data: z.array(ModelInfoSchema),
+  });
+
   let cache: RemoteModelInfo[] | null = null;
   let inflight: Promise<RemoteModelInfo[]> | null = null;
 
@@ -290,6 +309,8 @@ function createModelListFetcher() {
    * @returns Promise with array of model information
    */
   async function fetchModelList(): Promise<RemoteModelInfo[]> {
+    console.log(`Fetching model list from ${LIST_MODELS_URL}`);
+    
     // If we already have an inflight request, return it
     if (inflight) return inflight;
 
@@ -314,20 +335,30 @@ function createModelListFetcher() {
 
         // Parse the response
         const data = await response.json();
-        const models = Array.isArray(data.data) ? data.data : [];
-
-        // Filter and transform the models
-        const modelInfo = models
-          .filter((model: any) => 
-            model.model_name && 
-            model.litellm_provider && 
-            typeof model.max_input_tokens === 'number'
-          )
-          .map((model: any) => ({
-            model_name: model.model_name,
-            litellm_provider: model.litellm_provider,
-            max_input_tokens: model.max_input_tokens
-          }));
+        
+        // Log first model object for debugging
+        if (data && data.data && data.data.length > 0) {
+          console.log('First model from API:', JSON.stringify(data.data[0], null, 2));
+        }
+        
+        // Parse with Zod schema
+        const result = ModelListResponseSchema.safeParse(data);
+        
+        if (!result.success) {
+          console.warn(`Failed to parse model list: ${result.error.message}`);
+          console.log('Full error:', JSON.stringify(result.error.format(), null, 2));
+          return [];
+        }
+        
+        // Transform the models to our internal format
+        const modelInfo = result.data.data.map(model => ({
+          model_name: model.model_name,
+          litellm_provider: model.model_info.litellm_provider || 
+                           (model.litellm_params?.model?.split('/')[0] || 'unknown'),
+          max_input_tokens: model.model_info.max_input_tokens || 
+                           model.model_info.max_tokens || 
+                           100000 // fallback default
+        }));
 
         // Store in cache and return
         cache = modelInfo;
