@@ -475,18 +475,21 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
    */
   const provider = async (prompt: ModelProviderRequest): Promise<Anthropic.Messages.Message> => {
     try {
-      // Get dynamic max input tokens for the configured model
+      // Use the model from the prompt, which is now required
+      const modelToUse = prompt.model!;
+      
+      // Get dynamic max input tokens for the chosen model
       let dynamicMaxInputTokens: number | undefined;
       
       try {
         // Attempt to fetch model list to determine model-specific token limits
         const list = await modelFetcher.fetchModelList();
-        const info = list.find((m: RemoteModelInfo) => m.model_name === model);
+        const info = list.find((m: RemoteModelInfo) => m.model_name === modelToUse);
         dynamicMaxInputTokens = info?.max_input_tokens;
         
         if (info) {
           logger?.debug('Using model-specific token limits', LogCategory.MODEL, {
-            model,
+            model: modelToUse,
             max_input_tokens: info.max_input_tokens
           });
         }
@@ -655,7 +658,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
       
       // Prepare API call parameters
       const apiParams: Anthropic.Messages.MessageCreateParams = {
-        model,
+        model: modelToUse,
         max_tokens: maxTokens,
         // System will be set based on caching configuration
         messages: modifiedMessages,

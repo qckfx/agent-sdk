@@ -95,6 +95,7 @@ export interface ModelProviderRequest {
   };
   sessionState?: SessionState;
   cachingEnabled?: boolean; // Whether to enable prompt caching
+  model: string; // Required model parameter
 }
 
 export type ModelProvider = (request: ModelProviderRequest) => Promise<Anthropic.Messages.Message>;
@@ -109,12 +110,14 @@ export interface ModelClient {
   formatToolsForClaude(toolDescriptions: ToolDescription[]): unknown[];
   getToolCall(
     query: string,
+    model: string,
     toolDescriptions: ToolDescription[],
     sessionState?: SessionState,
     options?: { signal?: AbortSignal }
   ): Promise<ToolCallResponse>;
   generateResponse(
-    query: string, 
+    query: string,
+    model: string,
     toolDescriptions: ToolDescription[], 
     sessionState?: SessionState, 
     options?: { tool_choice?: { type: string }; signal?: AbortSignal }

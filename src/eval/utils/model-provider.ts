@@ -48,7 +48,8 @@ class AnthropicProviderAdapter implements ModelProvider {
             allowedTools: ['ReadTool', 'GlobTool', 'GrepTool', 'LSTool'],
             cachingEnabled: process.env.QCKFX_DISABLE_CACHING ? false : true,
           },
-        }
+        },
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet'
       });
 
       // Extract the text content from the response

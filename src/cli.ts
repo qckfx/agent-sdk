@@ -307,7 +307,7 @@ const startChat = async (options: {
         }).start();
         
         // Process the query
-        result = await agent.processQuery(query, sessionState);
+        result = await agent.processQuery(query, options.model || 'claude-3-7-sonnet-20250219', sessionState);
         spinner.succeed('Response ready');
       } catch (error) {
         // Make sure spinner is stopped on error

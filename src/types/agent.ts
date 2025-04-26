@@ -57,8 +57,8 @@ export interface ConversationResult {
 
 /** @internal */
 export interface AgentRunner {
-  processQuery(query: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
-  runConversation(initialQuery: string): Promise<ConversationResult>;
+  processQuery(query: string, model: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
+  runConversation(initialQuery: string, model: string): Promise<ConversationResult>;
 }
 
 // Legacy interfaces from the original agent.ts file

@@ -136,7 +136,7 @@ export async function runTestCase(
   
   try {
     // Run the test case
-    const result = await runner.processQuery(testCase.instructions, { contextWindow: createContextWindow() });
+    const result = await runner.processQuery(testCase.instructions, systemPrompt.model || 'claude-3-7-sonnet-20250219', { contextWindow: createContextWindow() });
     
     // Determine success based on the result - no error means success by default
     success = !result.error;
@@ -334,7 +334,8 @@ export async function runTestCaseWithHistory(
     const sessionState = { contextWindow: createContextWindow() };
     
     // Run the test case with session state
-    const result = await runner.processQuery(testCase.instructions, sessionState);
+    // Use a default model since PromptManager doesn't have getDefaultModel
+    const result = await runner.processQuery(testCase.instructions, 'claude-3-7-sonnet-20250219', sessionState);
     
     // Record execution duration
     const duration = (Date.now() - startTime) / 1000;

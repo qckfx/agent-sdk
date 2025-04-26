@@ -51,9 +51,12 @@ export class FsmDriver {
   /**
    * Runs a single user query through the FSM until it reaches a terminal
    * state. Handles both tool execution flow and direct assistant replies.
+   * @param query The user's query
+   * @param sessionState The current session state
+   * @param model The model to use for this query
    * @returns A response object containing the assistant's text, tool results, and abort status
    */
-  public async run(query: string, sessionState: SessionState): Promise<{ 
+  public async run(query: string, sessionState: SessionState, model: string): Promise<{ 
     response: string; 
     aborted: boolean;
     toolResults: ToolResultEntry[];
@@ -146,6 +149,7 @@ export class FsmDriver {
           // Ask model for action
           const toolCallChat = await modelClient.getToolCall(
             query,
+            model,
             toolRegistry.getToolDescriptions(),
             sessionState,
             abortSignal ? { signal: abortSignal } : undefined
@@ -245,6 +249,7 @@ export class FsmDriver {
           // Ask model for next action after tool execution
           const finalToolCallChat = await modelClient.getToolCall(
             `Based on the result of the previous tool execution, what should I do next to answer: ${query}`,
+            model,
             toolRegistry.getToolDescriptions(),
             sessionState,
             abortSignal ? { signal: abortSignal } : undefined
