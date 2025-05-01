@@ -1,6 +1,6 @@
 {
   "name": "@qckfx/agent",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "description": "qckfx AI Agent SDK",
   "main": "./dist/cjs/index.js",
