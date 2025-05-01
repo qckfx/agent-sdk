@@ -76,6 +76,8 @@ export interface SessionState {
   e2bSandboxId?: string;
   /** Execution adapter instance */
   executionAdapter?: ExecutionAdapter;
+  /** API key for the LLM provider - takes precedence over environment variables */
+  llmApiKey?: string;
 
   [key: string]: unknown;
 }
