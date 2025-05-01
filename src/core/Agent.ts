@@ -127,6 +127,7 @@ export const createAgent = (config: AgentConfig): Agent => {
         allowedTools: [], 
         cachingEnabled: true 
       },
+      llmApiKey: undefined,
     }) {
       const runner = await _agentRunner();
       return runner.processQuery(query, model, sessionState);

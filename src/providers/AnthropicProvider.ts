@@ -181,28 +181,28 @@ function convertAnthropicRequestToOpenAI(apiParams: Anthropic.Messages.MessageCr
  * Perform the Chat Completions request via the official OpenAI SDK instead of a
  * raw `fetch`.  This returns the strongly-typed `ChatCompletion` object.
  */
-let cachedOpenAIClient: OpenAI | null = null;
+function getOpenAIClient(sessionLlmApiKey?: string): OpenAI {
+  // Use the session API key if provided, otherwise fall back to environment variable
+  const apiKey = sessionLlmApiKey || process.env.LLM_API_KEY;
 
-function getOpenAIClient(): OpenAI {
-  if (cachedOpenAIClient) return cachedOpenAIClient;
-
-  const apiKey = process.env.OPENAI_API_KEY;
-
+  // Get base URL from environment
   const baseURL = (process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
 
-  cachedOpenAIClient = new OpenAI({ apiKey, baseURL });
-  return cachedOpenAIClient;
+  // Create a new client with the API key
+  return new OpenAI({ apiKey, baseURL });
 }
 
 async function callOpenAI(
   requestBody: ChatCompletionCreateParams,
   logger?: Logger,
+  llmApiKey?: string
 ): Promise<ChatCompletion> {
-  const openai = getOpenAIClient();
+  const openai = getOpenAIClient(llmApiKey);
 
   logger?.debug('Dispatching request to OpenAI (SDK)', LogCategory.MODEL, {
     model: requestBody.model,
     messageCount: requestBody.messages?.length ?? 0,
+    usingSessionApiKey: !!llmApiKey
   });
 
   try {
@@ -308,38 +308,64 @@ function createModelListFetcher() {
    * Fetches the list of available models from the remote API
    * @returns Promise with array of model information
    */
-  async function fetchModelList(): Promise<RemoteModelInfo[]> {
-    console.log(`Fetching model list from ${LIST_MODELS_URL}`);
-    
+  async function fetchModelList(llmKey?: string): Promise<RemoteModelInfo[]> {
     // If we already have an inflight request, return it
     if (inflight) return inflight;
 
     // If we have cached results, return them
     if (cache) return cache;
 
+    // Check if we have an API URL configured
+    if (!LIST_MODELS_URL) {
+      console.warn('LIST_MODELS_URL not configured');
+      
+      // Check if we have a default model configured
+      const defaultModel = process.env.LLM_DEFAULT_MODEL;
+      if (defaultModel) {
+        // Create a cache with the default model
+        cache = [{
+          model_name: defaultModel,
+          litellm_provider: 'default',
+          max_input_tokens: 100000 // fallback default
+        }];
+        return cache;
+      }
+      
+      console.warn('No LLM_DEFAULT_MODEL configured, returning empty model list');
+      return [];
+    }
+    
+
     // Create a new fetch request
     inflight = (async () => {
       try {
-        // Check if we have an API URL configured
-        if (!LIST_MODELS_URL) {
-          console.warn('LIST_MODELS_URL not configured, using empty model list');
-          return [];
-        }
-
         // Fetch the models list
-        const response = await fetch(LIST_MODELS_URL);
+        const response = await fetch(LIST_MODELS_URL, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': llmKey || process.env.LLM_API_KEY || ''
+          },
+        });
         if (!response.ok) {
           console.warn(`Failed to fetch models: ${response.status} ${response.statusText}`);
+          
+          // Check if we have a default model configured
+          const defaultModel = process.env.LLM_DEFAULT_MODEL;
+          if (defaultModel) {
+            // Create a cache with the default model
+            return [{
+              model_name: defaultModel,
+              litellm_provider: 'default',
+              max_input_tokens: 100000 // fallback default
+            }];
+          }
+          
           return [];
         }
 
         // Parse the response
         const data = await response.json();
-        
-        // Log first model object for debugging
-        if (data && data.data && data.data.length > 0) {
-          console.log('First model from API:', JSON.stringify(data.data[0], null, 2));
-        }
         
         // Parse with Zod schema
         const result = ModelListResponseSchema.safeParse(data);
@@ -347,6 +373,18 @@ function createModelListFetcher() {
         if (!result.success) {
           console.warn(`Failed to parse model list: ${result.error.message}`);
           console.log('Full error:', JSON.stringify(result.error.format(), null, 2));
+          
+          // Check if we have a default model configured
+          const defaultModel = process.env.LLM_DEFAULT_MODEL;
+          if (defaultModel) {
+            // Create a response with the default model
+            return [{
+              model_name: defaultModel,
+              litellm_provider: 'default',
+              max_input_tokens: 100000 // fallback default
+            }];
+          }
+          
           return [];
         }
         
@@ -360,11 +398,34 @@ function createModelListFetcher() {
                            100000 // fallback default
         }));
 
+        // If the model list is empty, check for default model
+        if (modelInfo.length === 0) {
+          const defaultModel = process.env.LLM_DEFAULT_MODEL;
+          if (defaultModel) {
+            modelInfo.push({
+              model_name: defaultModel,
+              litellm_provider: 'default',
+              max_input_tokens: 100000 // fallback default
+            });
+          }
+        }
+
         // Store in cache and return
         cache = modelInfo;
         return modelInfo;
       } catch (error) {
         console.warn(`Error fetching model list: ${error instanceof Error ? error.message : String(error)}`);
+        
+        // Check if we have a default model configured
+        const defaultModel = process.env.LLM_DEFAULT_MODEL;
+        if (defaultModel) {
+          return [{
+            model_name: defaultModel,
+            litellm_provider: 'default',
+            max_input_tokens: 100000 // fallback default
+          }];
+        }
+        
         return [];
       } finally {
         // Clear the inflight request
@@ -379,12 +440,38 @@ function createModelListFetcher() {
    * Returns the list of available models with their providers
    * @returns Promise with array of model names and providers
    */
-  async function getAvailableModels(): Promise<ModelInfo[]> {
-    const models = await fetchModelList();
-    return models.map(model => ({
-      model_name: model.model_name,
-      provider: model.litellm_provider
-    }));
+  async function getAvailableModels(llmKey?: string): Promise<ModelInfo[]> {
+    try {
+      const models = await fetchModelList(llmKey);
+      
+      // If models list is empty, fallback to default model
+      if (models.length === 0) {
+        const defaultModel = process.env.LLM_DEFAULT_MODEL;
+        if (defaultModel) {
+          return [{
+            model_name: defaultModel,
+            provider: 'default'
+          }];
+        }
+      }
+      
+      return models.map(model => ({
+        model_name: model.model_name,
+        provider: model.litellm_provider
+      }));
+    } catch (error) {
+      // In case of any error, fallback to default model from env
+      const defaultModel = process.env.LLM_DEFAULT_MODEL;
+      if (defaultModel) {
+        return [{
+          model_name: defaultModel,
+          provider: 'default'
+        }];
+      }
+      
+      // If no default model is configured, return empty array
+      return [];
+    }
   }
 
   return { fetchModelList, getAvailableModels };
@@ -477,8 +564,6 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
   const maxTokens = config.maxTokens || 4096;
   const logger = config.logger;
 
-  console.log('AnthropicProvider: Using model', model);
-  
   // Use the provided tokenManager or fall back to the default
   const tokenManager = config.tokenManager || defaultTokenManager;
   
@@ -514,7 +599,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
       
       try {
         // Attempt to fetch model list to determine model-specific token limits
-        const list = await modelFetcher.fetchModelList();
+        const list = await modelFetcher.fetchModelList(prompt.sessionState?.llmApiKey);
         const info = list.find((m: RemoteModelInfo) => m.model_name === modelToUse);
         dynamicMaxInputTokens = info?.max_input_tokens;
         
@@ -696,6 +781,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
         temperature: prompt.temperature
       };
       
+      console.log('preparing system messages');
       // Handle system messages based on new multi-message support
       if (prompt.systemMessages && prompt.systemMessages.length > 0) {
         // If systemMessages array is provided and has content, use that
@@ -768,8 +854,11 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
         // 2. Perform the network request to OpenAI with retry / back-off
         // ------------------------------------------------------------------
 
+        // Get the LLM API key from session state if available
+        const llmApiKey = prompt.sessionState?.llmApiKey;
+
         const openaiResponse = await withRetryAndBackoff(
-          () => callOpenAI(openaiRequest, logger),
+          () => callOpenAI(openaiRequest, logger, llmApiKey),
           5,
           1000,
           30000,
@@ -879,16 +968,21 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
           apiParams.messages = prompt.sessionState.contextWindow.getMessages();
           
           // Retry the API call with compressed conversation
-          const retryResponse = await withRetryAndBackoff(
-            () => anthropic.messages.create(apiParams),
+          // If we're using the OpenAI proxy, we need to convert the request and call OpenAI
+          const llmApiKey = prompt.sessionState?.llmApiKey;
+          
+          // Convert the request and call OpenAI
+          const openaiRetryRequest = convertAnthropicRequestToOpenAI(apiParams);
+          const openaiRetryResponse = await withRetryAndBackoff(
+            () => callOpenAI(openaiRetryRequest, logger, llmApiKey),
             3, // fewer retries for the second attempt
             1000,
             30000,
             logger
           );
           
-          // Cast to Message type
-          const messageRetryResponse = retryResponse as Anthropic.Messages.Message;
+          // Convert OpenAI response back to Anthropic format
+          const messageRetryResponse = convertOpenAIResponseToAnthropic(openaiRetryResponse);
           
           // Handle empty content array
           if (!messageRetryResponse.content || messageRetryResponse.content.length === 0) {
