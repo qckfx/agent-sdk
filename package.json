@@ -6,6 +6,9 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
+  "bin": {
+    "validate": "./dist/cjs/cli/validate-config.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
@@ -74,6 +77,7 @@
   },
   "files": [
     "dist",
+    "schemas/agent-config.schema.json",
     "docker",
     "scripts"
   ],

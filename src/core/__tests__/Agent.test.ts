@@ -8,37 +8,34 @@ import { EventEmitter } from 'events';
 import { AgentEvents, AgentEventType } from '../../utils/sessionUtils.js';
 import { CheckpointEvents, CHECKPOINT_READY_EVENT } from '../../events/checkpoint-events.js';
 
-// Mock dependencies
-vi.mock('../../core/Agent.js', () => ({
-  createAgent: vi.fn(() => ({
-    toolRegistry: {
-      registerTool: vi.fn(),
-      on: vi.fn()
-    },
-    permissionManager: {},
-    modelClient: {},
-    environment: { type: 'local' },
-    logger: {
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn()
-    },
-    processQuery: vi.fn(async () => ({ 
-      sessionId: 'test-session', 
-      response: 'Test response' 
-    })),
-    runConversation: vi.fn(async () => ({ 
-      messages: [], 
-      finalResponse: 'Test response' 
-    })),
-    registerTool: vi.fn()
-  }))
-}));
+import * as CoreAgentModule from '../../core/Agent.js';
 
-vi.mock('../../utils/configValidator.js', () => ({
-  validateConfig: vi.fn((config) => config)
-}));
+// Spy on createAgent so it returns a lightweight stub but without affecting other tests
+vi.spyOn(CoreAgentModule, 'createAgent').mockImplementation(() => ({
+  toolRegistry: {
+    registerTool: vi.fn(),
+    on: vi.fn(),
+    onToolExecutionStart: vi.fn(),
+    onToolExecutionComplete: vi.fn(),
+    onToolExecutionError: vi.fn()
+  },
+  permissionManager: {},
+  modelClient: {},
+  environment: { type: 'local' },
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  },
+  processQuery: vi.fn(async () => ({ sessionId: 'test-session', response: 'Test response' })),
+  runConversation: vi.fn(async () => ({ messages: [], finalResponse: 'Test response' })),
+  registerTool: vi.fn()
+} as any));
+
+// Stub the config validator
+import * as ConfigValidator from '../../utils/configValidator.js';
+vi.spyOn(ConfigValidator, 'validateConfig').mockImplementation((c: any) => c);
 
 describe('Agent', () => {
   let agent: Agent;

@@ -17,12 +17,9 @@ vi.mock('../../utils/E2BExecutionAdapter.js', () => ({
   }
 }));
 
-vi.mock('../../core/Agent.js', () => {
-  const originalModule = vi.importActual('../../core/Agent.js');
-  
-  return {
-    ...originalModule,
-    createAgent: vi.fn(config => {
+import * as CoreAgentModule from '../../core/Agent.js';
+
+vi.spyOn(CoreAgentModule, 'createAgent').mockImplementation((config: any) => {
       // This mock reproduces the specific behavior we need to test
       const setupAdapter = async () => {
         let remoteId;
@@ -37,7 +34,13 @@ vi.mock('../../core/Agent.js', () => {
       };
       
       return {
-        toolRegistry: { registerTool: vi.fn(), on: vi.fn() },
+        toolRegistry: {
+          registerTool: vi.fn(),
+          on: vi.fn(),
+          onToolExecutionStart: vi.fn(),
+          onToolExecutionComplete: vi.fn(),
+          onToolExecutionError: vi.fn()
+        },
         permissionManager: {},
         modelClient: {},
         environment: config.environment,
@@ -47,8 +50,6 @@ vi.mock('../../core/Agent.js', () => {
         registerTool: vi.fn(),
         _setupAdapter: setupAdapter
       };
-    })
-  };
 });
 
 vi.mock('../../utils/configValidator.js', () => ({
@@ -86,11 +87,9 @@ describe('Remote Environment Resolution', () => {
       environment: { type: 'remote' },
       defaultModel: 'test-model'
     }, callbacks);
-    
-    // Get core implementation and verify environment transformation
-    expect(agent).toBeDefined();
-    
-    // Check that the proper adapter is created with the callback-provided ID
+
+    await agent.processQuery('test', 'test-model');
+
     expect(callbacks.getRemoteId).toHaveBeenCalled();
   });
   

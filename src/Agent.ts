@@ -60,6 +60,28 @@ export class Agent {
   private _bus: EventEmitter;
   private _config: AgentConfig;
   private _callbacks?: AgentCallbacks;
+
+  // ---------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------
+
+  /**
+   * Ensure REMOTE_ID env var is populated once per process when using the
+   * remote execution environment.  Uses the user-supplied `getRemoteId`
+   * callback if available.
+   */
+  private async _ensureRemoteId(): Promise<void> {
+    if (this._config.environment.type !== 'remote') return;
+
+    if (this._callbacks?.getRemoteId) {
+      // Always fetch if callback provided to ensure freshest ID
+      process.env.REMOTE_ID = await this._callbacks.getRemoteId();
+      return;
+    }
+
+    // Fallback to existing environment variable (if any)
+    if (process.env.REMOTE_ID?.length) return;
+  }
   
   /**
    * Create a new agent instance
@@ -83,8 +105,8 @@ export class Agent {
     // Create private event bus
     this._bus = new EventEmitter();
 
-    // Initialize the core agent with potentially modified config
-    this._core = createAgent(this._prepareConfig(config));
+    // Initialize the core agent (no environment transformation needed)
+    this._core = createAgent(config);
 
     // Set up event forwarding from legacy global emitters to instance event bus
     this._bridgeLegacyEvents();
@@ -124,25 +146,33 @@ export class Agent {
       }
     }
     
-    // Forward tool execution events (these are already properly namespaced)
-    const toolEvents = [
-      'tool_execution:created',
-      'tool_execution:updated',
-      'tool_execution:completed',
-      'tool_execution:error',
-      'tool_execution:aborted'
-    ];
-    
-    for (const event of toolEvents) {
-      const newEvent = event.replace('_', ':');
-      const forwarder = (data: any) => {
-        this._bus.emit(newEvent, data);
-      };
-      
-      // Use any to circumvent type checking here since we don't have 
-      // direct access to the ToolExecutionManager
-      (this._core as any).toolRegistry.on(event, forwarder);
-    }
+    // Bridge tool execution callbacks from ToolRegistry
+    this._core.toolRegistry.onToolExecutionStart((executionId, toolId, _toolUseId, args) => {
+      this._bus.emit('tool:execution:started', {
+        executionId,
+        toolId,
+        args
+      });
+    });
+
+    this._core.toolRegistry.onToolExecutionComplete((executionId, toolId, args, result, executionTime) => {
+      this._bus.emit('tool:execution:completed', {
+        executionId,
+        toolId,
+        args,
+        result,
+        executionTime
+      });
+    });
+
+    this._core.toolRegistry.onToolExecutionError((executionId, toolId, args, error) => {
+      this._bus.emit('tool:execution:error', {
+        executionId,
+        toolId,
+        args,
+        error
+      });
+    });
   }
   
   /**
@@ -201,6 +231,8 @@ export class Agent {
     model?: string, 
     sessionState?: SessionState
   ): Promise<ProcessQueryResult> {
+    await this._ensureRemoteId();
+
     const chosenModel = model ?? this._config.defaultModel;
     
     if (!chosenModel) {
@@ -225,6 +257,8 @@ export class Agent {
     initialQuery: string, 
     model?: string
   ): Promise<ConversationResult> {
+    await this._ensureRemoteId();
+
     const chosenModel = model ?? this._config.defaultModel;
     
     if (!chosenModel) {

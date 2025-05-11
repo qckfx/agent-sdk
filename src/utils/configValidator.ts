@@ -1,58 +1,94 @@
 /**
- * Configuration validator for agent configs
- * @module configValidator
+ * Configuration validator for agent configuration JSON.
+ *
+ * This module wraps Ajv in a way that works with our ESM build target
+ * (`module: "Node16"`).  Ajv is published as a **CommonJS** package, so the
+ * namespace object returned by `import Ajv from 'ajv'` contains the real
+ * constructor on its `.default` property.  Accessing the constructor via
+ * `Ajv.default` satisfies both the TypeScript compiler and Node at runtime
+ * without falling back to `require()` syntax.
  */
 
-import Ajv from 'ajv';
-import * as fs from 'fs';
-import * as path from 'path';
+import AjvNs from 'ajv';
+import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Get the directory path of the current module
+// ---------------------------------------------------------------------------
+// Resolve schema location relative to this file (works in transpiled output)
+// ---------------------------------------------------------------------------
+
+
+// TypeScript (module = commonjs) doesn’t allow import.meta; suppress for that
+// compile target – it is valid in the ESM build that we actually run.
+// @ts-ignore TS1343 – import.meta is legal in Node16/ESM build and needed for ESM path resolution
 const __filename = fileURLToPath(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const __dirname = path.dirname(__filename);
 
-// Load schema from file
-const schemaPath = path.resolve(__dirname, '../../schemas/agent-config.schema.json');
-const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-
-// Create AJV instance
-const ajv = new Ajv({ allErrors: true });
-const validate = ajv.compile(schema);
+const schemaPath = path.resolve(
+  __dirname,
+  '../../schemas/agent-config.schema.json'
+);
 
 /**
- * Error class for validation errors
+ * Ajv instance pre-configured with the JSON schema for agent configs.
+ */
+// Ajv is shipped as CommonJS; the constructor is on the `.default` property
+// of the imported namespace object when using ESM import style.
+// Cast through `any` to keep the types happy without `require()`.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+const AjvConstructor: any = (AjvNs as any).default ?? (AjvNs as any);
+// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+const ajv = new AjvConstructor({ allErrors: true });
+
+// Lazily load and compile the schema – avoids fs access in browser builds that
+// tree-shake this module out.
+let validate: ReturnType<typeof ajv.compile> | null = null;
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Error thrown when configuration fails schema validation.
  */
 export class ConfigValidationError extends Error {
-  errors: any[];
-  
-  constructor(message: string, errors: any[]) {
-    super(message);
+  constructor(public readonly validationErrors: unknown[], extraMsg?: string) {
+    super(
+      extraMsg ? `Invalid agent configuration:\n${extraMsg}` : 'Invalid agent configuration'
+    );
     this.name = 'ConfigValidationError';
-    this.errors = errors;
   }
 }
 
 /**
- * Validates an agent configuration object against the schema
- * 
- * @param config The configuration object to validate
- * @throws {ConfigValidationError} If validation fails
- * @returns The validated config (same as input if valid)
+ * Validate a configuration object against the JSON schema.
+ *
+ * @template T Generic config type (preserved).
+ * @param config The parsed configuration object.
+ * @returns The **same** object if validation succeeds.
+ * @throws {ConfigValidationError} When validation fails.
  */
 export function validateConfig<T>(config: T): T {
-  const valid = validate(config);
-  
-  if (!valid) {
-    const errorMessages = validate.errors?.map((err: any) => {
-      return `${err.instancePath} ${err.message}`;
-    }).join('\n');
-
-    throw new ConfigValidationError(
-      `Invalid agent configuration: \n${errorMessages}`,
-      validate.errors || []
-    );
+  if (!validate) {
+    // Lazily load schema only when validator is first used – avoids fs access
+    // in browser bundles when validation is tree-shaken away.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    validate = ajv.compile(schema);
   }
-  
+
+  const isValid = validate(config);
+
+  if (!isValid) {
+    const messages = (validate.errors || [])
+      .map((e: any) => `${e.instancePath} ${e.message}`)
+      .join('\n');
+
+    throw new ConfigValidationError(validate.errors ?? [], messages);
+  }
+
   return config;
 }
