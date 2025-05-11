@@ -3,7 +3,7 @@
  * @module configValidator
  */
 
-import Ajv from 'ajv';
+import ajv from 'ajv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,8 +17,8 @@ const schemaPath = path.resolve(__dirname, '../../schemas/agent-config.schema.js
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 
 // Create AJV instance
-const ajv = new Ajv({ allErrors: true });
-const validate = ajv.compile(schema);
+const validator = new ajv({ allErrors: true });
+const validate = validator.compile(schema);
 
 /**
  * Error class for validation errors
