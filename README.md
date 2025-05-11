@@ -11,30 +11,75 @@ npm install @qckfx/agent
 ## Usage
 
 ```typescript
-import { createAgent } from '@qckfx/agent';
+import { Agent } from '@qckfx/agent';
 import { createAnthropicProvider } from '@qckfx/agent';
 
 // Create model provider
-const modelProvider = createAnthropicProvider({
-  model: 'claude-3-7-sonnet-20250219'
-});
+const modelProvider = createAnthropicProvider();
 
-// Create the agent
-const agent = createAgent({
+// Create the agent with JSON configuration
+const agent = new Agent({
   modelProvider,
-  environment: { 
-    type: 'docker' // or 'local', 'e2b'
-  }
+  environment: {
+    type: 'docker' // or 'local', 'remote'
+  },
+  defaultModel: 'claude-3-7-sonnet-20250219', // Optional default model
+  permissionMode: 'interactive', // Optional, defaults to 'interactive'
+  allowedTools: ['Bash', 'FileRead'], // Optional, restrict tools
+  cachingEnabled: true // Optional, defaults to true
 });
 
-// Process a query
-const sessionState = {
-  contextWindow: createContextWindow(),
-  abortController: new AbortController()
-};
-const result = await agent.processQuery('What files are in this directory?', sessionState);
+// Process a query with explicit model
+const result = await agent.processQuery('What files are in this directory?', 'claude-3-7-sonnet-20250219');
+
+// Or use the default model specified in config
+const result2 = await agent.processQuery('Show me the README');
 
 console.log(result.response);
+```
+
+## Configuration
+
+The Agent constructor accepts a configuration object with the following properties:
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `modelProvider` | ModelProvider | Yes | The model provider to use for generating responses |
+| `environment` | RepositoryEnvironment | Yes | The execution environment configuration |
+| `defaultModel` | string | No | Default model to use when not specified in processQuery calls |
+| `logLevel` | 'debug' \| 'info' \| 'warn' \| 'error' | No | Log level (defaults to 'info') |
+| `permissionMode` | 'interactive' \| 'auto' \| 'manual' | No | Tool permission handling mode (defaults to 'interactive') |
+| `allowedTools` | string[] | No | List of tool IDs that are allowed to be used |
+| `cachingEnabled` | boolean | No | Whether tool execution caching is enabled (defaults to true) |
+
+### Environment Types
+
+The `environment` property specifies where tools will be executed:
+
+```typescript
+// Local environment (executes in same process)
+environment: { type: 'local' }
+
+// Docker environment (executes in Docker container)
+environment: { type: 'docker' }
+
+// Remote environment (executes in remote sandbox)
+environment: { type: 'remote' }
+```
+
+When using a remote environment, you'll need to provide a `getRemoteId` callback:
+
+```typescript
+const agent = new Agent(
+  {
+    environment: { type: 'remote' },
+    // other config...
+  },
+  {
+    // Runtime callbacks
+    getRemoteId: async () => process.env.REMOTE_ID!
+  }
+);
 ```
 
 ### Using with LiteLLM
@@ -72,7 +117,7 @@ For production deployments, you can host the LiteLLM proxy using the provided Do
 
 - Modular, composition-based approach to building AI agents
 - Tool-based architecture with built-in tools for file operations, bash commands, etc.
-- Support for multiple execution environments (local, Docker, E2B)
+- Support for multiple execution environments (local, Docker, remote)
 - Permission management for tool executions
 - Multi-model support via LiteLLM proxy
   - Compatible with Claude, OpenAI, Gemini, and other models

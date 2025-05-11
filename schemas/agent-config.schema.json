@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentConfig",
+  "type": "object",
+  "required": ["environment"],
+  "additionalProperties": false,
+
+  "properties": {
+    "environment": {
+      "description": "Repository execution environment",
+      "oneOf": [
+        { 
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": { 
+            "type": { "const": "local" } 
+          }
+        },
+        { 
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": { 
+            "type": { "const": "docker" } 
+          }
+        },
+        { 
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": { 
+            "type": { "const": "remote" } 
+          }
+        }
+      ]
+    },
+
+    "defaultModel": { 
+      "type": "string",
+      "description": "Default model to use when not supplied in processQuery call"
+    },
+    
+    "logLevel": { 
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info",
+      "description": "Log level for the agent"
+    },
+    
+    "permissionMode": { 
+      "type": "string",
+      "enum": ["interactive", "auto", "manual"],
+      "default": "interactive",
+      "description": "Tool permission handling mode"
+    },
+    
+    "allowedTools": { 
+      "type": "array", 
+      "items": { "type": "string" },
+      "description": "List of tool IDs that are allowed to be used"
+    },
+    
+    "cachingEnabled": { 
+      "type": "boolean", 
+      "default": true,
+      "description": "Whether tool execution caching is enabled"
+    }
+  }
+}

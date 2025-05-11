@@ -16,14 +16,14 @@ import { ToolExecutionEvent, ToolExecutionStatus } from './tool-execution/index.
 export { ToolExecutionEvent, ToolExecutionStatus };
 
 // Define repository environment types
-export type RepositoryEnvironment = 
+export type RepositoryEnvironment =
   | { type: 'local' }
   | { type: 'docker' }
-  | { type: 'e2b', sandboxId: string };
+  | { type: 'remote' };
 
 /**
  * Configuration options for creating a new agent
- * 
+ *
  * @interface AgentConfig
  */
 export interface AgentConfig {
@@ -37,23 +37,36 @@ export interface AgentConfig {
    * ```
    */
   modelProvider: ModelProvider;
-  
+
   /**
    * The execution environment configuration
    * @example
    * ```typescript
    * // Local environment (default)
    * const environment = { type: 'local' };
-   * 
+   *
    * // Docker environment
    * const environment = { type: 'docker' };
-   * 
-   * // E2B environment
-   * const environment = { type: 'e2b', sandboxId: 'your-sandbox-id' };
+   *
+   * // Remote environment
+   * const environment = { type: 'remote' };
    * ```
    */
   environment: RepositoryEnvironment;
-  
+
+  /**
+   * Optional default model to use when not specified in processQuery calls
+   * This provides a fallback when model is not provided at runtime
+   * @example
+   * ```typescript
+   * const config = {
+   *   // other configuration...
+   *   defaultModel: 'claude-3-7-sonnet-20250219'
+   * };
+   * ```
+   */
+  defaultModel?: string;
+
   /**
    * Optional logger interface for agent logs
    * If not provided, a default logger will be created
@@ -64,11 +77,11 @@ export interface AgentConfig {
     warn: (message: string, ...args: unknown[]) => void;
     error: (message: string, ...args: unknown[]) => void;
   };
-  
+
   /**
    * Optional UI handler for permission requests
    * If not provided, a default console-based handler will be used
-   * 
+   *
    * @example
    * ```typescript
    * const permissionUIHandler = {
@@ -83,11 +96,11 @@ export interface AgentConfig {
   permissionUIHandler?: {
     requestPermission: (toolId: string, args: Record<string, unknown>) => Promise<boolean>;
   };
-  
+
   /**
    * Optional prompt manager for customizing system prompts
    * If not provided, a default prompt manager will be created
-   * 
+   *
    * @example
    * ```typescript
    * const promptManager = createPromptManager(`
@@ -99,6 +112,27 @@ export interface AgentConfig {
    * ```
    */
   promptManager?: import('../core/PromptManager.js').PromptManager;
+
+  /**
+   * Optional permission mode
+   * Controls how tool permission requests are handled
+   * - 'interactive': Prompt the user for each permission (default)
+   * - 'auto': Automatically grant all permissions
+   * - 'manual': Require explicit permission grants
+   */
+  permissionMode?: 'interactive' | 'auto' | 'manual';
+
+  /**
+   * Optional list of tool IDs that are allowed to be used
+   * If provided, only these tools will be available to the agent
+   */
+  allowedTools?: string[];
+
+  /**
+   * Whether tool execution caching is enabled
+   * Defaults to true
+   */
+  cachingEnabled?: boolean;
 }
 
 /**
