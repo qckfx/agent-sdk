@@ -1,12 +1,27 @@
 /**
  * Agent Framework - Main entry point
- * 
+ *
  * This framework provides a modular, composition-based approach to building AI agents.
  * It follows a tool-based architecture where each capability is a separate module
  * that can be composed together.
- * 
+ *
  * Note: For Node.js-specific features (including EventEmitter support),
  * use `import { ... } from '@qckfx/agent/node'` instead.
+ *
+ * @example
+ * ```typescript
+ * import { Agent } from '@qckfx/agent';
+ * import { createAnthropicProvider } from '@qckfx/agent';
+ *
+ * const agent = new Agent({
+ *   modelProvider: createAnthropicProvider(),
+ *   environment: { type: 'docker' },
+ *   defaultModel: 'claude-3-7-sonnet-20240219'
+ * });
+ *
+ * const result = await agent.processQuery('What files are in this directory?');
+ * console.log(result.response);
+ * ```
  */
 
 // Core components
@@ -158,6 +173,20 @@ const createAgent = (config: AgentConfig): Agent => {
   };
 };
 
+// Import the Agent class
+import { Agent } from './Agent.js';
+
+// Export the Agent class (new public API)
+export { Agent };
+
+// Export legacy createAgent function (to be deprecated)
+export { createAgent };
+
+// Export new event and callback types
+export { AgentEvent } from './types/events.js';
+export type { AgentEventMap } from './types/events.js';
+export type { AgentCallbacks } from './types/callbacks.js';
+
 // Export checkpoint-related functionality
 export {
   CheckpointEvents,
@@ -168,6 +197,3 @@ export {
 export type { CheckpointPayload } from './events.js';
 export type { SnapshotMeta } from './utils/CheckpointManager.js';
 export { CheckpointingExecutionAdapter } from './utils/CheckpointingExecutionAdapter.js';
-
-// Only export createAgent from this file as default
-export { createAgent };
