@@ -63,7 +63,7 @@ export class Agent {
   
   /**
    * Create a new agent instance
-   * 
+   *
    * @param config The agent configuration object
    * @param callbacks Optional runtime callbacks for events and dynamic data
    */
@@ -71,20 +71,52 @@ export class Agent {
     // Validate config
     this._config = validateConfig(config);
     this._callbacks = callbacks;
-    
+
+    // Validate remote environment configuration
+    if (config.environment.type === 'remote' && !callbacks?.getRemoteId) {
+      console.warn(
+        'Remote environment specified without getRemoteId callback. ' +
+        'Falling back to REMOTE_ID environment variable.'
+      );
+    }
+
     // Create private event bus
     this._bus = new EventEmitter();
-    
-    // Initialize the core agent
-    this._core = createAgent(config);
-    
+
+    // Initialize the core agent with potentially modified config
+    this._core = createAgent(this._prepareConfig(config));
+
     // Set up event forwarding from legacy global emitters to instance event bus
     this._bridgeLegacyEvents();
-    
+
     // Attach callbacks if provided
     if (callbacks) {
       this._attachCallbacks(callbacks);
     }
+  }
+
+  /**
+   * Prepare configuration with dynamic data from callbacks
+   * This method handles dynamic data like remote IDs before passing to core
+   * @private
+   */
+  private _prepareConfig(config: AgentConfig): AgentConfig {
+    // Handle special case for e2b adapter needing sandboxId
+    if (config.environment.type === 'remote') {
+      // We need to transform the environment config to match what E2BExecutionAdapter expects
+      // This is for compatibility with the existing implementation
+      return {
+        ...config,
+        environment: {
+          type: 'e2b',  // map 'remote' to 'e2b' for legacy adapter
+          // We don't need sandboxId here as it will be resolved at runtime
+          // in the createAgent function when it's called
+          sandboxId: 'resolved-at-runtime'
+        }
+      };
+    }
+
+    return config;
   }
   
   /**

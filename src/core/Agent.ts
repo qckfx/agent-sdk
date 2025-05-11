@@ -91,9 +91,20 @@ export const createAgent = (config: AgentConfig): Agent => {
         executionAdapter = new DockerExecutionAdapter(containerManager, { logger });
         break;
       }
-      case 'e2b':
-        executionAdapter = await E2BExecutionAdapter.create(config.environment.sandboxId);
+      case 'remote': {
+        // Check for remote ID from callback or environment variable
+        const remoteId = process.env.REMOTE_ID;
+
+        if (!remoteId) {
+          throw new Error(
+            'Remote environment requires REMOTE_ID environment variable'
+          );
+        }
+
+        // Create remote execution adapter using E2B under the hood
+        executionAdapter = await E2BExecutionAdapter.create(remoteId);
         break;
+      }
       default:
         executionAdapter = new LocalExecutionAdapter();
     }
