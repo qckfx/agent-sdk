@@ -9,28 +9,37 @@
     "environment": {
       "description": "Repository execution environment",
       "oneOf": [
-        { 
+        {
           "type": "object",
           "required": ["type"],
           "additionalProperties": false,
-          "properties": { 
-            "type": { "const": "local" } 
+          "properties": {
+            "type": { "const": "local" }
           }
         },
-        { 
+        {
           "type": "object",
           "required": ["type"],
           "additionalProperties": false,
-          "properties": { 
-            "type": { "const": "docker" } 
+          "properties": {
+            "type": { "const": "docker" }
           }
         },
-        { 
+        {
           "type": "object",
           "required": ["type"],
           "additionalProperties": false,
-          "properties": { 
-            "type": { "const": "remote" } 
+          "properties": {
+            "type": { "const": "remote" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "sandboxId"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "e2b" },
+            "sandboxId": { "type": "string" }
           }
         }
       ]

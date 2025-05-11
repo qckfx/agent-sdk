@@ -19,7 +19,8 @@ export { ToolExecutionEvent, ToolExecutionStatus };
 export type RepositoryEnvironment =
   | { type: 'local' }
   | { type: 'docker' }
-  | { type: 'remote' };
+  | { type: 'remote' }
+  | { type: 'e2b', sandboxId: string }; // Legacy type for backwards compatibility
 
 /**
  * Configuration options for creating a new agent

@@ -91,6 +91,13 @@ export const createAgent = (config: AgentConfig): Agent => {
         executionAdapter = new DockerExecutionAdapter(containerManager, { logger });
         break;
       }
+      case 'e2b': {
+        // This is the legacy 'e2b' environment type
+        // Type checking is handled in RepositoryEnvironment
+        const e2bConfig = config.environment as { type: 'e2b', sandboxId: string };
+        executionAdapter = await E2BExecutionAdapter.create(e2bConfig.sandboxId);
+        break;
+      }
       case 'remote': {
         // Check for remote ID from callback or environment variable
         const remoteId = process.env.REMOTE_ID;

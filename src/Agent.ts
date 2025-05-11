@@ -101,21 +101,8 @@ export class Agent {
    * @private
    */
   private _prepareConfig(config: AgentConfig): AgentConfig {
-    // Handle special case for e2b adapter needing sandboxId
-    if (config.environment.type === 'remote') {
-      // We need to transform the environment config to match what E2BExecutionAdapter expects
-      // This is for compatibility with the existing implementation
-      return {
-        ...config,
-        environment: {
-          type: 'e2b',  // map 'remote' to 'e2b' for legacy adapter
-          // We don't need sandboxId here as it will be resolved at runtime
-          // in the createAgent function when it's called
-          sandboxId: 'resolved-at-runtime'
-        }
-      };
-    }
-
+    // For remote environments, we don't need to transform the config
+    // The actual adapter resolution happens in the core/Agent.ts file
     return config;
   }
   

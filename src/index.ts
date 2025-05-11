@@ -31,7 +31,7 @@ import { createPermissionManager } from './core/PermissionManager.js';
 import { createModelClient } from './core/ModelClient.js';
 
 // Types
-import { Agent, AgentConfig } from './types/main.js';
+import { Agent as AgentInterface, AgentConfig } from './types/main.js';
 import { ModelProvider } from './types/model.js';
 import { createContextWindow } from './types/contextWindow.js';
 import { Tool } from './types/tool.js';
@@ -59,7 +59,7 @@ import { createBatchTool } from './tools/BatchTool.js';
  * @param config - Agent configuration
  * @returns The configured agent
  */
-const createAgent = (config: AgentConfig): Agent => {
+const createAgent = (config: AgentConfig): AgentInterface => {
   if (!config.modelProvider) {
     throw new Error('Agent requires a modelProvider function');
   }
