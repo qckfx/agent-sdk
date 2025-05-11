@@ -3,7 +3,7 @@
  * @module configValidator
  */
 
-import Ajv2019 from 'ajv/dist/2019';
+import Ajv from 'ajv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +17,7 @@ const schemaPath = path.resolve(__dirname, '../../schemas/agent-config.schema.js
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 
 // Create AJV instance
-const ajv = new Ajv2019({ allErrors: true });
+const ajv = new Ajv({ allErrors: true });
 const validate = ajv.compile(schema);
 
 /**
@@ -44,12 +44,12 @@ export function validateConfig<T>(config: T): T {
   const valid = validate(config);
   
   if (!valid) {
-    const errorMessages = validate.errors?.map(err => {
+    const errorMessages = validate.errors?.map((err: any) => {
       return `${err.instancePath} ${err.message}`;
     }).join('\n');
-    
+
     throw new ConfigValidationError(
-      `Invalid agent configuration: \n${errorMessages}`, 
+      `Invalid agent configuration: \n${errorMessages}`,
       validate.errors || []
     );
   }
