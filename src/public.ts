@@ -5,6 +5,7 @@
  */
 
 // Primary API
+export { Agent } from './Agent.js';
 export { createAgent } from './core/Agent.js';
 export { createTool } from './tools/createTool.js';
 export { LLMFactory } from './providers/index.js';
@@ -41,7 +42,7 @@ export type {
 } from './types/message.js';
 
 // Core types
-export type { Agent, AgentConfig } from './types/main.js';
+export type { AgentConfig } from './types/main.js';
 export type { Tool, ToolContext } from './types/tool.js';
 export type { ToolParameter, ProcessQueryResult, ConversationResult, AgentMessage, AgentResponse, ToolResultEntry } from './types/agent.js';
 export type { SessionState } from './types/model.js';

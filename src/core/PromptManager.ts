@@ -62,7 +62,7 @@ const DEFAULT_SYSTEM_PROMPT = "You are a precise, efficient AI assistant that he
  * and enhances it with context from the session state
  * @internal
  */
-class BasicPromptManager implements PromptManager {
+export class BasicPromptManager implements PromptManager {
   private readonly basePrompt: string;
   private readonly defaultTemperature: number;
   private directoryStructurePrompt: string | null = null;

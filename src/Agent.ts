@@ -12,12 +12,13 @@ import { createAgent } from './core/Agent.js';
 import { Agent as AgentInterface } from './types/main.js';
 import { ProcessQueryResult, ConversationResult } from './types/agent.js';
 import { validateConfig } from './utils/configValidator.js';
+import { validateAgentConfig } from '../schemas/agent-config.zod.js';
+import { convertToAgentConfig } from './utils/agent-config-converter.js';
 
 // Import legacy event emitters
 import { 
   AgentEvents, 
-  AgentEventType, 
-  EnvironmentStatusEvent 
+  AgentEventType
 } from './utils/sessionUtils.js';
 import { 
   CheckpointEvents, 
@@ -56,7 +57,7 @@ const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
  */
 export class Agent {
   // Private members
-  private _core: AgentInterface;
+  private _core!: AgentInterface;
   private _bus: EventEmitter;
   private _config: AgentConfig;
   private _callbacks?: AgentCallbacks;
@@ -82,6 +83,30 @@ export class Agent {
     // Fallback to existing environment variable (if any)
     if (process.env.REMOTE_ID?.length) return;
   }
+
+  /**
+   * Create a new Agent instance from a JSON configuration
+   * 
+   * @param jsonConfig The agent configuration as a JSON object
+   * @param callbacks Optional runtime callbacks for events and dynamic data
+   * @returns A new Agent instance
+   * @throws ConfigValidationError if the config is invalid
+   */
+  static async create(
+    jsonConfig: unknown,
+    callbacks?: AgentCallbacks
+  ): Promise<Agent> {
+    // Validate the JSON config with Zod
+    const validatedConfig = validateAgentConfig(jsonConfig);
+    
+    // Convert to AgentConfig
+    const agentConfig = convertToAgentConfig(validatedConfig);
+    
+    // Create the agent instance
+    const agent = new Agent(agentConfig, callbacks);
+    await agent._init();
+    return agent;
+  }
   
   /**
    * Create a new agent instance
@@ -89,7 +114,7 @@ export class Agent {
    * @param config The agent configuration object
    * @param callbacks Optional runtime callbacks for events and dynamic data
    */
-  constructor(config: AgentConfig, callbacks?: AgentCallbacks) {
+  private constructor(config: AgentConfig, callbacks?: AgentCallbacks) {
     // Validate config
     this._config = validateConfig(config);
     this._callbacks = callbacks;
@@ -105,9 +130,6 @@ export class Agent {
     // Create private event bus
     this._bus = new EventEmitter();
 
-    // Initialize the core agent (no environment transformation needed)
-    this._core = createAgent(config);
-
     // Set up event forwarding from legacy global emitters to instance event bus
     this._bridgeLegacyEvents();
 
@@ -115,6 +137,11 @@ export class Agent {
     if (callbacks) {
       this._attachCallbacks(callbacks);
     }
+  }
+
+  private async _init(): Promise<void> {
+    // Initialize the core agent (no environment transformation needed)
+    this._core = await createAgent(this._config);
   }
 
   /**

@@ -2,6 +2,39 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
+
+// ---------------------------------------------------------------------------
+// __dirname helper for ESM
+// ---------------------------------------------------------------------------
+// In CommonJS modules Node provides the global `__dirname`.  For ESM (the
+// default in this repo – see "type":"module" in package.json) it is *not*
+// defined.  Rather than scattering `typeof __dirname` checks we derive a local
+// equivalent once and reference that throughout the file.
+
+// Create a proper dirname value that works in both ESM and CJS
+// For ESM, we'll use fileURLToPath to get the directory path from import.meta.url
+// For CJS, we'll use the standard __dirname
+let esmDirname: string;
+
+// Check if we're in CommonJS (where __dirname is available)
+if (typeof __dirname !== 'undefined') {
+  esmDirname = __dirname;
+} 
+// We're in ESM - this branch is only used in ESM builds
+else {
+  // This branch runs **only** in ESM builds.  TypeScript (when transpiling for
+  // CommonJS) complains about `import.meta`, therefore we suppress the error
+  // instead of using `@ts-expect-error` which would break when compiling for
+  // the ESM output (no error is produced there).  `@ts-ignore` silences the
+  // diagnostic unconditionally which makes the file compile in both variants.
+  //
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore TS1343 – `import.meta` is valid in the ESM build but not when
+  // targeting CommonJS.
+  const moduleURL = import.meta.url;
+  esmDirname = path.dirname(fileURLToPath(moduleURL));
+}
 
 const execAsync = promisify(exec);
 
@@ -110,9 +143,9 @@ export class DockerContainerManager {
 
     const packageCandidates: string[] = [
       // Development / ts‑node checkout
-      path.resolve(__dirname, '..', '..'),
+      path.resolve(esmDirname, '..', '..'),
       // Installed bundle in node_modules (dist/cjs/…/utils)
-      path.resolve(__dirname, '..', '..', '..', '..'),
+      path.resolve(esmDirname, '..', '..', '..', '..'),
     ];
 
     let composeFilePath = '';

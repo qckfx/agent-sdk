@@ -14,7 +14,10 @@
           "required": ["type"],
           "additionalProperties": false,
           "properties": {
-            "type": { "const": "local" }
+            "type": { 
+              "const": "local",
+              "description": "Run directly in the host environment (experimental)"
+            }
           }
         },
         {
@@ -31,15 +34,6 @@
           "additionalProperties": false,
           "properties": {
             "type": { "const": "remote" }
-          }
-        },
-        {
-          "type": "object",
-          "required": ["type", "sandboxId"],
-          "additionalProperties": false,
-          "properties": {
-            "type": { "const": "e2b" },
-            "sandboxId": { "type": "string" }
           }
         }
       ]
@@ -63,6 +57,11 @@
       "default": "interactive",
       "description": "Tool permission handling mode"
     },
+
+    "description": {
+      "type": "string",
+      "description": "A description of the agent. This is used as the tool description given to the calling LLM if this is a sub-agent. Otherwise it is only useful for those reading the json and is unused in the runtime."
+    },
     
     "allowedTools": { 
       "type": "array", 
@@ -74,6 +73,71 @@
       "type": "boolean", 
       "default": true,
       "description": "Whether tool execution caching is enabled"
+    },
+
+    "systemPrompt": {
+      "description": "Custom system prompt provided either inline as a string or via an external file path.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["file"],
+          "additionalProperties": false,
+          "properties": {
+            "file": { 
+              "type": "string", 
+              "description": "Relative or absolute path to a text file containing the system prompt (experimental: requires experimentalFeatures.promptFiles = true)" 
+            }
+          }
+        }
+      ]
+    },
+
+
+
+    "tools": {
+      "type": "array",
+      "description": "Ordered list of tools that the agent can use. Each entry can be:\n        1. A string – the name of a built-in tool, e.g. 'BashTool'.\n        2. An object with { name, configFile } – declares a sub-agent that will be exposed as a tool.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "required": ["name", "configFile"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "configFile": { "type": "string", "description": "Path to the JSON configuration file containing the sub-agent definition" }
+            }
+          }
+        ]
+      }
+    },
+
+    "experimentalFeatures": {
+      "type": "object",
+      "description": "Opt-in flags for unstable features that may change without notice.",
+      "additionalProperties": false,
+      "properties": {
+        "subAgents": {
+          "type": "boolean",
+          "description": "Enable experimental support for sub-agents exposed as tools.",
+          "default": false
+        },
+
+        "promptFiles": {
+          "type": "boolean",
+          "description": "Enable experimental support for loading the systemPrompt from an external file via { \"file\": \"path\" } syntax.",
+          "default": false
+        },
+
+        "localEnvironment": {
+          "type": "boolean",
+          "description": "Enable experimental support for executing the agent directly in the host environment (type = 'local').",
+          "default": false
+        }
+      },
+      "default": {}
     }
   }
 }

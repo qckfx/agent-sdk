@@ -17,10 +17,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 // Official OpenAI SDK
 import OpenAI from 'openai';
-import { 
-  AnthropicConfig,  
-  AnthropicProvider, 
-  ModelProviderRequest, 
+import type {
+  AnthropicConfig,
+  AnthropicProvider,
+  ModelProviderRequest,
   ContentBlockWithCache,
   ToolWithCache,
   SystemWithCache,

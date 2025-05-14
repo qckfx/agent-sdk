@@ -96,8 +96,6 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       const request: ModelProviderRequest = {
         query: query,
         tools: claudeTools,
-        tool_choice: { type: "auto" },
-        encourageToolUse: true,
         systemMessages: systemMessages,
         // Include systemMessage for backward compatibility
         systemMessage: systemMessages[0],
@@ -107,6 +105,10 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         // Include the model parameter
         model: model
       };
+
+      if (claudeTools.length > 0) {
+        request.tool_choice = { type: "auto" };
+      }
       
       let response;
       try {
@@ -180,10 +182,12 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         trackTokenUsage(response, sessionState);
       }
       
+      console.info('Response:', JSON.stringify(response, null, 2));
       // Check if Claude wants to use a tool - look for tool_use in the content
       const hasTool = response.content && response.content.some(c => c.type === "tool_use");
       
       if (hasTool && response.content) {
+        console.info('hasTool:', hasTool);
         // Extract the tool use from the response and check its type
         const toolUse = response.content.find(isToolUseBlock);
         

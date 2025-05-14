@@ -167,7 +167,7 @@ export class FsmDriver {
             currentToolCall = toolCallChat.toolCall;
             
             // Add tool_use to conversation history and capture the wrapper id
-            const msgId = cw.pushToolUse({
+            cw.pushToolUse({
               id: currentToolCall.toolUseId,
               name: currentToolCall.toolId,
               input: currentToolCall.args as Record<string, unknown>

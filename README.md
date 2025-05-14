@@ -11,14 +11,14 @@ npm install @qckfx/agent
 ## Usage
 
 ```typescript
-import { Agent } from '@qckfx/agent';
-import { createAnthropicProvider } from '@qckfx/agent';
+import { Agent } from '@qckfx/agent';        // only runtime symbol you need
+// (Provider factories etc. are internal; create or pass your own model provider)
 
 // Create model provider
 const modelProvider = createAnthropicProvider();
 
-// Create the agent with JSON configuration
-const agent = new Agent({
+// Long-lived JSON config (can also load from a file)
+const config = {
   modelProvider,
   environment: {
     type: 'docker' // or 'local', 'remote'
@@ -27,7 +27,16 @@ const agent = new Agent({
   permissionMode: 'interactive', // Optional, defaults to 'interactive'
   allowedTools: ['Bash', 'FileRead'], // Optional, restrict tools
   cachingEnabled: true // Optional, defaults to true
-});
+};
+
+// Optional runtime callbacks (e.g. event hooks, remote ID resolver)
+const callbacks = {
+  getRemoteId: async () => process.env.REMOTE_ID!,
+  onProcessingCompleted: (data) => console.log('done:', data.response)
+};
+
+// Create the agent instance
+const agent = new Agent(config, callbacks);
 
 // Process a query with explicit model
 const result = await agent.processQuery('What files are in this directory?', 'claude-3-7-sonnet-20250219');
@@ -38,7 +47,15 @@ const result2 = await agent.processQuery('Show me the README');
 console.log(result.response);
 ```
 
-## Configuration
+## Validating configuration
+
+Validate your JSON before launching an agent:
+
+```bash
+$ npx @qckfx/agent validate ./agent-config.json
+```
+
+## Configuration reference
 
 The Agent constructor accepts a configuration object with the following properties:
 
@@ -82,7 +99,7 @@ const agent = new Agent(
 );
 ```
 
-### Using with LiteLLM
+# Using with LiteLLM
 
 This project supports using [LiteLLM](https://litellm.ai/) as a proxy for multiple model providers:
 

@@ -5,24 +5,6 @@
 
 import { Tool, ToolContext, ToolCategory } from '../types/tool.js';
 import { ToolDescription, ToolRegistry } from '../types/registry.js';
-import { v5 as uuidv5 } from 'uuid';
-
-/**
- * UUID Namespace for tool execution IDs
- * Used to generate consistent UUIDs from Anthropic tool use IDs
- * @internal
- */
-const TOOL_EXECUTION_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341';
-
-/**
- * Generate a stable execution ID from an Anthropic tool use ID
- * @param toolUseId The Anthropic-generated tool use ID
- * @returns A stable UUID v5 generated from the tool use ID
- * @internal
- */
-function generateExecutionId(toolUseId: string): string {
-  return uuidv5(toolUseId, TOOL_EXECUTION_NAMESPACE);
-}
 
 /**
  * Creates a tool registry to manage available tools
@@ -45,7 +27,9 @@ function createToolRegistry(): ToolRegistry {
      * @param tool - The tool to register
      */
     registerTool(tool: Tool): void {
+      console.info('Registering tool:', tool.id);
       if (!tool || !tool.id) {
+        console.error('Invalid tool:', tool);
         throw new Error('Invalid tool: Tool must have an id');
       }
       
@@ -187,8 +171,10 @@ function createToolRegistry(): ToolRegistry {
      * @returns The result of the tool execution
      */
     async executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<unknown> {
+      console.info('Executing tool with callbacks', JSON.stringify(tools), toolId);
       const tool = tools.get(toolId);
       if (!tool) {
+        console.error('Tool not found', toolId);
         throw new Error(`Tool ${toolId} not found`);
       }
 
@@ -197,8 +183,10 @@ function createToolRegistry(): ToolRegistry {
       
       const startTime = Date.now();
       try {
+        console.info('Executing tool: ', JSON.stringify(tool, null, 2));
         // Execute the tool
         const result = await tool.execute(args, context);
+        console.info('Tool execution complete');
         
         // Calculate execution time
         const executionTime = Date.now() - startTime;
@@ -210,6 +198,7 @@ function createToolRegistry(): ToolRegistry {
         
         return result;
       } catch (error) {
+        console.error('Tool execution error:', error);
         // Notify error callbacks
         errorCallbacks.forEach(callback => 
           callback(context.executionId, toolId, args, error instanceof Error ? error : new Error(String(error)))

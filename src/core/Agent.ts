@@ -9,6 +9,7 @@ import { createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
 import { createModelClient } from './ModelClient.js';
+import { createPromptManager } from './PromptManager.js';
 import { createAgentRunner } from './AgentRunner.js';
 
 // Execution adapters
@@ -28,13 +29,16 @@ import { createFileWriteTool } from '../tools/FileWriteTool.js';
 import { createThinkTool } from '../tools/ThinkTool.js';
 import { createBatchTool } from '../tools/BatchTool.js';
 import { Tool } from '../types/tool.js';
-
+import { createSubAgentTool } from '../tools/SubAgentTool.js';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
  * @returns The configured agent
  */
-export const createAgent = (config: AgentConfig): Agent => {
+export const createAgent = async (config: AgentConfig): Promise<Agent> => {
   if (!config.modelProvider) {
     throw new Error('Agent requires a modelProvider function');
   }
@@ -52,25 +56,87 @@ export const createAgent = (config: AgentConfig): Agent => {
     }
   );
   
+  // ------------------------------------------------------------------------------------------------
+  // Prompt manager selection
+  // ------------------------------------------------------------------------------------------------
+
+  let promptManager = config.promptManager;
+
+  if (!promptManager && config.systemPrompt) {
+    let promptText: string;
+
+    if (typeof config.systemPrompt === 'string') {
+      promptText = config.systemPrompt;
+    } else {
+      // { file: 'path/to/prompt.txt' }
+      const promptPath = path.resolve(process.cwd(), config.systemPrompt.file);
+      promptText = fs.readFileSync(promptPath, 'utf8');
+    }
+
+    promptManager = createPromptManager(promptText);
+  }
+
   const modelClient = createModelClient({
     modelProvider: config.modelProvider as ModelProvider,
-    promptManager: config.promptManager
+    // Use either provided prompt manager or the one built from systemPrompt
+    promptManager: promptManager
   });
   
-  // Create and register default tools
-  const tools: Tool[] = [
-    createBashTool(),
-    createGlobTool(),
-    createGrepTool(),
-    createLSTool(),
-    createFileReadTool(),
-    createFileEditTool(),
-    createFileWriteTool(),
-    createThinkTool(),
-    createBatchTool()
-  ];
-  
-  tools.forEach(tool => toolRegistry.registerTool(tool));
+  // -------------------------------------------------------------------
+  // Register tools (built-ins and/or sub-agents) based on configuration
+  // -------------------------------------------------------------------
+
+  // Map built-in tool names to factory functions
+  const builtInFactories: Record<string, () => Tool> = {
+    BashTool: createBashTool,
+    GlobTool: createGlobTool,
+    GrepTool: createGrepTool,
+    LSTool: createLSTool,
+    FileReadTool: createFileReadTool,
+    FileEditTool: createFileEditTool,
+    FileWriteTool: createFileWriteTool,
+    ThinkTool: createThinkTool,
+    BatchTool: createBatchTool,
+  };
+
+  const registerBuiltIn = (name: string): void => {
+    const factory = builtInFactories[name];
+    if (!factory) {
+      logger.warn(`Unknown built-in tool '${name}' requested in agent config`);
+      return;
+    }
+    toolRegistry.registerTool(factory());
+  };
+
+  if (Array.isArray(config.tools) && config.tools.length > 0) {
+    console.info('Registering tools:', config.tools);
+    // Only tools listed in config are allowed
+    for (const entry of config.tools) {
+      console.info('Registering tool:', entry);
+      if (typeof entry === 'string') {
+        registerBuiltIn(entry);
+      } else {
+        try {
+          console.info('Creating sub-agent tool:', entry);
+          const subAgentTool = await createSubAgentTool(
+            entry as any,
+            config.getRemoteId,
+          );
+          toolRegistry.registerTool(subAgentTool);
+        } catch (err) {
+          console.error(
+            `Failed to register sub-agent tool from '${(entry as any).configFile}':`,
+            err
+          );
+        }
+      }
+    }
+  } else {
+    // No explicit list provided – register the full built-in set
+    Object.keys(builtInFactories).forEach(registerBuiltIn);
+  }
+
+  console.info('Tool registry tools:', toolRegistry.getAllTools());
   
   // Create the agent runner (private implementation)
   const _agentRunner = async () => {
@@ -91,21 +157,15 @@ export const createAgent = (config: AgentConfig): Agent => {
         executionAdapter = new DockerExecutionAdapter(containerManager, { logger });
         break;
       }
-      case 'e2b': {
-        // This is the legacy 'e2b' environment type
-        // Type checking is handled in RepositoryEnvironment
-        const e2bConfig = config.environment as { type: 'e2b', sandboxId: string };
-        executionAdapter = await E2BExecutionAdapter.create(e2bConfig.sandboxId);
-        break;
-      }
       case 'remote': {
-        // Check for remote ID from callback or environment variable
-        const remoteId = process.env.REMOTE_ID;
+        let remoteId: string | undefined = (config as any).remoteId;
+
+        if (!remoteId && typeof (config as any).getRemoteId === 'function') {
+          remoteId = await (config as any).getRemoteId();
+        }
 
         if (!remoteId) {
-          throw new Error(
-            'Remote environment requires REMOTE_ID environment variable'
-          );
+          throw new Error('Remote environment requires a remoteId to be resolved via getRemoteId callback.');
         }
 
         // Create remote execution adapter using E2B under the hood
@@ -136,7 +196,8 @@ export const createAgent = (config: AgentConfig): Agent => {
     logger,
     
     // Helper methods
-    async processQuery(query, model, sessionState = { 
+    async processQuery(query, model, sessionState = {
+      id: uuidv4(),
       contextWindow: createContextWindow(), 
       abortController: new AbortController(), 
       agentServiceConfig: { 

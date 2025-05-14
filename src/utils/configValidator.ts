@@ -90,5 +90,53 @@ export function validateConfig<T>(config: T): T {
     throw new ConfigValidationError(validate.errors ?? [], messages);
   }
 
+  // ---------------------------------------------------------------------
+  // Additional runtime guard – ensure experimental features are opted in
+  // ---------------------------------------------------------------------
+
+  // Detect whether the config declares *object*-style tool entries (which is
+  // how sub-agents are expressed) and, if so, require that the corresponding
+  // experimental flag is explicitly enabled.
+  //
+  // We perform this check *after* the schema validation succeeds so that we
+  // can throw a clearer, more actionable error message than a generic Ajv
+  // failure would provide.
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cfgAny = config as any;
+
+  const hasSubAgentTools = Array.isArray(cfgAny.tools)
+    && cfgAny.tools.some((t: any) => typeof t === 'object' && t !== null && 'configFile' in t);
+
+  if (hasSubAgentTools && !cfgAny.experimentalFeatures?.subAgents) {
+    throw new ConfigValidationError([],
+      'Sub-agent tools are still experimental. Add "experimentalFeatures": { "subAgents": true } to your config to enable them.');
+  }
+
+  // ---------------------------------------------------------------------
+  // Prompt files experimental guard
+  // ---------------------------------------------------------------------
+
+  const usesPromptFile = cfgAny.systemPrompt 
+    && typeof cfgAny.systemPrompt === 'object' 
+    && cfgAny.systemPrompt !== null 
+    && 'file' in cfgAny.systemPrompt;
+
+  if (usesPromptFile && !cfgAny.experimentalFeatures?.promptFiles) {
+    throw new ConfigValidationError([],
+      'Using an external prompt file is still experimental. Add "experimentalFeatures": { "promptFiles": true } to your config to enable it.');
+  }
+
+  // ---------------------------------------------------------------------
+  // Local environment experimental guard
+  // ---------------------------------------------------------------------
+
+  const usesLocalEnv = cfgAny.environment && cfgAny.environment.type === 'local';
+
+  if (usesLocalEnv && !cfgAny.experimentalFeatures?.localEnvironment) {
+    throw new ConfigValidationError([],
+      'Running in the host environment (type = "local") is still experimental. Add "experimentalFeatures": { "localEnvironment": true } to your config to enable it.');
+  }
+
   return config;
 }

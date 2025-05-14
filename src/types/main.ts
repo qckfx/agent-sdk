@@ -19,8 +19,7 @@ export { ToolExecutionEvent, ToolExecutionStatus };
 export type RepositoryEnvironment =
   | { type: 'local' }
   | { type: 'docker' }
-  | { type: 'remote' }
-  | { type: 'e2b', sandboxId: string }; // Legacy type for backwards compatibility
+  | { type: 'remote' };
 
 /**
  * Configuration options for creating a new agent
@@ -67,6 +66,13 @@ export interface AgentConfig {
    * ```
    */
   defaultModel?: string;
+
+  /**
+   * Custom system prompt – either a string or an object referencing a file.
+   * If provided (and no explicit PromptManager is supplied), an internal
+   * PromptManager will be constructed automatically with this prompt.
+   */
+  systemPrompt?: string | { file: string };
 
   /**
    * Optional logger interface for agent logs
@@ -130,10 +136,34 @@ export interface AgentConfig {
   allowedTools?: string[];
 
   /**
-   * Whether tool execution caching is enabled
+   * Whether prompt caching is enabled (depends on if the model provider supports it)
    * Defaults to true
    */
   cachingEnabled?: boolean;
+
+  /**
+   * Optional explicit tool list.  Each entry can be either the name of a
+   * built-in tool (string) or an object that references a sub-agent via
+   * `configFile`.
+   *
+   * Example:
+   * ```jsonc
+   * "tools": [
+   *   "BashTool",
+   *   { "name": "DocsAgent", "configFile": "./agents/docs/agent.json" }
+   * ]
+   * ```
+   */
+  tools?: Array<string | { name: string; configFile: string }>;
+
+  /**
+   * Runtime resolver for the remote execution sandbox/container identifier.
+   * This is required when the execution `environment.type` is set to
+   * `'remote'`.  The callback must return the identifier as a string.  The
+   * resolution is performed lazily by the core implementation when the remote
+   * adapter is first required.
+   */
+  getRemoteId?: () => Promise<string>;
 }
 
 /**
