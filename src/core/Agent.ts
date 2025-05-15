@@ -3,13 +3,13 @@
  */
 
 import { Agent, AgentConfig } from '../types/main.js';
-import { ModelProvider } from '../types/model.js';
+import { ModelProvider, SessionState } from '../types/model.js';
 import { LogLevel, createLogger } from '../utils/logger.js';
 import { createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
 import { createModelClient } from './ModelClient.js';
-import { createPromptManager } from './PromptManager.js';
+import { createDefaultPromptManager, createPromptManager } from './PromptManager.js';
 import { createAgentRunner } from './AgentRunner.js';
 
 // Execution adapters
@@ -28,11 +28,12 @@ import { createFileEditTool } from '../tools/FileEditTool.js';
 import { createFileWriteTool } from '../tools/FileWriteTool.js';
 import { createThinkTool } from '../tools/ThinkTool.js';
 import { createBatchTool } from '../tools/BatchTool.js';
-import { Tool } from '../types/tool.js';
+import { ExecutionAdapter, Tool } from '../types/tool.js';
 import { createSubAgentTool } from '../tools/SubAgentTool.js';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { isSessionAborted } from '../utils/sessionUtils.js';
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
@@ -137,25 +138,19 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
   }
 
   console.info('Tool registry tools:', toolRegistry.getAllTools());
-  
-  // Create the agent runner (private implementation)
-  const _agentRunner = async () => {
-    let executionAdapter;
-    
-    console.log(`Creating agent runner with environment type ${config.environment.type}`);
+
+  const _createExecutionAdapter = async () => {
     // Select the appropriate execution adapter based on environment type
     switch (config.environment.type) {
       case 'local':
-        executionAdapter = new LocalExecutionAdapter();
-        break;
+        return new LocalExecutionAdapter();
       case 'docker': {
         // Create container manager and adapter
         const containerManager = new DockerContainerManager({
           projectRoot: process.cwd(),
           logger
         });
-        executionAdapter = new DockerExecutionAdapter(containerManager, { logger });
-        break;
+        return new DockerExecutionAdapter(containerManager, { logger });
       }
       case 'remote': {
         let remoteId: string | undefined = (config as any).remoteId;
@@ -169,11 +164,19 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
         }
 
         // Create remote execution adapter using E2B under the hood
-        executionAdapter = await E2BExecutionAdapter.create(remoteId);
-        break;
+        return await E2BExecutionAdapter.create(remoteId);
       }
       default:
-        executionAdapter = new LocalExecutionAdapter();
+        return new LocalExecutionAdapter();
+    }
+  }
+  
+  // Create the agent runner (private implementation)
+  const _agentRunner = async (sessionExecutionAdapter?: ExecutionAdapter) => {
+    let executionAdapter = sessionExecutionAdapter;
+    
+    if (!executionAdapter) {
+      executionAdapter = await _createExecutionAdapter();
     }
     
     return createAgentRunner({
@@ -182,7 +185,7 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
       permissionManager,
       logger,
       executionAdapter,
-      promptManager: config.promptManager
+      promptManager: config.promptManager || createDefaultPromptManager()
     });
   };
   
@@ -196,19 +199,45 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
     logger,
     
     // Helper methods
-    async processQuery(query, model, sessionState = {
-      id: uuidv4(),
+    async processQuery(query, model, sessionState: SessionState = {
+      id: uuidv4().toString(),
       contextWindow: createContextWindow(), 
       abortController: new AbortController(), 
       agentServiceConfig: { 
         defaultModel: '', 
-        permissionMode: 'interactive', 
-        allowedTools: [], 
         cachingEnabled: true 
       },
       llmApiKey: undefined,
     }) {
-      const runner = await _agentRunner();
+      const runner = await _agentRunner(sessionState.executionAdapter);
+
+      if (!sessionState.abortController) {
+        sessionState.abortController = new AbortController();
+      } else if (sessionState.abortController.signal.aborted && !isSessionAborted(sessionState.id)) {
+        // We already processed the abort, safe to refresh
+        sessionState.abortController = new AbortController();
+      }
+
+      // Generate directory structure map only if it hasn't been generated for this session yet
+      if (!sessionState.directoryStructureGenerated) {
+        try {
+          // Get the current working directory using the execution adapter
+          const cwdResult = await runner.executionAdapter.executeCommand('agent-setup-get-cwd', 'pwd');
+          const cwd = cwdResult.stdout.trim() || process.cwd();
+          
+          // Use the execution adapter's generateDirectoryMap method directly
+          const directoryStructure = await runner.executionAdapter.generateDirectoryMap(cwd, 10);
+          
+          // Set the directory structure in the prompt manager
+          runner.promptManager.setDirectoryStructurePrompt(directoryStructure);
+          
+          // Mark that we've generated directory structure for this session
+          sessionState.directoryStructureGenerated = true;
+        } catch (error) {
+          console.warn(`AgentService: Failed to generate directory structure map: ${(error as Error).message}`);
+        }
+      }
+
       return runner.processQuery(query, model, sessionState);
     },
     

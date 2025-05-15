@@ -8,7 +8,8 @@ import {
   ProcessingCompletedData, 
   ProcessingErrorData,
   EnvironmentStatusData,
-  CheckpointData
+  CheckpointData,
+  PermissionData
 } from './events.js';
 import { ToolExecutionState } from './tool-execution/index.js';
 
@@ -72,6 +73,11 @@ export interface LifecycleCallbacks {
    * Called when a checkpoint is ready
    */
   onCheckpointReady?: (checkpoint: CheckpointData) => void;
+
+  /**
+   * Called when a permission is requested
+   */
+  onPermissionRequested?: (permission: PermissionData) => Promise<boolean>;
 }
 
 /**

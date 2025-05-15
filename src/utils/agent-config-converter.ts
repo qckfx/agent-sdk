@@ -7,7 +7,7 @@
 
 import { AgentConfig, RepositoryEnvironment } from '../types/main.js';
 import { AgentConfigJSON } from '../../schemas/agent-config.zod.js';
-import { LLMFactory } from '../public.js';
+import { LLMFactory } from '../providers/index.js';
 
 /**
  * A version of AgentConfig without the required properties so we can build it step by step.
@@ -25,6 +25,14 @@ type PartialAgentConfig = Partial<AgentConfig>;
 export function convertToAgentConfig(
   jsonConfig: AgentConfigJSON, 
 ): AgentConfig {
+
+  
+  // Do NOT clearSessionAborted() here - that will be done in AgentRunner after abort is handled
+  // Why? Because:
+  // 1. If we clear here, we'd lose the abort status that AgentRunner uses to detect aborts
+  // 2. AgentRunner needs to both check and clear the status in the same critical section (try/finally)
+  // 3. Clearing here would create a race condition if another abort comes in between clear and AgentRunner's check
+
   const modelProvider = LLMFactory.createProvider({ model: jsonConfig.defaultModel, cachingEnabled: jsonConfig.cachingEnabled });
   
   // Create basic config with required properties
@@ -40,14 +48,6 @@ export function convertToAgentConfig(
   
   if (jsonConfig.systemPrompt !== undefined) {
     config.systemPrompt = jsonConfig.systemPrompt;
-  }
-  
-  if (jsonConfig.permissionMode !== undefined) {
-    config.permissionMode = jsonConfig.permissionMode;
-  }
-  
-  if (jsonConfig.allowedTools !== undefined) {
-    config.allowedTools = jsonConfig.allowedTools;
   }
   
   if (jsonConfig.cachingEnabled !== undefined) {

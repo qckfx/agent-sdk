@@ -1,6 +1,6 @@
 {
   "name": "@qckfx/agent",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "type": "module",
   "description": "qckfx AI Agent SDK",
   "main": "./dist/cjs/index.js",
@@ -16,62 +16,30 @@
       "require": "./dist/cjs/index.cjs"
     },
     "./browser": {
-      "types": "./dist/esm/browser/index.d.ts",
-      "import": "./dist/esm/browser/index.js",
-      "require": "./dist/cjs/browser/index.cjs"
+      "types": "./dist/esm/browser.d.ts",
+      "import": "./dist/esm/browser.js",
+      "require": "./dist/cjs/browser.cjs"
     },
-    "./browser/internals": {
-      "types": "./dist/esm/browser/internals/index.d.ts",
-      "import": "./dist/esm/browser/internals/index.js",
-      "require": "./dist/cjs/browser/internals/index.cjs"
-    },
-    "./node": {
-      "types": "./dist/esm/node/index.d.ts",
-      "import": "./dist/esm/node/index.js",
-      "require": "./dist/cjs/node/index.cjs"
-    },
-    "./node/tools": {
-      "types": "./dist/esm/src/tools/index.d.ts",
-      "import": "./dist/esm/src/tools/index.js",
-      "require": "./dist/cjs/src/tools/index.cjs"
-    },
-    "./node/providers": {
-      "types": "./dist/esm/src/providers/index.d.ts",
-      "import": "./dist/esm/src/providers/index.js",
-      "require": "./dist/cjs/src/providers/index.cjs"
-    },
-    "./node/internals": {
-      "types": "./dist/esm/src/internals/index.d.ts",
-      "import": "./dist/esm/src/internals/index.js",
-      "require": "./dist/cjs/src/internals/index.cjs"
-    },
-    "./types/*": {
-      "types": "./dist/esm/src/types/*.d.ts",
-      "import": "./dist/esm/src/types/*.js"
+    "./internals": {
+      "types": "./dist/esm/internals.d.ts",
+      "import": "./dist/esm/internals.js",
+      "require": "./dist/cjs/internals.cjs"
     }
   },
   "typesVersions": {
     "*": {
-      "browser": [
-        "dist/esm/browser/index.d.ts"
-      ],
-      "browser/internals": [
-        "dist/esm/browser/internals/index.d.ts"
-      ],
-      "node": [
-        "dist/esm/node/index.d.ts"
-      ],
-      "node/tools": [
-        "dist/esm/src/tools/index.d.ts"
-      ],
-      "node/providers": [
-        "dist/esm/src/providers/index.d.ts"
-      ],
-      "node/internals": [
-        "dist/esm/src/internals/index.d.ts"
-      ],
-      "types/*": [
-        "dist/esm/src/types/*.d.ts"
+      "types": [
+        "dist/esm/index.d.ts"
+      ]
+    },
+    "internals": {
+      "types": [
+        "dist/esm/internals.d.ts"
+      ]
+    },
+    "browser": {
+      "types": [
+        "dist/esm/browser.d.ts"
       ]
     }
   },

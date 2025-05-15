@@ -60,9 +60,7 @@ export const agentConfigSchema = z.object({
   // Optional fields
   defaultModel: z.string().optional().describe('Default model to use when not supplied in processQuery call'),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info').describe('Log level for the agent'),
-  permissionMode: z.enum(['interactive', 'auto', 'manual']).default('interactive').describe('Tool permission handling mode'),
   description: z.string().optional().describe('A description of the agent. Used for sub-agents and documentation.'),
-  allowedTools: z.array(z.string()).optional().describe('List of tool IDs that are allowed to be used'),
   cachingEnabled: z.boolean().default(true).describe('Whether tool execution caching is enabled'),
   systemPrompt: systemPromptSchema.optional().describe('Custom system prompt provided either inline as a string or via an external file path'),
   tools: z.array(toolSchema).optional().describe('Ordered list of tools that the agent can use'),

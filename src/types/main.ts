@@ -121,21 +121,6 @@ export interface AgentConfig {
   promptManager?: import('../core/PromptManager.js').PromptManager;
 
   /**
-   * Optional permission mode
-   * Controls how tool permission requests are handled
-   * - 'interactive': Prompt the user for each permission (default)
-   * - 'auto': Automatically grant all permissions
-   * - 'manual': Require explicit permission grants
-   */
-  permissionMode?: 'interactive' | 'auto' | 'manual';
-
-  /**
-   * Optional list of tool IDs that are allowed to be used
-   * If provided, only these tools will be available to the agent
-   */
-  allowedTools?: string[];
-
-  /**
    * Whether prompt caching is enabled (depends on if the model provider supports it)
    * Defaults to true
    */

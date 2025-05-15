@@ -47,9 +47,9 @@ export async function createSubAgentTool(
     const cfg: any = validateConfig(parsed);
 
     if (getRemoteId) {
-      nestedAgent = await Agent.create(cfg, { getRemoteId });
+      nestedAgent = await Agent.create({config: cfg, callbacks: { getRemoteId }});
     } else {
-      nestedAgent = await Agent.create(cfg);
+      nestedAgent = await Agent.create({config: cfg});
     }
     return nestedAgent;
   }

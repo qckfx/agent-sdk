@@ -24,8 +24,6 @@ const config = {
     type: 'docker' // or 'local', 'remote'
   },
   defaultModel: 'claude-3-7-sonnet-20250219', // Optional default model
-  permissionMode: 'interactive', // Optional, defaults to 'interactive'
-  allowedTools: ['Bash', 'FileRead'], // Optional, restrict tools
   cachingEnabled: true // Optional, defaults to true
 };
 
@@ -65,8 +63,6 @@ The Agent constructor accepts a configuration object with the following properti
 | `environment` | RepositoryEnvironment | Yes | The execution environment configuration |
 | `defaultModel` | string | No | Default model to use when not specified in processQuery calls |
 | `logLevel` | 'debug' \| 'info' \| 'warn' \| 'error' | No | Log level (defaults to 'info') |
-| `permissionMode` | 'interactive' \| 'auto' \| 'manual' | No | Tool permission handling mode (defaults to 'interactive') |
-| `allowedTools` | string[] | No | List of tool IDs that are allowed to be used |
 | `cachingEnabled` | boolean | No | Whether tool execution caching is enabled (defaults to true) |
 
 ### Environment Types

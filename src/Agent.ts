@@ -12,8 +12,10 @@ import { createAgent } from './core/Agent.js';
 import { Agent as AgentInterface } from './types/main.js';
 import { ProcessQueryResult, ConversationResult } from './types/agent.js';
 import { validateConfig } from './utils/configValidator.js';
-import { validateAgentConfig } from '../schemas/agent-config.zod.js';
+import { AgentConfigJSON, validateAgentConfig } from '../schemas/agent-config.zod.js';
 import { convertToAgentConfig } from './utils/agent-config-converter.js';
+import { rollbackSession } from './utils/RollbackManager.js';
+import { isSessionAborted, setSessionAborted, clearSessionAborted } from './utils/sessionUtils.js';
 
 // Import legacy event emitters
 import { 
@@ -24,6 +26,7 @@ import {
   CheckpointEvents, 
   CHECKPOINT_READY_EVENT 
 } from './events/checkpoint-events.js';
+import { LLMFactory } from './providers/AnthropicProvider.js';
 
 // Legacy to new event name mapping 
 const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
@@ -92,18 +95,15 @@ export class Agent {
    * @returns A new Agent instance
    * @throws ConfigValidationError if the config is invalid
    */
-  static async create(
-    jsonConfig: unknown,
-    callbacks?: AgentCallbacks
-  ): Promise<Agent> {
+  static async create({config, callbacks}: {config: AgentConfigJSON, callbacks?: AgentCallbacks}): Promise<Agent> {
     // Validate the JSON config with Zod
-    const validatedConfig = validateAgentConfig(jsonConfig);
+    const validatedConfig = validateAgentConfig(config);
     
     // Convert to AgentConfig
     const agentConfig = convertToAgentConfig(validatedConfig);
     
     // Create the agent instance
-    const agent = new Agent(agentConfig, callbacks);
+    const agent = new Agent({config: agentConfig, callbacks});
     await agent._init();
     return agent;
   }
@@ -114,7 +114,7 @@ export class Agent {
    * @param config The agent configuration object
    * @param callbacks Optional runtime callbacks for events and dynamic data
    */
-  private constructor(config: AgentConfig, callbacks?: AgentCallbacks) {
+  private constructor({config, callbacks}: {config: AgentConfig, callbacks?: AgentCallbacks}) {
     // Validate config
     this._config = validateConfig(config);
     this._callbacks = callbacks;
@@ -142,17 +142,9 @@ export class Agent {
   private async _init(): Promise<void> {
     // Initialize the core agent (no environment transformation needed)
     this._core = await createAgent(this._config);
-  }
 
-  /**
-   * Prepare configuration with dynamic data from callbacks
-   * This method handles dynamic data like remote IDs before passing to core
-   * @private
-   */
-  private _prepareConfig(config: AgentConfig): AgentConfig {
-    // For remote environments, we don't need to transform the config
-    // The actual adapter resolution happens in the core/Agent.ts file
-    return config;
+    // Bridge tool-registry events now that _core is available
+    this._setupToolRegistryBridges();
   }
   
   /**
@@ -172,13 +164,19 @@ export class Agent {
         AgentEvents.on(legacyEvent, forwarder);
       }
     }
-    
-    // Bridge tool execution callbacks from ToolRegistry
+  }
+
+  /**
+   * Hook tool-registry event emitters once the core agent has been created.
+   */
+  private _setupToolRegistryBridges(): void {
+    if (!this._core) return;
+
     this._core.toolRegistry.onToolExecutionStart((executionId, toolId, _toolUseId, args) => {
       this._bus.emit('tool:execution:started', {
         executionId,
         toolId,
-        args
+        args,
       });
     });
 
@@ -188,7 +186,7 @@ export class Agent {
         toolId,
         args,
         result,
-        executionTime
+        executionTime,
       });
     });
 
@@ -197,7 +195,7 @@ export class Agent {
         executionId,
         toolId,
         args,
-        error
+        error,
       });
     });
   }
@@ -296,6 +294,34 @@ export class Agent {
     
     return this._core.runConversation(initialQuery, chosenModel);
   }
+
+  static async performRollback(sessionId: string, sessionState: SessionState, repoRoot: string, messageId: string) {
+    return rollbackSession(sessionId, sessionState, repoRoot, messageId);
+  }
+
+  static async getAvailableModels(llmApiKey?: string) {
+    return LLMFactory.getAvailableModels(llmApiKey);
+  }
+
+  static isSessionAborted(sessionId: string) {
+    return isSessionAborted(sessionId);
+  }
+
+  static setSessionAborted(sessionId: string) {
+    return setSessionAborted(sessionId);
+  }
+
+  static clearSessionAborted(sessionId: string) {
+    return clearSessionAborted(sessionId);
+  }
+
+  setFastEditMode(enabled: boolean) {
+    this._core.permissionManager.setFastEditMode(enabled);
+  }
+
+  get environment(): 'docker' | 'local' | 'remote' | undefined {
+    return this._core.environment?.type;
+  }
   
   /**
    * Register a new tool with the agent
@@ -310,12 +336,14 @@ export class Agent {
    * 
    * @param event The event name to subscribe to
    * @param handler The event handler function
+   * @returns A function that can be called to unsubscribe the handler
    */
   on<E extends AgentEvent>(
     event: E, 
     handler: (data: AgentEventMap[E]) => void
-  ): void {
+  ): () => void {
     this._bus.on(event, handler);
+    return () => this._bus.off(event, handler);
   }
   
   /**

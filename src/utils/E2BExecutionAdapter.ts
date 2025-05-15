@@ -48,7 +48,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     error?: string
   ): void {
     const statusEvent: EnvironmentStatusEvent = {
-      environmentType: 'e2b',
+      environmentType: 'remote',
       status,
       isReady,
       error
@@ -81,7 +81,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       
       // Emit event from static context before instance is created
       const initStatusEvent: EnvironmentStatusEvent = {
-        environmentType: 'e2b',
+        environmentType: 'remote',
         status: 'connecting',
         isReady: false
       };
@@ -98,7 +98,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       
       // Emit error status from static context
       const errorStatusEvent: EnvironmentStatusEvent = {
-        environmentType: 'e2b',
+        environmentType: 'remote',
         status: 'error',
         isReady: false,
         error: (error as Error).message

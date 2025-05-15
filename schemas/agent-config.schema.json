@@ -51,22 +51,9 @@
       "description": "Log level for the agent"
     },
     
-    "permissionMode": { 
-      "type": "string",
-      "enum": ["interactive", "auto", "manual"],
-      "default": "interactive",
-      "description": "Tool permission handling mode"
-    },
-
     "description": {
       "type": "string",
       "description": "A description of the agent. This is used as the tool description given to the calling LLM if this is a sub-agent. Otherwise it is only useful for those reading the json and is unused in the runtime."
-    },
-    
-    "allowedTools": { 
-      "type": "array", 
-      "items": { "type": "string" },
-      "description": "List of tool IDs that are allowed to be used"
     },
     
     "cachingEnabled": { 

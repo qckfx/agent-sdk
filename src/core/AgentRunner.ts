@@ -52,6 +52,8 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
   
   // Return the public interface
   return {
+    executionAdapter,
+    promptManager: config.promptManager,
     /**
      * Process a user query
      * @param query - The user's query

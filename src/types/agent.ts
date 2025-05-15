@@ -8,6 +8,7 @@ import { PermissionManager } from './permission.js';
 import { ToolRegistry } from './registry.js';
 import { ExecutionAdapter } from './tool.js';
 import { SessionState } from './model.js';
+import { PromptManager } from '../core/PromptManager.js';
 
 /** @internal */
 export interface AgentRunnerConfig {
@@ -15,7 +16,7 @@ export interface AgentRunnerConfig {
   toolRegistry: ToolRegistry;
   permissionManager: PermissionManager;
   executionAdapter: ExecutionAdapter;
-  promptManager?: import('../core/PromptManager.js').PromptManager;
+  promptManager: PromptManager;
   logger?: {
     debug: (message: string, ...args: unknown[]) => void;
     info: (message: string, ...args: unknown[]) => void;
@@ -57,6 +58,8 @@ export interface ConversationResult {
 
 /** @internal */
 export interface AgentRunner {
+  executionAdapter: ExecutionAdapter;
+  promptManager: PromptManager;
   processQuery(query: string, model: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
   runConversation(initialQuery: string, model: string): Promise<ConversationResult>;
 }

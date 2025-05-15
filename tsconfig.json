@@ -15,9 +15,9 @@
   },
   "include": [
     "index.ts",
+    "internals.ts",
+    "browser.ts",
     "src/**/*",
-    "browser/**/*",
-    "node/**/*"
   ],
   "exclude": [
     "node_modules",

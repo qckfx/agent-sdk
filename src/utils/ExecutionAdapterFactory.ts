@@ -4,10 +4,9 @@ import { DockerExecutionAdapter } from './DockerExecutionAdapter.js';
 import { DockerContainerManager } from './DockerContainerManager.js';
 import { E2BExecutionAdapter } from './E2BExecutionAdapter.js';
 import { CheckpointingExecutionAdapter } from './CheckpointingExecutionAdapter.js';
-import { SessionState } from '../types/model.js';
 import { LogCategory } from './logger.js';
 
-export type ExecutionAdapterType = 'local' | 'docker' | 'e2b';
+export type ExecutionAdapterType = 'local' | 'docker' | 'remote';
 
 export interface ExecutionAdapterFactoryOptions {
   /**
@@ -157,8 +156,7 @@ export async function createExecutionAdapter(
         type: 'docker'
       };
     }
-    
-    if (type === 'e2b') {
+    if (type === 'remote') {
       logger?.info('Creating E2B execution adapter', LogCategory.SYSTEM);
       
       if (!options.e2b?.sandboxId) {
@@ -183,7 +181,7 @@ export async function createExecutionAdapter(
       
       return {
         adapter: concreteAdapter,
-        type: 'e2b'
+        type: 'remote'
       };
     }
   } catch (error) {

@@ -4,26 +4,60 @@
  */
 
 /**
+ * Constants for processing lifecycle events
+ */
+export const ProcessingEvents = {
+  STARTED: 'processing:started',
+  COMPLETED: 'processing:completed',
+  ERROR: 'processing:error',
+  ABORTED: 'processing:aborted'
+} as const;
+
+/**
+ * Constants for tool execution events
+ */
+export const ToolExecutionEvents = {
+  STARTED: 'tool:execution:started',
+  COMPLETED: 'tool:execution:completed',
+  ERROR: 'tool:execution:error'
+} as const;
+
+/**
+ * Constants for environment events
+ */
+export const EnvironmentEvents = {
+  STATUS_CHANGED: 'environment:status_changed'
+} as const;
+
+/**
+ * Constants for checkpoint events
+ */
+export const CheckpointEvents = {
+  READY: 'checkpoint:ready'
+} as const;
+
+/**
+ * Constants for permission events
+ */
+export const PermissionEvents = {
+  REQUESTED: 'permission:requested'
+} as const;
+
+/**
  * Union type for all agent events
  * Events follow a namespace:action pattern for clarity
  */
 export type AgentEvent =
   // Processing lifecycle events
-  | 'processing:started'
-  | 'processing:completed'
-  | 'processing:error'
-  | 'processing:aborted'
-  
+  | typeof ProcessingEvents[keyof typeof ProcessingEvents]
   // Tool execution events
-  | 'tool:execution:started'
-  | 'tool:execution:completed'
-  | 'tool:execution:error'
-  
+  | typeof ToolExecutionEvents[keyof typeof ToolExecutionEvents]
   // Environment events
-  | 'environment:status_changed'
-  
+  | typeof EnvironmentEvents[keyof typeof EnvironmentEvents]
   // Checkpoint events
-  | 'checkpoint:ready';
+  | typeof CheckpointEvents[keyof typeof CheckpointEvents]
+  // Permission events
+  | typeof PermissionEvents[keyof typeof PermissionEvents];
 
 /**
  * Event data for processing started event
@@ -76,17 +110,26 @@ export interface CheckpointData {
 }
 
 /**
+ * Permission event data
+ */
+export interface PermissionData {
+  toolId: string;
+  args: Record<string, unknown>;
+}
+
+/**
  * Map of event names to their data types
  * This allows for type-safe event handling
  */
 export interface AgentEventMap {
-  'processing:started': ProcessingStartedData;
-  'processing:completed': ProcessingCompletedData;
-  'processing:error': ProcessingErrorData;
-  'processing:aborted': string; // sessionId
-  'tool:execution:started': import('./tool-execution/index.js').ToolExecutionState;
-  'tool:execution:completed': import('./tool-execution/index.js').ToolExecutionState;
-  'tool:execution:error': import('./tool-execution/index.js').ToolExecutionState;
-  'environment:status_changed': EnvironmentStatusData;
-  'checkpoint:ready': CheckpointData;
+  [ProcessingEvents.STARTED]: ProcessingStartedData;
+  [ProcessingEvents.COMPLETED]: ProcessingCompletedData;
+  [ProcessingEvents.ERROR]: ProcessingErrorData;
+  [ProcessingEvents.ABORTED]: string; // sessionId
+  [ToolExecutionEvents.STARTED]: import('./tool-execution/index.js').ToolExecutionState;
+  [ToolExecutionEvents.COMPLETED]: import('./tool-execution/index.js').ToolExecutionState;
+  [ToolExecutionEvents.ERROR]: import('./tool-execution/index.js').ToolExecutionState;
+  [EnvironmentEvents.STATUS_CHANGED]: EnvironmentStatusData;
+  [CheckpointEvents.READY]: CheckpointData;
+  [PermissionEvents.REQUESTED]: PermissionData;
 }

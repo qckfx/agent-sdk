@@ -20,7 +20,6 @@ const EnvironmentSchema = z.union([
 ]);
 
 const LogLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
-const PermissionModeSchema = z.enum(['interactive', 'auto', 'manual']);
 
 const SystemPromptSchema = z.union([
   z.string(),

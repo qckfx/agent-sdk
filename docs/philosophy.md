@@ -65,7 +65,7 @@ export class ExecutionAdapterFactory {
         return new LocalExecutionAdapter(config);
       case 'docker':
         return new DockerExecutionAdapter(config);
-      case 'e2b':
+      case 'remote':
         return new E2BExecutionAdapter(config);
       default:
         throw new Error(`Unknown execution environment: ${config.type}`);

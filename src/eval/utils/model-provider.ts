@@ -44,8 +44,6 @@ class AnthropicProviderAdapter implements ModelProvider {
           abortController: new AbortController(), // Add abortController to satisfy SessionState type
           agentServiceConfig: {
             defaultModel: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet',
-            permissionMode: process.env.QCKFX_PERMISSION_MODE as 'auto' | 'interactive' || 'interactive',
-            allowedTools: ['ReadTool', 'GlobTool', 'GrepTool', 'LSTool'],
             cachingEnabled: process.env.QCKFX_DISABLE_CACHING ? false : true,
           },
         },

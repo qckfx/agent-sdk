@@ -60,23 +60,8 @@
           ],
           "default": "info"
         },
-        "permissionMode": {
-          "type": "string",
-          "enum": [
-            "interactive",
-            "auto",
-            "manual"
-          ],
-          "default": "interactive"
-        },
         "description": {
           "type": "string"
-        },
-        "allowedTools": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         },
         "cachingEnabled": {
           "type": "boolean",

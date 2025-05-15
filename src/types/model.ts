@@ -52,6 +52,7 @@ export interface CacheMetricsTracking {
 }
 
 export interface SessionState {
+  id: string;
   /** Conversation context with file tracking */
   contextWindow: ContextWindow;
   
@@ -71,7 +72,7 @@ export interface SessionState {
   /** Cache metrics for tracking prompt caching performance */
   cacheMetrics?: CacheMetricsTracking;
   /** Execution adapter type */
-  executionAdapterType?: 'local' | 'docker' | 'e2b';
+  executionAdapterType?: 'local' | 'docker' | 'remote';
   /** E2B sandbox ID if using E2B execution */
   e2bSandboxId?: string;
   /** Execution adapter instance */

@@ -78,7 +78,7 @@ export interface EnvironmentStatusEvent {
   /**
    * The type of execution environment
    */
-  environmentType: 'local' | 'docker' | 'e2b';
+  environmentType: 'local' | 'docker' | 'remote';
   
   /**
    * Current status of the environment
