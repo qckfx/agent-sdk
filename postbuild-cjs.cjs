@@ -50,3 +50,84 @@ for (const rel of entryPoints) {
     console.warn(`postbuild-cjs: Unable to create .cjs copy for ${rel}:`, err);
   }
 }
+
+// ---------------------------------------------------------------------------
+// 3.  Remove `import.meta` usages from the CommonJS bundle
+// ---------------------------------------------------------------------------
+// A handful of source files rely on `import.meta.url` during ESM execution in
+// order to calculate file locations.  When those *same* files are transpiled
+// to CommonJS the meta-property is **still** present in the generated output
+// (we suppress the TypeScript error with `@ts-ignore`).  Unfortunately Node‘s
+// CJS runtime refuses to even *parse* the construct and throws the familiar
+//   "SyntaxError: Cannot use 'import.meta' outside a module".
+//
+// To keep a single shared TypeScript code base we patch the compiled CJS files
+// after tsc has finished.  All occurrences of `import.meta.url` are replaced
+// with the built-in `__filename` which provides the exact same information in
+// CommonJS modules.  For one file (configValidator) we also *remove* the
+// artificial re-declaration of `__filename` that only exists in the ESM branch.
+
+/**
+ * Replace every `import.meta.url` token with `__filename`.
+ *
+ * @param {string} file Path to a file inside the dist/cjs tree
+ */
+function rewriteImportMeta(file) {
+  let src = fs.readFileSync(file, 'utf8');
+
+  if (!src.includes('import.meta')) {
+    return; // nothing to do – skip early for performance
+  }
+
+  // 1) If the file contains a *re-declaration* of "__filename" based on
+  //    `import.meta.url` we can simply drop that line – Node already provides
+  //    the variable in CJS and re-assigning it is not only unnecessary but
+  //    also error-prone once `import.meta.url` is removed.
+  src = src.replace(/const __filename\s*=.*import\.meta\.url[^;]*;?\n?/g, '');
+  // Lines that *still* redeclare the variable after an earlier replacement –
+  // e.g. `const __filename = fileURLToPath(__filename);` – are equally useless
+  // in CJS and can go, too.
+  src = src.replace(/const __filename\s*=.*fileURLToPath\([^;]*;?\n?/g, '');
+
+  // As a very last resort drop any line that starts with the redeclaration –
+  // this is intentionally broad but confined to the build output directory.
+  src = src.replace(/^const __filename\s*=.*\n?/m, '');
+
+  // 3) A similar one-off exists for `__dirname`.  When the ESM variant runs it
+  //    derives the directory from the freshly-created __filename above.  In
+  //    CommonJS, however, Node already provides __dirname so we simply drop
+  //    the re-declaration to avoid the "Identifier has already been declared"
+  //    error.
+  src = src.replace(/^const __dirname\s*=.*\n?/m, '');
+
+  // 2) Replace **all** remaining occurrences of the meta-property with the
+  //    built-in `__filename`.  Doing the removal first avoids the
+  //    "const __filename = fileURLToPath(__filename)" artefact we saw during
+  //    initial testing.
+  src = src.replace(/import\.meta\.url/g, '__filename');
+
+  fs.writeFileSync(file, src, 'utf8');
+}
+
+// Walk the dist/cjs tree and patch all .js files.
+function walk(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walk(full);
+    } else if (entry.isFile() && entry.name.endsWith('.js')) {
+      try {
+        rewriteImportMeta(full);
+      } catch (err) {
+        console.warn('postbuild-cjs: Failed to rewrite', full, err);
+      }
+    }
+  }
+}
+
+try {
+  walk(outDir);
+} catch (err) {
+  console.error('postbuild-cjs: Error during import.meta removal', err);
+  process.exitCode = 1;
+}
