@@ -26,6 +26,16 @@ const entryPoints = [
   'src/tools/index',
   'src/providers/index',
   'src/internals/index',
+  // Public barrel files at the package root that also need a `.cjs` sibling
+  // so that the `exports.require` field resolves correctly when the package
+  // is consumed from CommonJS:
+  //   { "./browser":   { require: "./dist/cjs/browser.cjs"   } }
+  //   { "./internals": { require: "./dist/cjs/internals.cjs" } }
+  //
+  // Both files are compiled by tsc as `*.js` already, we merely need to copy
+  // them with the additional extension so that Node can find them.
+  'browser',
+  'internals',
 ];
 
 for (const rel of entryPoints) {

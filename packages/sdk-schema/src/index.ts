@@ -44,7 +44,6 @@ export const AgentConfigSchema = z.object({
 
   defaultModel: z.string().optional(),
   logLevel: LogLevelSchema.optional().default('info'),
-  permissionMode: PermissionModeSchema.optional().default('interactive'),
   description: z.string().optional(),
   allowedTools: z.array(z.string()).optional(),
   cachingEnabled: z.boolean().optional().default(true),
