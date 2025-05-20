@@ -11,7 +11,6 @@ import { Tool } from './types/tool.js';
 import { createAgent } from './core/Agent.js';
 import { Agent as AgentInterface } from './types/main.js';
 import { ProcessQueryResult, ConversationResult } from './types/agent.js';
-import { validateConfig } from './utils/configValidator.js';
 import { AgentConfigJSON, validateAgentConfig } from '../schemas/agent-config.zod.js';
 import { convertToAgentConfig } from './utils/agent-config-converter.js';
 import { rollbackSession } from './utils/RollbackManager.js';
@@ -116,7 +115,7 @@ export class Agent {
    */
   private constructor({config, callbacks}: {config: AgentConfig, callbacks?: AgentCallbacks}) {
     // Validate config
-    this._config = validateConfig(config);
+    this._config = config;
     this._callbacks = callbacks;
 
     // Validate remote environment configuration

@@ -11,7 +11,6 @@ import path from 'path';
 import { createTool } from './createTool.js';
 import { Tool } from '../types/tool.js';
 import { Agent } from '../Agent.js';
-import { validateConfig } from '../utils/configValidator.js';
 
 export interface SubAgentReference {
   name: string;
@@ -43,13 +42,10 @@ export async function createSubAgentTool(
   async function getNestedAgent(): Promise<Agent> {
     if (nestedAgent) return nestedAgent;
 
-    // Validate config; this throws if the JSON is invalid.
-    const cfg: any = validateConfig(parsed);
-
     if (getRemoteId) {
-      nestedAgent = await Agent.create({config: cfg, callbacks: { getRemoteId }});
+      nestedAgent = await Agent.create({config: parsed, callbacks: { getRemoteId }});
     } else {
-      nestedAgent = await Agent.create({config: cfg});
+      nestedAgent = await Agent.create({config: parsed});
     }
     return nestedAgent;
   }

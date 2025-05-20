@@ -17,9 +17,9 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 import {
-  validateConfig,
+  validateAgentConfig,
   ConfigValidationError,
-} from '../utils/configValidator.js';
+} from '../../schemas/agent-config.zod.js';
 
 function printUsage(): void {
   console.log('Usage: validate <config.json>');
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
     const raw = readFileSync(filePath, 'utf8');
     const parsed = JSON.parse(raw);
 
-    validateConfig(parsed);
+    validateAgentConfig(parsed);
 
     console.log('Configuration is valid ✅');
     process.exit(0);
