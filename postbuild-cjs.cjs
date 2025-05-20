@@ -141,3 +141,60 @@ try {
   console.error('postbuild-cjs: Error during import.meta removal', err);
   process.exitCode = 1;
 }
+
+// ---------------------------------------------------------------------------
+// 4.  Copy JSON schema files into the transpiled output directories
+// ---------------------------------------------------------------------------
+// The runtime configuration validator resolves the JSON Schema relative to the
+// compiled file ("../../schemas/agent-config.schema.json").  Therefore the
+// schema must live under both dist/cjs *and* dist/esm so that the path exists
+// regardless of which module format consumers use.  We keep the canonical
+// source in the repository-level "schemas" folder and replicate its contents
+// here after the TypeScript build has finished.
+
+/**
+ * Recursively copy a directory (synchronously).
+ *
+ * @param {string} src Source directory
+ * @param {string} dest Destination directory (will be created if missing)
+ */
+function copyDirSync(src, dest) {
+  if (!fs.existsSync(src)) {
+    return; // nothing to copy – fail silently so the build does not abort
+  }
+
+  fs.mkdirSync(dest, { recursive: true });
+
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      copyDirSync(srcPath, destPath);
+    } else if (entry.isFile()) {
+      try {
+        fs.copyFileSync(srcPath, destPath);
+      } catch (err) {
+        console.warn(`postbuild-cjs: Failed to copy schema file ${srcPath} → ${destPath}`, err);
+      }
+    }
+  }
+}
+
+// Location of the canonical schema sources
+const srcSchemasDir = path.join(__dirname, 'schemas');
+
+// Replicate into both output formats so that the relative paths used by the
+// compiled bundles resolve correctly at runtime.
+const outDirs = [
+  path.join(__dirname, 'dist', 'cjs', 'schemas'),
+  path.join(__dirname, 'dist', 'esm', 'schemas'),
+];
+
+for (const dest of outDirs) {
+  try {
+    copyDirSync(srcSchemasDir, dest);
+  } catch (err) {
+    console.warn('postbuild-cjs: Failed to copy schemas to', dest, err);
+  }
+}
