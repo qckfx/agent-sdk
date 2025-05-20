@@ -8,6 +8,7 @@
 import { AgentConfig, RepositoryEnvironment } from '../types/main.js';
 import { AgentConfigJSON } from '../../schemas/agent-config.zod.js';
 import { LLMFactory } from '../providers/index.js';
+import { AgentCallbacks } from '../types/callbacks.js';
 
 /**
  * A version of AgentConfig without the required properties so we can build it step by step.
@@ -24,6 +25,7 @@ type PartialAgentConfig = Partial<AgentConfig>;
  */
 export function convertToAgentConfig(
   jsonConfig: AgentConfigJSON, 
+  callbacks?: AgentCallbacks
 ): AgentConfig {
 
   
@@ -57,6 +59,18 @@ export function convertToAgentConfig(
   if (jsonConfig.tools !== undefined) {
     config.tools = jsonConfig.tools;
   }
+
+  if (callbacks?.onPermissionRequested && typeof callbacks.onPermissionRequested === 'function') {
+    config.permissionUIHandler = {
+      requestPermission: async (toolId: string, args: Record<string, unknown>) => {
+        return await callbacks.onPermissionRequested!({
+          toolId,
+          args,
+        });
+      },
+    };
+  }
+  
   
   // Return as complete AgentConfig
   return config as AgentConfig;

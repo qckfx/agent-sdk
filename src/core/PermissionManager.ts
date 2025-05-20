@@ -98,14 +98,14 @@ const createPermissionManager = (
       }
       
       // Otherwise, request permission normally
-      logger?.info(`Requesting user permission for tool: ${toolId}`, LogCategory.PERMISSIONS);
+      console.info(`Requesting user permission for tool: ${toolId}`);
       const granted = await uiHandler.requestPermission(toolId, args);
       
       // Log the permission decision
       if (granted) {
-        logger?.info(`Permission granted for tool: ${toolId}`, LogCategory.PERMISSIONS);
+        console.info(`Permission granted for tool: ${toolId}`);
       } else {
-        logger?.info(`Permission denied for tool: ${toolId}`, LogCategory.PERMISSIONS);
+        console.info(`Permission denied for tool: ${toolId}`);
       }
       
       return granted;

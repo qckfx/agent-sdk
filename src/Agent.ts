@@ -99,7 +99,7 @@ export class Agent {
     const validatedConfig = validateAgentConfig(config);
     
     // Convert to AgentConfig
-    const agentConfig = convertToAgentConfig(validatedConfig);
+    const agentConfig = convertToAgentConfig(validatedConfig, callbacks);
     
     // Create the agent instance
     const agent = new Agent({config: agentConfig, callbacks});
@@ -171,30 +171,48 @@ export class Agent {
   private _setupToolRegistryBridges(): void {
     if (!this._core) return;
 
+    const resolveToolMeta = (toolId: string) => {
+      const tool = this._core.toolRegistry.getTool(toolId);
+      return {
+        toolName: tool?.name ?? toolId,
+      }
+    }
+
     this._core.toolRegistry.onToolExecutionStart((executionId, toolId, _toolUseId, args) => {
+      const { toolName } = resolveToolMeta(toolId);
       this._bus.emit('tool:execution:started', {
-        executionId,
+        id: executionId,
+        toolName,
         toolId,
         args,
+        startTime: new Date().toISOString(),
       });
     });
 
     this._core.toolRegistry.onToolExecutionComplete((executionId, toolId, args, result, executionTime) => {
+      const { toolName } = resolveToolMeta(toolId);
+
       this._bus.emit('tool:execution:completed', {
-        executionId,
+        id: executionId,
+        toolName,
         toolId,
         args,
         result,
         executionTime,
+        endTime: new Date().toISOString(),
       });
     });
 
     this._core.toolRegistry.onToolExecutionError((executionId, toolId, args, error) => {
+      const { toolName } = resolveToolMeta(toolId);
+
       this._bus.emit('tool:execution:error', {
-        executionId,
+        id: executionId,
+        toolName,
         toolId,
         args,
         error,
+        endTime: new Date().toISOString(),
       });
     });
   }

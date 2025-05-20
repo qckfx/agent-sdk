@@ -438,15 +438,20 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       // Get container info
       const containerInfo = await this.containerManager.getContainerInfo();
       if (!containerInfo) {
+        console.error(`Container is not available`);
         return {
           success: false as const,
           path: filepath,
           error: 'Container is not available'
         };
       }
+
+      // Convert to container path
+      const containerPath = this.toContainerPath(filepath, containerInfo);
       
       // Make sure the path is within the working directory
-      if (!this.isPathWithinWorkingDir(filepath, containerInfo)) {
+      if (!this.isPathWithinWorkingDir(containerPath, containerInfo)) {
+        console.error(`Security constraint: Can only modify files within the working directory. Attempted to modify ${filepath}`);
         return {
           success: false as const,
           path: filepath,
@@ -457,6 +462,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       // For the UI display, we want to read with line numbers (for the UI only)
       const fileResult = await this.readFile(executionId, filepath);
       if (!fileResult.success) {
+        console.error(`Error reading file: ${filepath}`);
         return {
           success: false as const,
           path: filepath,
@@ -471,7 +477,6 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       // Binary-safe approach using temporary files to avoid escaping issues
       // Create a unique identifier for this operation to avoid conflicts
       const opId = `edit_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-      const containerPath = this.toContainerPath(filepath, containerInfo);
       const tempDir = `/tmp/${opId}`;
       const searchFile = `${tempDir}/search`;
       const replaceFile = `${tempDir}/replace`;
@@ -498,7 +503,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         
         // Use the pre-installed binary-replace.sh script
         // This avoids creating a script on the fly and is more reliable
-        this.logger?.debug(`Running binary-replace.sh to edit file: ${originalFile}`, LogCategory.TOOLS);
+        console.info(`Running binary-replace.sh to edit file: ${originalFile}`);
         
         // Verify the binary-replace.sh script exists
         const { exitCode: scriptExists } = await this.executeCommand(executionId, `which binary-replace.sh`);
@@ -507,7 +512,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         }
         
         // Execute the pre-installed binary replacement script with debug output
-        this.logger?.debug(`Executing: binary-replace.sh "${originalFile}" "${searchFile}" "${replaceFile}" "${newFile}"`, LogCategory.TOOLS);
+        console.info(`Executing: binary-replace.sh "${originalFile}" "${searchFile}" "${replaceFile}" "${newFile}"`);
         
         // Run with additional logging and error handling
         let scriptOutput = '';
@@ -625,7 +630,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       // Log results of re-reading the file
       if (newFileResult.success) {
+        console.info(`File edited successfully: ${filepath}`);
       } else {
+        console.error(`Error editing file: ${filepath}`);
       }
       
       // Format path for display

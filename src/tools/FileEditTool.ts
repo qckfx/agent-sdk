@@ -126,12 +126,13 @@ export const createFileEditTool = (): Tool => {
       }
 
       const executionAdapter = context.executionAdapter;
-      
+     
+      console.info(`Editing file: ${filePath}`);
       try {
         return await executionAdapter.editFile(context.executionId, filePath, searchCode, replaceCode, encoding);
       } catch (error: unknown) {
         const err = error as Error;
-        context.logger?.error(`Error editing file: ${err.message}`);
+        console.error(`Error editing file: ${err.message}`);
         return {
           success: false,
           path: filePath,

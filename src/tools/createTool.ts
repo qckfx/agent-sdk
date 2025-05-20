@@ -125,8 +125,11 @@ export const createTool = (config: ToolConfig): Tool => {
         throw new Error(`Invalid args for ${this.name}: ${validationResult.reason}`);
       }
       
-      // Check permissions if needed
-      if (this.requiresPermission && context.permissionManager) {
+      // ------------------------------------------------------------------
+      // Permission handling
+      // ------------------------------------------------------------------
+
+      if ((this.requiresPermission || this.alwaysRequirePermission) && context.permissionManager) {
         // Always call requestPermission which will handle all the checks internally
         // This will ask for permission every time unless in fast edit mode
         const granted = await context.permissionManager.requestPermission(this.id, args);
