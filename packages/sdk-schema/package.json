@@ -22,7 +22,7 @@
   "scripts": {
     "build": "npm run build:ts && npm run generate:schema",
     "build:ts": "tsc -p tsconfig.json",
-    "generate:schema": "node dist/generateSchema.js"
+    "generate:schema": "node dist/scripts/generate-json-schemas.js"
   },
   "dependencies": {
     "zod": "^3.24.3"
