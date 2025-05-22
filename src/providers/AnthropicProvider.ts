@@ -558,7 +558,7 @@ async function withRetryAndBackoff<T>(
  */
 function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  const baseURL = process.env.LLM_BASE_URL || 'https://api.anthropic.com/v1';
+  const baseURL = (process.env.LLM_BASE_URL || 'https://api.anthropic.com/v1').replace(/\/$/, '');
   
   const model = config.model || 'claude-3-7-sonnet';
   const maxTokens = config.maxTokens || 4096;

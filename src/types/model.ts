@@ -73,8 +73,8 @@ export interface SessionState {
   cacheMetrics?: CacheMetricsTracking;
   /** Execution adapter type */
   executionAdapterType?: 'local' | 'docker' | 'remote';
-  /** E2B sandbox ID if using E2B execution */
-  e2bSandboxId?: string;
+  /** Remote ID if using remote execution */
+  remoteId?: string;
   /** Execution adapter instance */
   executionAdapter?: ExecutionAdapter;
   /** API key for the LLM provider - takes precedence over environment variables */
