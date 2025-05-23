@@ -37,6 +37,13 @@ export const CheckpointEvents = {
 } as const;
 
 /**
+ * Constants for rollback events
+ */
+export const RollbackEvents = {
+  COMPLETED: 'rollback:completed'
+} as const;
+
+/**
  * Constants for permission events
  */
 export const PermissionEvents = {
@@ -56,6 +63,8 @@ export type AgentEvent =
   | typeof EnvironmentEvents[keyof typeof EnvironmentEvents]
   // Checkpoint events
   | typeof CheckpointEvents[keyof typeof CheckpointEvents]
+  // Rollback events
+  | typeof RollbackEvents[keyof typeof RollbackEvents]
   // Permission events
   | typeof PermissionEvents[keyof typeof PermissionEvents];
 
@@ -99,14 +108,26 @@ export interface EnvironmentStatusData {
 }
 
 /**
- * Checkpoint event data
+ * Checkpoint event data (supports both single and multi-repo scenarios)
  */
 export interface CheckpointData {
   sessionId: string;
   toolExecutionId: string;
-  hostCommit: string;
-  shadowCommit: string;
-  bundle: Uint8Array;
+  hostCommits: Map<string, string>; // repo path -> commit sha
+  shadowCommits: Map<string, string>; // repo path -> shadow commit sha
+  bundles: Map<string, Uint8Array>; // repo path -> bundle
+  repoCount: number;
+  timestamp: string;
+}
+
+/**
+ * Rollback event data (supports both single and multi-repo scenarios)
+ */
+export interface RollbackData {
+  sessionId: string;
+  commitSha: string; // First repo's commit SHA for backwards compatibility
+  restoredCommits: Map<string, string>; // repo path -> commit sha
+  repoCount: number;
 }
 
 /**
@@ -131,5 +152,6 @@ export interface AgentEventMap {
   [ToolExecutionEvents.ERROR]: import('./tool-execution/index.js').ToolExecutionState;
   [EnvironmentEvents.STATUS_CHANGED]: EnvironmentStatusData;
   [CheckpointEvents.READY]: CheckpointData;
+  [RollbackEvents.COMPLETED]: RollbackData;
   [PermissionEvents.REQUESTED]: PermissionData;
 }

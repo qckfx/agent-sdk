@@ -33,6 +33,7 @@ const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
   [AgentEventType.ABORT_SESSION]: 'processing:aborted',
   [AgentEventType.ENVIRONMENT_STATUS_CHANGED]: 'environment:status_changed',
   [CHECKPOINT_READY_EVENT]: 'checkpoint:ready',
+  [AgentEventType.ROLLBACK_COMPLETED]: 'rollback:completed',
   // Tool execution events are already properly named with the 'tool:' prefix
 };
 
@@ -374,5 +375,42 @@ export class Agent {
     handler: (data: AgentEventMap[E]) => void
   ): void {
     this._bus.off(event, handler);
+  }
+  
+  /**
+   * Get multi-repo tracking information for a session
+   * @param sessionState The session state to extract multi-repo data from
+   * @returns Multi-repo tracking data or null if not available
+   */
+  static getMultiRepoInfo(sessionState: SessionState): {
+    repoCount: number;
+    repoPaths: string[];
+    directoryStructureGenerated: boolean;
+    lastCheckpointMetadata?: {
+      toolExecutionId: string;
+      timestamp: string;
+      repoCount: number;
+      hostCommits: Record<string, string>;
+    };
+  } | null {
+    return sessionState.multiRepoTracking || null;
+  }
+  
+  /**
+   * Get the repository count for a session
+   * @param sessionState The session state to check
+   * @returns Number of repositories being tracked (0 if not available)
+   */
+  static getRepositoryCount(sessionState: SessionState): number {
+    return sessionState.multiRepoTracking?.repoCount ?? 0;
+  }
+  
+  /**
+   * Get the repository paths for a session
+   * @param sessionState The session state to check
+   * @returns Array of repository paths being tracked
+   */
+  static getRepositoryPaths(sessionState: SessionState): string[] {
+    return sessionState.multiRepoTracking?.repoPaths ?? [];
   }
 }
