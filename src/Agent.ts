@@ -312,8 +312,8 @@ export class Agent {
     return this._core.runConversation(initialQuery, chosenModel);
   }
 
-  static async performRollback(sessionId: string, sessionState: SessionState, repoRoot: string, messageId: string) {
-    return rollbackSession(sessionId, sessionState, repoRoot, messageId);
+  static async performRollback(sessionId: string, sessionState: SessionState, messageId: string) {
+    return rollbackSession(sessionId, sessionState, messageId);
   }
 
   static async getAvailableModels(llmApiKey?: string) {

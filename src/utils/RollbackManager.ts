@@ -13,22 +13,20 @@ import { AgentEvents, AgentEventType, setSessionAborted } from './sessionUtils.j
 import * as CheckpointManager from './CheckpointManager.js';
 
 /**
- * Roll back the repository to a previous checkpoint for the given session.
+ * Roll back all repositories to a previous checkpoint for the given session.
+ * Handles both single and multi-repo scenarios.
  *
  * @param sessionId   The active session identifier.
- * @param adapter     Execution adapter used to run git commands.
- * @param repoRoot    Absolute path to the host repository root.
- * @param commitSha   Optional checkpoint commit SHA or ref.  If omitted, the
- *                    latest checkpoint (HEAD) is used.
+ * @param sessionState The session state containing execution adapter.
+ * @param messageId   The message ID to rollback to (determines checkpoint).
  *
- * @returns The commit SHA that the repository was reset to.
+ * @returns Map of repository paths to commit SHAs that were reset to.
  */
 export async function rollbackSession(
   sessionId: string,
   sessionState: SessionState,
-  repoRoot: string,
   messageId: string,
-): Promise<string | undefined> {
+): Promise<Map<string, string>> {
   if (!sessionState.executionAdapter) {
     throw new Error('Execution adapter not found');
   }
@@ -56,16 +54,21 @@ export async function rollbackSession(
   checkpointId = targetMsg?.lastCheckpointId;
 
   // --------------------------------------------------------------------
-  // 2. Restore the repository state *only* when we have a checkpoint.
+  // 2. Restore all repository states *only* when we have a checkpoint.
   // --------------------------------------------------------------------
 
-  let restoredSha: string | undefined = undefined;
+  let restoredCommits = new Map<string, string>();
 
   if (checkpointId) {
-    restoredSha = await CheckpointManager.restore(
+    // Get all repositories from the execution adapter
+    const directoryStructures = await sessionState.executionAdapter.getDirectoryStructures();
+    const repoPaths = Array.from(directoryStructures.keys());
+    
+    // Restore all repositories to the checkpoint
+    restoredCommits = await CheckpointManager.restoreMultiRepo(
       sessionId,
       sessionState.executionAdapter,
-      repoRoot,
+      repoPaths,
       checkpointId,
     );
   }
@@ -83,10 +86,15 @@ export async function rollbackSession(
   // 4. Notify listeners so that UIs can refresh.
   // --------------------------------------------------------------------
 
+  // For backwards compatibility, emit the first repo's commit SHA
+  const firstCommitSha = restoredCommits.values().next().value || '';
+  
   AgentEvents.emit(AgentEventType.ROLLBACK_COMPLETED, {
     sessionId: sessionState.sessionId,
-    commitSha: restoredSha ?? '',
+    commitSha: firstCommitSha,
+    restoredCommits, // Add full multi-repo data for new consumers
+    repoCount: restoredCommits.size,
   });
 
-  return restoredSha;
+  return restoredCommits;
 }

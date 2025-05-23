@@ -154,7 +154,6 @@ export async function createExecutionAdapter(
       // Wrap with checkpointing
       concreteAdapter = new CheckpointingExecutionAdapter(
         dockerAdapter,
-        pwd,
         options.sessionId,
       );
       console.log('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
@@ -186,7 +185,6 @@ export async function createExecutionAdapter(
       
       concreteAdapter = new CheckpointingExecutionAdapter(
         e2bAdapter,
-        pwd,
         options.sessionId,
       );
       console.log('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
@@ -229,7 +227,6 @@ export async function createExecutionAdapter(
   // Wrap with checkpointing 
   concreteAdapter = new CheckpointingExecutionAdapter(
     localAdapter,
-    pwd,
     options.sessionId,
   );
   console.log('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
