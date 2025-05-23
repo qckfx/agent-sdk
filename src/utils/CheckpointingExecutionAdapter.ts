@@ -14,65 +14,96 @@ import * as CheckpointManager from './CheckpointManager.js';
 import { CheckpointEvents, CHECKPOINT_READY_EVENT, CheckpointPayload } from '../events/checkpoint-events.js';
 
 /**
- * A wrapper around an ExecutionAdapter that adds checkpointing functionality
+ * A wrapper around an ExecutionAdapter that adds multi-repo checkpointing functionality
  */
 export class CheckpointingExecutionAdapter implements ExecutionAdapter {
 
   constructor(
     private inner: ExecutionAdapter,
-    private repoRoot: string,
     private sessionId: string,
   ) {
-    // Kick-off initialization **asynchronously** but keep a handle so that we
-    // can await it before the first snapshot.  Not awaiting here prevented the
-    // shadow repository from being fully set-up when the very first
-    // state-changing operation arrived, resulting in "not a git repository"
-    // failures inside `CheckpointManager.snapshot()`.
-    this._initPromise = CheckpointManager.init(repoRoot, sessionId, inner);
+    // Kick-off initialization **asynchronously** using the inner adapter's 
+    // multi-repo capabilities. This initializes checkpointing for all 
+    // repositories found by the inner adapter's MultiRepoManager.
+    this._initPromise = this.initializeRepositories();
   }
 
   /**
-   * Promise that resolves once the shadow repository is ready.  All
+   * Promise that resolves once all shadow repositories are ready.  All
    * checkpoint-taking operations must await this to guarantee that the shadow
-   * repo exists before we attempt to commit into it.
+   * repos exist before we attempt to commit into them.
    */
   private _initPromise: Promise<void>;
+  
+  /**
+   * Initialize checkpointing for all repositories using inner adapter's capabilities
+   */
+  private async initializeRepositories(): Promise<void> {
+    try {
+      // Get all repositories from the inner adapter
+      const directoryStructures = await this.inner.getDirectoryStructures();
+      const repoPaths = Array.from(directoryStructures.keys());
+      
+      // Initialize checkpointing for each repository
+      await CheckpointManager.initMultiRepo(repoPaths, this.sessionId, this.inner);
+    } catch (error) {
+      console.error('Failed to initialize multi-repo checkpointing:', error);
+      throw error;
+    }
+  }
 
   /**
-   * Take a checkpoint before a state-changing operation
+   * Take a multi-repo checkpoint before a state-changing operation
    * @param reason The reason for the checkpoint
    * @returns True if checkpoint was created, false if skipped
    */
   private async cp(executionId: string, reason: string): Promise<boolean> {
 
-    // Ensure the shadow repository has finished initializing.  If
+    // Ensure all shadow repositories have finished initializing.  If
     // initialization failed we'll surface the error here.
     await this._initPromise;
 
+    // Get all repositories and their git information
+    const directoryStructures = await this.inner.getDirectoryStructures();
+    const repoPaths = Array.from(directoryStructures.keys());
+    const gitRepos = await this.inner.getGitRepositoryInfo();
     
-    // Get the host repository commit
-    const hostInfo = await this.inner.getGitRepositoryInfo();
-    const hostSha = hostInfo?.commitSha ?? 'unknown';
+    // Build host commits map
+    const hostCommits = new Map<string, string>();
+    for (const repo of gitRepos) {
+      hostCommits.set(repo.repoRoot, repo.commitSha ?? 'unknown');
+    }
     
     // Prepare metadata
-    const meta = {
+    const meta: CheckpointManager.SnapshotMeta = {
       sessionId: this.sessionId,
       toolExecutionId: executionId,
-      hostCommit: hostSha,
+      hostCommits,
       reason,
       timestamp: new Date().toISOString()
     };
     
-    // Create the snapshot
-    const { sha, bundle } = await CheckpointManager.snapshot(meta, this.inner, this.repoRoot);
+    // Create the multi-repo snapshot
+    const result = await CheckpointManager.snapshotMultiRepo(meta, this.inner, repoPaths);
+    
+    // Build shadow commits and bundles maps for the event
+    const shadowCommits = new Map<string, string>();
+    const bundles = new Map<string, Uint8Array>();
+    
+    for (const [repoPath, snapshot] of result.repoSnapshots) {
+      shadowCommits.set(repoPath, snapshot.sha);
+      bundles.set(repoPath, snapshot.bundle);
+    }
     
     // Emit the checkpoint event
     CheckpointEvents.emit(CHECKPOINT_READY_EVENT, {
       sessionId: meta.sessionId,
       toolExecutionId: meta.toolExecutionId,
-      hostCommit: meta.hostCommit,
-      shadowCommit: sha,
-      bundle
+      hostCommits: meta.hostCommits,
+      shadowCommits,
+      bundles,
+      repoCount: result.aggregateSnapshot.repoCount,
+      timestamp: meta.timestamp
     } as CheckpointPayload);
     
     return true;
@@ -103,8 +134,12 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
   
   // Read-only operations - direct delegation without checkpointing
   
-  async getGitRepositoryInfo(): Promise<GitRepositoryInfo | null> {
+  async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     return this.inner.getGitRepositoryInfo();
+  }
+  
+  async getDirectoryStructures(): Promise<Map<string, string>> {
+    return this.inner.getDirectoryStructures();
   }
   
   async glob(executionId: string, pattern: string, options?: any): Promise<string[]> {
