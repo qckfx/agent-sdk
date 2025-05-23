@@ -36,6 +36,26 @@ export function attachCheckpointSync(sessionState: SessionState): void {
   const listener = (payload: CheckpointPayload): void => {
     if (payload.sessionId !== sessionState.id) return;
     sessionState.contextWindow.setLastCheckpointId(payload.toolExecutionId);
+    
+    // Update multi-repo tracking metadata
+    if (payload.repoCount > 0) {
+      const hostCommitsRecord: Record<string, string> = {};
+      for (const [repoPath, commitSha] of payload.hostCommits) {
+        hostCommitsRecord[repoPath] = commitSha;
+      }
+      
+      sessionState.multiRepoTracking = {
+        repoCount: payload.repoCount,
+        repoPaths: Array.from(payload.hostCommits.keys()),
+        directoryStructureGenerated: sessionState.multiRepoTracking?.directoryStructureGenerated ?? false,
+        lastCheckpointMetadata: {
+          toolExecutionId: payload.toolExecutionId,
+          timestamp: payload.timestamp,
+          repoCount: payload.repoCount,
+          hostCommits: hostCommitsRecord,
+        }
+      };
+    }
   };
 
   CheckpointEvents.on(CHECKPOINT_READY_EVENT, listener);

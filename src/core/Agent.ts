@@ -219,7 +219,9 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
       }
 
       // Generate directory structure and git state maps only if they haven't been generated for this session yet
-      if (!sessionState.directoryStructureGenerated) {
+      const isDirectoryStructureGenerated = sessionState.multiRepoTracking?.directoryStructureGenerated ?? sessionState.directoryStructureGenerated ?? false;
+      
+      if (!isDirectoryStructureGenerated) {
         try {
           // Get directory structures for all repositories
           const directoryStructures = await runner.executionAdapter.getDirectoryStructures();
@@ -231,7 +233,16 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
           runner.promptManager.setMultiRepoDirectoryStructures(directoryStructures);
           runner.promptManager.setMultiRepoGitStates(gitRepos);
           
-          // Mark that we've generated directory structure for this session
+          // Initialize/update multi-repo tracking
+          const repoPaths = Array.from(directoryStructures.keys());
+          sessionState.multiRepoTracking = {
+            repoCount: repoPaths.length,
+            repoPaths,
+            directoryStructureGenerated: true,
+            lastCheckpointMetadata: sessionState.multiRepoTracking?.lastCheckpointMetadata,
+          };
+          
+          // Mark that we've generated directory structure for this session (backwards compatibility)
           sessionState.directoryStructureGenerated = true;
         } catch (error) {
           console.warn(`AgentService: Failed to generate multi-repo structure and git state: ${(error as Error).message}`);

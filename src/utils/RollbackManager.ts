@@ -86,6 +86,23 @@ export async function rollbackSession(
   // 4. Notify listeners so that UIs can refresh.
   // --------------------------------------------------------------------
 
+  // Update multi-repo tracking with rollback information
+  if (restoredCommits.size > 0 && checkpointId) {
+    const hostCommitsRecord: Record<string, string> = {};
+    for (const [repoPath, commitSha] of restoredCommits) {
+      hostCommitsRecord[repoPath] = commitSha;
+    }
+    
+    if (sessionState.multiRepoTracking) {
+      sessionState.multiRepoTracking.lastCheckpointMetadata = {
+        toolExecutionId: checkpointId,
+        timestamp: new Date().toISOString(),
+        repoCount: restoredCommits.size,
+        hostCommits: hostCommitsRecord,
+      };
+    }
+  }
+
   // For backwards compatibility, emit the first repo's commit SHA
   const firstCommitSha = restoredCommits.values().next().value || '';
   

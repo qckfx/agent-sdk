@@ -79,6 +79,22 @@ export interface SessionState {
   executionAdapter?: ExecutionAdapter;
   /** API key for the LLM provider - takes precedence over environment variables */
   llmApiKey?: string;
+  /** Multi-repo session tracking */
+  multiRepoTracking?: {
+    /** Number of repositories being tracked in this session */
+    repoCount: number;
+    /** Repository paths being managed */
+    repoPaths: string[];
+    /** Whether directory structure has been generated for this session */
+    directoryStructureGenerated: boolean;
+    /** Last multi-repo checkpoint metadata */
+    lastCheckpointMetadata?: {
+      toolExecutionId: string;
+      timestamp: string;
+      repoCount: number;
+      hostCommits: Record<string, string>; // repo path -> commit sha (serializable)
+    };
+  };
 
   [key: string]: unknown;
 }
