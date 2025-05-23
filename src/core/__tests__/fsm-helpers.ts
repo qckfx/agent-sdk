@@ -188,6 +188,7 @@ export function stubExecutionAdapter(): ExecutionAdapter {
       count: 0
     }),
     generateDirectoryMap: async () => '',
-    getGitRepositoryInfo: async () => null
+    getGitRepositoryInfo: async () => [],
+    getDirectoryStructures: async () => new Map()
   } as ExecutionAdapter;
 }

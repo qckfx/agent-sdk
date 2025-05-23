@@ -465,7 +465,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
               const sandboxCommand = `cd "${repoPath}" && ${command}`;
               const result = await this.sandbox.commands.run(sandboxCommand);
               return result;
-            });
+            }, repoPath);
           } catch (error) {
             this.logger?.warn(`Error getting git info for ${repoPath}:`, error, LogCategory.SYSTEM);
             return null;

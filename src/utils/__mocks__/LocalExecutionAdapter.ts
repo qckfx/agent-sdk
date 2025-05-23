@@ -73,9 +73,10 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
 </context>`;
   }
   
-  async getGitRepositoryInfo(): Promise<GitRepositoryInfo | null> {
+  async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     // Mock git repository information with clean status
-    return {
+    return [{
+      repoRoot: '/Users/test/mock-repo',
       isGitRepository: true,
       currentBranch: 'feature/mock-branch',
       defaultBranch: 'main',
@@ -85,6 +86,17 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         'def5678 Mock commit 2',
         'ghi9012 Mock commit 3'
       ]
-    };
+    }];
+  }
+
+  async getDirectoryStructures(): Promise<Map<string, string>> {
+    return new Map([
+      ['/Users/test/mock-repo', `- src/
+  - utils/
+    - mockFile.ts
+  - components/
+    - mockComponent.tsx
+- package.json`]
+    ]);
   }
 }

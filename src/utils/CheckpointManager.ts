@@ -130,7 +130,8 @@ export async function init(
   // Make sure the host repo does not show .agent-shadow/ as an untracked dir
   ensureShadowDirIgnored(repoRoot);
   // Ensure we're in a git repo
-  const gitInfo = await adapter.getGitRepositoryInfo();
+  const gitInfoArray = await adapter.getGitRepositoryInfo();
+  const gitInfo = gitInfoArray.find(info => info.repoRoot === repoRoot);
   if (!gitInfo || !gitInfo.isGitRepository) {
     throw new Error('Cannot initialize checkpoint system in non-git repository');
   }
@@ -356,10 +357,10 @@ export async function initMultiRepo(
  * @returns Multi-repo snapshot result with individual repo snapshots and aggregate info
  */
 export async function snapshotMultiRepo(
-  meta: MultiRepoSnapshotMeta,
+  meta: SnapshotMeta,
   adapter: ExecutionAdapter,
   repoPaths: string[],
-): Promise<MultiRepoSnapshotResult> {
+): Promise<SnapshotResult> {
   const repoSnapshots = new Map<string, { sha: string; bundle: Uint8Array }>();
   const errors: string[] = [];
 
@@ -373,7 +374,7 @@ export async function snapshotMultiRepo(
       const singleRepoMeta: SnapshotMeta = {
         sessionId: meta.sessionId,
         toolExecutionId: meta.toolExecutionId,
-        hostCommit,
+        hostCommits: new Map([[repoPath, hostCommit]]),
         reason: meta.reason,
         timestamp: meta.timestamp
       };

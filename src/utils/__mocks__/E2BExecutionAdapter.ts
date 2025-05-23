@@ -73,9 +73,10 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
 </context>`;
   }
   
-  async getGitRepositoryInfo(): Promise<GitRepositoryInfo | null> {
+  async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     // Mock git repository information with dirty status
-    return {
+    return [{
+      repoRoot: '/home/user/projects/mock-repo',
       isGitRepository: true,
       currentBranch: 'feature/e2b-mock-branch',
       defaultBranch: 'main',
@@ -91,6 +92,17 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
         'def5678 Mock commit 2',
         'ghi9012 Mock commit 3'
       ]
-    };
+    }];
+  }
+
+  async getDirectoryStructures(): Promise<Map<string, string>> {
+    return new Map([
+      ['/home/user/projects/mock-repo', `- src/
+  - utils/
+    - mockFile.ts
+  - components/
+    - mockComponent.tsx
+- package.json`]
+    ]);
   }
 }

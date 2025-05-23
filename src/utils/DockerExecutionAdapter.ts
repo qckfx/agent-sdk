@@ -1009,7 +1009,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const containerInfo = await this.containerManager.getContainerInfo();
       if (!containerInfo) {
         this.logger?.warn('Container is not ready, cannot get git repository information', LogCategory.SYSTEM);
-        return null;
+        return [];
       }
       
       // Get container working directory
@@ -1061,10 +1061,11 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       if (batchResult.exitCode !== 0) {
         this.logger?.warn(`Batched git info command failed – falling back to individual exec: ${batchResult.stderr}`, LogCategory.SYSTEM);
         // Fall back to old behaviour.
-        return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
+        const singleRepoInfo = await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
           const containerCommand = `cd "${workingDir}" && ${command}`;
           return await this.executeCommand('docker-git-info', containerCommand);
-        });
+        }, workingDir);
+        return singleRepoInfo ? [singleRepoInfo] : [];
       }
 
       // Parse the batched output into a map marker -> output
@@ -1111,7 +1112,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
               const containerCommand = `cd "${containerRepoPath}" && ${command}`;
               const result = await this.executeCommand('docker-git-info', containerCommand);
               return result;
-            });
+            }, repoPath);
           } catch (error) {
             this.logger?.warn(`Error getting git info for ${repoPath}:`, error, LogCategory.SYSTEM);
             return null;

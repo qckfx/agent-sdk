@@ -603,7 +603,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
               const fullCommand = `cd "${repoPath}" && ${command}`;
               const result = await this.executeCommand('local-git-info', fullCommand);
               return result;
-            });
+            }, repoPath);
           } catch (error) {
             this.logger?.warn(`Error getting git info for ${repoPath}:`, error, LogCategory.SYSTEM);
             return null;

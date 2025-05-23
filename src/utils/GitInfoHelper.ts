@@ -61,7 +61,7 @@ export class GitInfoHelper {
    * @param executeCommand Function to execute git commands
    * @returns Git repository information or null if not a git repository
    */
-  async getGitRepositoryInfo(executeCommand: ExecuteCommandFn): Promise<GitRepositoryInfo | null> {
+  async getGitRepositoryInfo(executeCommand: ExecuteCommandFn, repoPath: string): Promise<GitRepositoryInfo | null> {
     try {
       // Start by checking if this is a git repository (if not already cached)
       if (!this.staticGitCache) {
@@ -177,6 +177,7 @@ export class GitInfoHelper {
       
       if (isClean) {
         gitInfo = {
+          repoRoot: repoPath,
           isGitRepository: true,
           currentBranch,
           defaultBranch: this.staticGitCache.defaultBranch,
@@ -187,6 +188,7 @@ export class GitInfoHelper {
       } else {
         // Repository is dirty, use the already fetched details
         gitInfo = {
+          repoRoot: repoPath,
           isGitRepository: true,
           currentBranch,
           defaultBranch: this.staticGitCache.defaultBranch,

@@ -164,7 +164,10 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
         }
 
         // Create remote execution adapter using E2B under the hood
-        return await E2BExecutionAdapter.create(remoteId);
+        return await E2BExecutionAdapter.create(remoteId, {
+          logger,
+          projectsRoot: '/home/user/projects'
+        });
       }
       default:
         return new LocalExecutionAdapter();
