@@ -38,7 +38,15 @@ export interface ExecutionAdapterFactoryOptions {
    */
   e2b?: {
     sandboxId?: string;
+    projectsRoot?: string;
   };
+  
+  /**
+   * Root directory containing projects/repositories
+   * For E2B: typically '/home/user/projects'
+   * For local/docker: typically process.cwd()
+   */
+  projectsRoot?: string;
   
   /**
    * Logger for execution adapter
@@ -164,7 +172,11 @@ export async function createExecutionAdapter(
         throw new Error(fallbackReason);
       }
       
-      const e2bAdapter = await E2BExecutionAdapter.create(options.e2b.sandboxId, { logger });
+      const projectsRoot = options.e2b.projectsRoot || options.projectsRoot || '/home/user/projects';
+      const e2bAdapter = await E2BExecutionAdapter.create(options.e2b.sandboxId, { 
+        logger,
+        projectsRoot 
+      });
       
       // Create concrete adapter
       let concreteAdapter: ExecutionAdapter = e2bAdapter;

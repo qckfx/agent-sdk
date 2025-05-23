@@ -45,10 +45,10 @@ export interface ExecutionAdapter {
   generateDirectoryMap: (rootPath: string, maxDepth?: number) => Promise<string>;
   
   /**
-   * Retrieves git repository information for the current directory
-   * @returns Git repository information or null if not a git repository
+   * Retrieves git repository information for all repositories
+   * @returns Array of git repository information (empty if no repositories)
    */
-  getGitRepositoryInfo: () => Promise<GitRepositoryInfo | null>;
+  getGitRepositoryInfo: () => Promise<GitRepositoryInfo[]>;
 }
 
 export interface ParameterSchema {

@@ -12,6 +12,7 @@ import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUt
 import os from 'os';
 import { GitRepositoryInfo } from '../types/repository.js';
 import { GitInfoHelper } from './GitInfoHelper.js';
+import { MultiRepoManager } from './MultiRepoManager.js';
 
 const execAsync = promisify(exec);
 const readFileAsync = promisify(fs.readFile);
@@ -30,6 +31,9 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
   
   // Git information helper for optimized git operations
   private gitInfoHelper: GitInfoHelper;
+  
+  // Multi-repo manager for handling multiple repositories
+  private multiRepoManager: MultiRepoManager;
 
   constructor(options?: { 
     logger?: {
@@ -43,6 +47,9 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     
     // Initialize git helper with same logger
     this.gitInfoHelper = new GitInfoHelper({ logger: this.logger });
+    
+    // Initialize multi-repo manager with current working directory
+    this.multiRepoManager = new MultiRepoManager(process.cwd());
     
     // Emit environment status as ready immediately for local adapter
     this.emitEnvironmentStatus('connected', true);
@@ -575,20 +582,40 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
   }
   
   /**
-   * Retrieves git repository information for the current directory
-   * Using the optimized GitInfoHelper for maximum performance
-   * @returns Git repository information or null if not a git repository
+   * Retrieves git repository information for all repositories
+   * @returns Array of git repository information (empty if no repositories)
    */
-  async getGitRepositoryInfo(): Promise<GitRepositoryInfo | null> {
+  async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     try {
-      // Use the dedicated GitInfoHelper for optimized, parallel git operations
-      return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
-        // Pass our executeCommand implementation to the helper
-        return await this.executeCommand('local-git-info', command);
-      });
+      // Get all repositories using the multi-repo manager
+      const repos = await this.multiRepoManager.scanForRepos(this);
+      
+      if (repos.length === 0) {
+        return [];
+      }
+      
+      // Get git info for each repository
+      const repoInfos = await Promise.all(
+        repos.map(async (repoPath) => {
+          try {
+            return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
+              // Run git commands in the specific repository directory
+              const fullCommand = `cd "${repoPath}" && ${command}`;
+              const result = await this.executeCommand('local-git-info', fullCommand);
+              return result;
+            });
+          } catch (error) {
+            this.logger?.warn(`Error getting git info for ${repoPath}:`, error, LogCategory.SYSTEM);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out any null results and return
+      return repoInfos.filter((info): info is GitRepositoryInfo => info !== null);
     } catch (error) {
       this.logger?.error('Error retrieving git repository information:', error, LogCategory.SYSTEM);
-      return null;
+      return [];
     }
   }
 }

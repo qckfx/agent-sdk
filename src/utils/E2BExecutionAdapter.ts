@@ -8,6 +8,7 @@ import { LogCategory } from './logger.js';
 import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
 import { GitRepositoryInfo } from '../types/repository.js';
 import { GitInfoHelper } from './GitInfoHelper.js';
+import { MultiRepoManager } from './MultiRepoManager.js';
 
 export class E2BExecutionAdapter implements ExecutionAdapter {
   private sandbox: Sandbox;
@@ -20,20 +21,31 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
   
   // Git information helper for optimized git operations
   private gitInfoHelper: GitInfoHelper;
+  
+  // Root directory containing multiple git repos (for remote environments)
+  private projectsRoot: string;
+  
+  // Multi-repo manager for handling multiple repositories
+  private multiRepoManager: MultiRepoManager;
 
-  private constructor(sandbox: Sandbox, options?: { 
+  private constructor(sandbox: Sandbox, options: { 
     logger?: {
       debug: (message: string, ...args: unknown[]) => void;
       info: (message: string, ...args: unknown[]) => void;
       warn: (message: string, ...args: unknown[]) => void;
       error: (message: string, ...args: unknown[]) => void;
-    }
+    };
+    projectsRoot: string;
   }) {
     this.sandbox = sandbox;
     this.logger = options?.logger;
+    this.projectsRoot = options.projectsRoot;
     
     // Initialize git helper with same logger
     this.gitInfoHelper = new GitInfoHelper({ logger: this.logger });
+    
+    // Always initialize multi-repo manager
+    this.multiRepoManager = new MultiRepoManager(this.projectsRoot);
     
     // Emit connected status since the sandbox is already connected at this point
     this.emitEnvironmentStatus('connected', true);
@@ -65,13 +77,14 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
    * @returns A fully initialized E2BExecutionAdapter
    * @throws Error if connection to the sandbox fails
    */
-  public static async create(sandboxId: string, options?: { 
+  public static async create(sandboxId: string, options: { 
     logger?: {
       debug: (message: string, ...args: unknown[]) => void;
       info: (message: string, ...args: unknown[]) => void;
       warn: (message: string, ...args: unknown[]) => void;
       error: (message: string, ...args: unknown[]) => void;
-    }
+    };
+    projectsRoot: string;
   }): Promise<E2BExecutionAdapter> {
     try {
       // Emit initializing status before connecting
@@ -431,25 +444,40 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
   }
   
   /**
-   * Retrieves git repository information for the current directory in the E2B sandbox
-   * Using the optimized GitInfoHelper for maximum performance
-   * @returns Git repository information or null if not a git repository
+   * Retrieves git repository information for all repositories
+   * @returns Array of git repository information (empty if no repositories)
    */
-  async getGitRepositoryInfo(): Promise<GitRepositoryInfo | null> {
+  async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     try {
-      // Get the default working directory in E2B (typically /home/user or similar)
-      const workingDir = '/home/user';
+      // Get all repositories using the multi-repo manager
+      const repos = await this.multiRepoManager.scanForRepos(this);
       
-      // Use the GitInfoHelper with a custom command executor that prepends cd workingDir
-      return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
-        // Prepend cd to the working directory for all git commands
-        const sandboxCommand = `cd "${workingDir}" && ${command}`;
-        const result = await this.sandbox.commands.run(sandboxCommand);
-        return result;
-      });
+      if (repos.length === 0) {
+        return [];
+      }
+      
+      // Get git info for each repository
+      const repoInfos = await Promise.all(
+        repos.map(async (repoPath) => {
+          try {
+            return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
+              // Run git commands in the specific repository directory
+              const sandboxCommand = `cd "${repoPath}" && ${command}`;
+              const result = await this.sandbox.commands.run(sandboxCommand);
+              return result;
+            });
+          } catch (error) {
+            this.logger?.warn(`Error getting git info for ${repoPath}:`, error, LogCategory.SYSTEM);
+            return null;
+          }
+        })
+      );
+      
+      // Filter out any null results and return
+      return repoInfos.filter((info): info is GitRepositoryInfo => info !== null);
     } catch (error) {
       this.logger?.error('Error retrieving git repository information from E2B sandbox:', error, LogCategory.SYSTEM);
-      return null;
+      return [];
     }
   }
 }
