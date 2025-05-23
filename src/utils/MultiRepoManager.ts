@@ -157,12 +157,20 @@ export class MultiRepoManager {
   private async isGitRepo(dirPath: string, adapter: ExecutionAdapter): Promise<boolean> {
     const executionId = 'check-git-repo';
     
-    // Check if .git directory exists
-    const gitCheckResult = await adapter.executeCommand(
-      executionId,
-      `test -d "${dirPath}/.git"`
-    );
-
-    return gitCheckResult.exitCode === 0;
+    try {
+      // Check if .git directory exists
+      const gitCheckResult = await adapter.executeCommand(
+        executionId,
+        `test -d "${dirPath}/.git"`
+      );
+      return gitCheckResult.exitCode === 0;
+    } catch (error: any) {
+      // If the error is from a non-zero exit code, that means the test returned false
+      if (error.result && error.result.exitCode === 1) {
+        return false;
+      }
+      // For any other error (command not found, permission denied, etc.), re-throw
+      throw error;
+    }
   }
 }
