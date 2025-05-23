@@ -618,4 +618,12 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       return [];
     }
   }
+  
+  /**
+   * Retrieves directory structures for all repositories
+   * @returns Map of repository root paths to their directory structure strings
+   */
+  async getDirectoryStructures(): Promise<Map<string, string>> {
+    return this.multiRepoManager.getDirectoryStructures(this);
+  }
 }

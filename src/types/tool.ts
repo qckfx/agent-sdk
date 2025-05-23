@@ -49,6 +49,12 @@ export interface ExecutionAdapter {
    * @returns Array of git repository information (empty if no repositories)
    */
   getGitRepositoryInfo: () => Promise<GitRepositoryInfo[]>;
+  
+  /**
+   * Retrieves directory structures for all repositories
+   * @returns Map of repository root paths to their directory structure strings
+   */
+  getDirectoryStructures: () => Promise<Map<string, string>>;
 }
 
 export interface ParameterSchema {
