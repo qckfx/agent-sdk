@@ -14,13 +14,23 @@ import { ExecutionAdapter } from '../types/tool.js';
 import fs from 'fs';
 import path from 'path';
 
-// Define interface for snapshot metadata
+// Define interface for snapshot metadata (handles both single and multi-repo)
 export interface SnapshotMeta {
   sessionId: string;
   toolExecutionId: string;
-  hostCommit: string;
+  hostCommits: Map<string, string>; // repo path -> commit sha
   reason: 'writeFile' | 'editFile' | 'bash' | string;
   timestamp: string; // ISO-8601
+}
+
+// Define interface for snapshot result (handles both single and multi-repo)
+export interface SnapshotResult {
+  repoSnapshots: Map<string, { sha: string; bundle: Uint8Array }>;
+  aggregateSnapshot: {
+    toolExecutionId: string;
+    timestamp: string;
+    repoCount: number;
+  };
 }
 
 /**
@@ -307,4 +317,139 @@ export async function restore(
   }
 
   return resolvedSha;
+}
+
+// ---------------------------------------------------------------------------
+// Multi-Repository Checkpoint Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Initialize the checkpoint system for multiple repositories in a session
+ * 
+ * @param repoPaths Array of repository root paths
+ * @param sessionId Unique identifier for the session
+ * @param adapter Execution adapter to use for operations
+ */
+export async function initMultiRepo(
+  repoPaths: string[],
+  sessionId: string,
+  adapter: ExecutionAdapter,
+): Promise<void> {
+  // Initialize each repository's checkpoint system
+  for (const repoPath of repoPaths) {
+    try {
+      await init(repoPath, sessionId, adapter);
+    } catch (error) {
+      console.warn(`Failed to initialize checkpoint system for ${repoPath}:`, error);
+      // Continue with other repositories even if one fails
+    }
+  }
+}
+
+/**
+ * Create coordinated snapshots across multiple repositories
+ * Uses --allow-empty to ensure each repository gets a checkpoint even if no changes exist
+ * 
+ * @param meta Multi-repo snapshot metadata
+ * @param adapter Execution adapter to use for operations
+ * @param repoPaths Array of repository root paths
+ * @returns Multi-repo snapshot result with individual repo snapshots and aggregate info
+ */
+export async function snapshotMultiRepo(
+  meta: MultiRepoSnapshotMeta,
+  adapter: ExecutionAdapter,
+  repoPaths: string[],
+): Promise<MultiRepoSnapshotResult> {
+  const repoSnapshots = new Map<string, { sha: string; bundle: Uint8Array }>();
+  const errors: string[] = [];
+
+  // Create snapshots for each repository
+  for (const repoPath of repoPaths) {
+    try {
+      // Get the host commit for this repository (if it exists in meta)
+      const hostCommit = meta.hostCommits.get(repoPath) || 'HEAD';
+      
+      // Create single-repo snapshot metadata
+      const singleRepoMeta: SnapshotMeta = {
+        sessionId: meta.sessionId,
+        toolExecutionId: meta.toolExecutionId,
+        hostCommit,
+        reason: meta.reason,
+        timestamp: meta.timestamp
+      };
+      
+      // Create snapshot for this repository
+      const result = await snapshot(singleRepoMeta, adapter, repoPath);
+      repoSnapshots.set(repoPath, result);
+      
+    } catch (error) {
+      const errorMsg = `Failed to create snapshot for ${repoPath}: ${(error as Error).message}`;
+      errors.push(errorMsg);
+      console.warn(errorMsg);
+      // Continue with other repositories even if one fails
+    }
+  }
+
+  // If all repositories failed, throw an error
+  if (repoSnapshots.size === 0) {
+    throw new Error(`All repository snapshots failed: ${errors.join('; ')}`);
+  }
+
+  // Log warnings for any failed repositories
+  if (errors.length > 0) {
+    console.warn(`Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`);
+  }
+
+  return {
+    repoSnapshots,
+    aggregateSnapshot: {
+      toolExecutionId: meta.toolExecutionId,
+      timestamp: meta.timestamp,
+      repoCount: repoSnapshots.size,
+    }
+  };
+}
+
+/**
+ * Restore multiple repositories to specific checkpoint commits
+ * 
+ * @param sessionId The session whose shadow repositories should be used
+ * @param adapter Execution adapter used to run git commands
+ * @param repoPaths Array of repository root paths to restore
+ * @param toolExecutionId The tool execution ID to restore to
+ * @returns Map of repository paths to commit SHAs that were checked out
+ */
+export async function restoreMultiRepo(
+  sessionId: string,
+  adapter: ExecutionAdapter,
+  repoPaths: string[],
+  toolExecutionId: string,
+): Promise<Map<string, string>> {
+  const restoredCommits = new Map<string, string>();
+  const errors: string[] = [];
+
+  // Restore each repository
+  for (const repoPath of repoPaths) {
+    try {
+      const commitSha = await restore(sessionId, adapter, repoPath, toolExecutionId);
+      restoredCommits.set(repoPath, commitSha);
+    } catch (error) {
+      const errorMsg = `Failed to restore ${repoPath}: ${(error as Error).message}`;
+      errors.push(errorMsg);
+      console.warn(errorMsg);
+      // Continue with other repositories even if one fails
+    }
+  }
+
+  // If all repositories failed, throw an error
+  if (restoredCommits.size === 0) {
+    throw new Error(`All repository restores failed: ${errors.join('; ')}`);
+  }
+
+  // Log warnings for any failed repositories
+  if (errors.length > 0) {
+    console.warn(`Multi-repo restore completed with ${errors.length} failures: ${errors.join('; ')}`);
+  }
+
+  return restoredCommits;
 }

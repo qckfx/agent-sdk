@@ -11,13 +11,16 @@ export const CheckpointEvents = new EventEmitter();
 
 /**
  * Payload for checkpoint events
+ * Handles both single and multi-repo scenarios
  */
 export interface CheckpointPayload {
   sessionId: string;
   toolExecutionId: string;
-  hostCommit: string;
-  shadowCommit: string;
-  bundle: Uint8Array;
+  hostCommits: Map<string, string>; // repo path -> commit sha
+  shadowCommits: Map<string, string>; // repo path -> shadow commit sha
+  bundles: Map<string, Uint8Array>; // repo path -> bundle
+  repoCount: number;
+  timestamp: string;
 }
 
 // Event name constant

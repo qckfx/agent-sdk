@@ -16,13 +16,18 @@
  * closure.
  */
 
-import { CheckpointEvents, CHECKPOINT_READY_EVENT, CheckpointPayload } from '../events/checkpoint-events.js';
+import { 
+  CheckpointEvents, 
+  CHECKPOINT_READY_EVENT,
+  CheckpointPayload
+} from '../events/checkpoint-events.js';
 import type { SessionState } from '../types/model.js';
 
 const DETACH_KEY = Symbol('checkpointSyncDetach');
 
 /**
  * Attach the checkpoint‑sync listener if it is not already attached.
+ * Handles both single and multi-repo scenarios.
  */
 export function attachCheckpointSync(sessionState: SessionState): void {
   // If we have already attached a listener for this session, do nothing.
