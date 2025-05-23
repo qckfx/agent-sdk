@@ -126,6 +126,29 @@ export class MultiRepoManager {
   }
 
   /**
+   * Get directory structures for all repositories
+   * @param adapter Execution adapter to generate directory maps
+   * @returns Map of repository root paths to their directory structure strings
+   */
+  async getDirectoryStructures(adapter: ExecutionAdapter): Promise<Map<string, string>> {
+    const repos = await this.scanForRepos(adapter);
+    const directoryMap = new Map<string, string>();
+
+    for (const repoPath of repos) {
+      try {
+        const directoryStructure = await adapter.generateDirectoryMap(repoPath);
+        directoryMap.set(repoPath, directoryStructure);
+      } catch (error) {
+        console.warn(`Failed to generate directory structure for ${repoPath}:`, error);
+        // Set empty structure as fallback
+        directoryMap.set(repoPath, `<directory_structure repo="${this.getRepoName(repoPath)}">\nError generating directory structure\n</directory_structure>`);
+      }
+    }
+
+    return directoryMap;
+  }
+
+  /**
    * Check if a directory is a git repository
    * @param dirPath Absolute path to check
    * @param adapter Execution adapter to run commands

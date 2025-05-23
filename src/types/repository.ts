@@ -46,6 +46,11 @@ export type RepositoryStatus = CleanRepositoryStatus | DirtyRepositoryStatus;
  */
 export interface GitRepositoryInfo {
   /**
+   * Repository root path
+   */
+  repoRoot: string;
+  
+  /**
    * Whether the directory is a git repository
    */
   isGitRepository: boolean;

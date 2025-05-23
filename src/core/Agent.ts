@@ -218,23 +218,23 @@ export const createAgent = async (config: AgentConfig): Promise<Agent> => {
         sessionState.abortController = new AbortController();
       }
 
-      // Generate directory structure map only if it hasn't been generated for this session yet
+      // Generate directory structure and git state maps only if they haven't been generated for this session yet
       if (!sessionState.directoryStructureGenerated) {
         try {
-          // Get the current working directory using the execution adapter
-          const cwdResult = await runner.executionAdapter.executeCommand('agent-setup-get-cwd', 'pwd');
-          const cwd = cwdResult.stdout.trim() || process.cwd();
+          // Get directory structures for all repositories
+          const directoryStructures = await runner.executionAdapter.getDirectoryStructures();
           
-          // Use the execution adapter's generateDirectoryMap method directly
-          const directoryStructure = await runner.executionAdapter.generateDirectoryMap(cwd, 10);
+          // Get git repository information for all repositories
+          const gitRepos = await runner.executionAdapter.getGitRepositoryInfo();
           
-          // Set the directory structure in the prompt manager
-          runner.promptManager.setDirectoryStructurePrompt(directoryStructure);
+          // Set multi-repo directory structures and git states in the prompt manager
+          runner.promptManager.setMultiRepoDirectoryStructures(directoryStructures);
+          runner.promptManager.setMultiRepoGitStates(gitRepos);
           
           // Mark that we've generated directory structure for this session
           sessionState.directoryStructureGenerated = true;
         } catch (error) {
-          console.warn(`AgentService: Failed to generate directory structure map: ${(error as Error).message}`);
+          console.warn(`AgentService: Failed to generate multi-repo structure and git state: ${(error as Error).message}`);
         }
       }
 

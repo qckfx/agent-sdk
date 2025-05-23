@@ -13,6 +13,7 @@
  */
 
 import { SessionState } from '../types/model.js';
+import { GitRepositoryInfo } from '../types/repository.js';
 
 /**
  * Interface for prompt managers that generate system prompts
@@ -52,6 +53,18 @@ export interface PromptManager {
    * @param gitState Git state string or null to clear
    */
   setGitStatePrompt(gitState: string | null): void;
+  
+  /**
+   * Sets the directory structure prompt for multiple repositories
+   * @param directoryMaps Map of repo path to directory structure string
+   */
+  setMultiRepoDirectoryStructures(directoryMaps: Map<string, string>): void;
+  
+  /**
+   * Sets the git state prompt for multiple repositories
+   * @param repos Array of repository information
+   */
+  setMultiRepoGitStates(repos: GitRepositoryInfo[]): void;
 }
 
 // Default system prompt used for all interactions
@@ -151,6 +164,110 @@ DO NOT suggest using more tools - you have reached your limit for this interacti
    */
   setGitStatePrompt(gitState: string | null): void {
     this.gitStatePrompt = gitState;
+  }
+  
+  /**
+   * Sets the directory structure prompt for multiple repositories
+   * @param directoryMaps Map of repo path to directory structure string
+   */
+  setMultiRepoDirectoryStructures(directoryMaps: Map<string, string>): void {
+    if (directoryMaps.size === 0) {
+      this.directoryStructurePrompt = null;
+      return;
+    }
+    
+    if (directoryMaps.size === 1) {
+      // Single repo mode - use existing format
+      const [dirStructure] = directoryMaps.values();
+      this.directoryStructurePrompt = dirStructure;
+      return;
+    }
+    
+    // Multi-repo mode - format all repositories
+    let multiRepoStructure = '';
+    
+    for (const [repoPath, dirStructure] of directoryMaps) {
+      const repoName = repoPath.split('/').pop() || repoPath;
+      multiRepoStructure += `\n=== Repository: ${repoName} ===\nPath: ${repoPath}\n\n${dirStructure}\n`;
+    }
+    
+    this.directoryStructurePrompt = multiRepoStructure.trim();
+  }
+  
+  /**
+   * Sets the git state prompt for multiple repositories
+   * @param repos Array of repository information
+   */
+  setMultiRepoGitStates(repos: GitRepositoryInfo[]): void {
+    if (repos.length === 0) {
+      this.gitStatePrompt = null;
+      return;
+    }
+    
+    if (repos.length === 1) {
+      // Single repo mode - use existing format
+      const repo = repos[0];
+      this.gitStatePrompt = this.formatSingleRepoGitState(repo);
+      return;
+    }
+    
+    // Multi-repo mode - format all repositories
+    let multiRepoGitState = '';
+    
+    for (const repo of repos) {
+      const repoName = repo.repoRoot?.split('/').pop() || 'Unknown';
+      const singleState = this.formatSingleRepoGitState(repo);
+      multiRepoGitState += `\n=== Repository: ${repoName} ===\nPath: ${repo.repoRoot || 'Unknown'}\n\n${singleState}\n`;
+    }
+    
+    this.gitStatePrompt = multiRepoGitState.trim();
+  }
+  
+  /**
+   * Formats git state for a single repository
+   * @param repo Repository information
+   * @returns Formatted git state string
+   */
+  private formatSingleRepoGitState(repo: GitRepositoryInfo): string {
+    let gitState = `Git Repository: ${repo.isGitRepository ? 'Yes' : 'No'}`;
+    
+    if (repo.isGitRepository) {
+      gitState += `\nCurrent Branch: ${repo.currentBranch}`;
+      gitState += `\nDefault Branch: ${repo.defaultBranch}`;
+      
+      if (repo.status.type === 'clean') {
+        gitState += '\nStatus: Clean (no uncommitted changes)';
+      } else {
+        gitState += '\nStatus: Has uncommitted changes';
+        if (repo.status.modifiedFiles.length > 0) {
+          gitState += `\nModified files: ${repo.status.modifiedFiles.slice(0, 5).join(', ')}`;
+          if (repo.status.modifiedFiles.length > 5) {
+            gitState += ` and ${repo.status.modifiedFiles.length - 5} more`;
+          }
+        }
+        if (repo.status.stagedFiles.length > 0) {
+          gitState += `\nStaged files: ${repo.status.stagedFiles.slice(0, 5).join(', ')}`;
+          if (repo.status.stagedFiles.length > 5) {
+            gitState += ` and ${repo.status.stagedFiles.length - 5} more`;
+          }
+        }
+        if (repo.status.untrackedFiles.length > 0) {
+          gitState += `\nUntracked files: ${repo.status.untrackedFiles.slice(0, 5).join(', ')}`;
+          if (repo.status.untrackedFiles.length > 5) {
+            gitState += ` and ${repo.status.untrackedFiles.length - 5} more`;
+          }
+        }
+      }
+      
+      if (repo.recentCommits && repo.recentCommits.length > 0) {
+        gitState += '\nRecent commits:';
+        repo.recentCommits.slice(0, 3).forEach(commit => {
+          gitState += `\n  ${commit}`;
+        });
+      }
+    }
+    
+    return gitState;
   }
 }
 
