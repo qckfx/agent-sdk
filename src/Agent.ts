@@ -337,6 +337,14 @@ export class Agent {
     this._core.permissionManager.setFastEditMode(enabled);
   }
 
+  setDangerMode(enabled: boolean) {
+    if (enabled) {
+      this._core.permissionManager.enableDangerMode();
+    } else {
+      this._core.permissionManager.disableDangerMode();
+    }
+  }
+
   get environment(): 'docker' | 'local' | 'remote' | undefined {
     return this._core.environment?.type;
   }
