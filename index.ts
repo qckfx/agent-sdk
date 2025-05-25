@@ -45,6 +45,25 @@ export type {
   ToolResultEntry,
 } from './src/types/agent.js';
 
+// Tool Results
+export type {
+  ToolResult,
+  ToolSuccess,
+  ToolError,
+  FileEditToolData,
+  FileReadToolData,
+  LSToolData,
+  BashToolData,
+  GrepToolData,
+  GlobToolData,
+  FileEditToolResult,
+  FileReadToolResult,
+  LSToolResult,
+  BashToolResult,
+  GrepToolResult,
+  GlobToolResult,
+} from './src/types/tool-result.js';
+
 // Stuff on SessionState
 export type {
   SessionState
