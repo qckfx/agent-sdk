@@ -4,9 +4,10 @@ import { promisify } from 'util';
 import { ExecutionAdapter } from '../types/tool.js';
 import path from 'path';
 import { glob } from 'glob';
-import { FileReadToolSuccessResult, FileReadToolErrorResult } from '../tools/FileReadTool.js';
-import { FileEditToolSuccessResult, FileEditToolErrorResult } from '../tools/FileEditTool.js';
-import { FileEntry, LSToolSuccessResult, LSToolErrorResult } from '../tools/LSTool.js';
+import { FileReadToolResult } from '../tools/FileReadTool.js';
+import { FileEditToolResult } from '../tools/FileEditTool.js';
+import { FileEntry, LSToolResult } from '../tools/LSTool.js';
+import { ToolResult } from '../types/tool-result.js';
 import { LogCategory } from './logger.js';
 import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
 import os from 'os';
@@ -117,10 +118,9 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         const stats = await fs.promises.stat(resolvedPath);
         if (!stats.isFile()) {
           return {
-            success: false as const,
-            path: filepath,
+            ok: false as const,
             error: `Path exists but is not a file: ${filepath}`
-          } as FileEditToolErrorResult;
+          };
         }
         
         // Read file content for analysis
@@ -129,10 +129,9 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         const err = error as Error & { code?: string };
         if (err.code === 'ENOENT') {
           return {
-            success: false as const,
-            path: filepath,
+            ok: false as const,
             error: `File does not exist: ${filepath}`
-          } as FileEditToolErrorResult;
+          };
         } else {
           throw error; // Re-throw unexpected errors
         }
@@ -148,18 +147,16 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       
       if (occurrences === 0) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `Search code not found in file: ${filepath}`
-        } as FileEditToolErrorResult;
+        };
       }
       
       if (occurrences > 1) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `Found ${occurrences} instances of the search code. Please provide a more specific search code that matches exactly once.`
-        } as FileEditToolErrorResult;
+        };
       }
       
       // Create a temporary directory for our work files
@@ -247,11 +244,13 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
         
         return {
-          success: true as const,
-          path: resolvedPath,
-          originalContent: fileContent,
-          newContent: newContent
-        } as FileEditToolSuccessResult;
+          ok: true as const,
+          data: {
+            path: resolvedPath,
+            originalContent: fileContent,
+            newContent: newContent
+          }
+        };
       } catch (processingError) {
         // Clean up temporary directory on error
         await this.executeCommand(executionId, `rm -rf "${tempDir}"`).catch(() => {
@@ -263,10 +262,9 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     } catch (error: unknown) {
       const err = error as Error;
       return {
-        success: false as const,
-        path: filepath,
+        ok: false as const,
         error: err.message
-      } as FileEditToolErrorResult;
+      };
     }
   }
 
@@ -293,19 +291,17 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     
     if (!stats.isFile()) {
       return {
-        success: false as const,
-        path: filepath,
+        ok: false as const,
         error: `Path exists but is not a file: ${filepath}`
-      } as FileReadToolErrorResult;
+      };
     }
     
     // Check file size
     if (stats.size > maxSize) {
       return {
-        success: false as const,
-        path: filepath,
+        ok: false as const,
         error: `File is too large (${stats.size} bytes) to read. Max size: ${maxSize} bytes`
-      } as FileReadToolErrorResult;
+      };
     }
     
     // Special handling for binary/base64 encoding
@@ -317,18 +313,19 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         const base64Content = data.toString('base64');
         
         return {
-          success: true as const,
-          path: resolvedPath,
-          content: base64Content,
-          size: data.length,
-          encoding: 'base64'
-        } as FileReadToolSuccessResult;
+          ok: true as const,
+          data: {
+            path: resolvedPath,
+            content: base64Content,
+            size: data.length,
+            encoding: 'base64'
+          }
+        };
       } catch (error) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `Failed to read file in ${encoding} mode: ${(error as Error).message}`
-        } as FileReadToolErrorResult;
+        };
       }
     }
     
@@ -355,27 +352,31 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       content = lines.slice(startLine, endLine).join('\n');
       
       return {
-        success: true as const,
-        path: resolvedPath,
-        content,
-        size: stats.size,
-        encoding,
-        pagination: {
-          totalLines: lines.length,
-          startLine,
-          endLine,
-          hasMore: endLine < lines.length
+        ok: true as const,
+        data: {
+          path: resolvedPath,
+          content,
+          size: stats.size,
+          encoding,
+          pagination: {
+            totalLines: lines.length,
+            startLine,
+            endLine,
+            hasMore: endLine < lines.length
+          }
         }
-      } as FileReadToolSuccessResult;
+      };
     }
     
     return {
-      success: true as const,
-      path: resolvedPath,
-      content,
-      size: stats.size,
-      encoding
-    } as FileReadToolSuccessResult;
+      ok: true as const,
+      data: {
+        path: resolvedPath,
+        content,
+        size: stats.size,
+        encoding
+      }
+    };
   } 
 
   /**
@@ -453,17 +454,15 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         const stats = await fs.promises.stat(resolvedPath);
         if (!stats.isDirectory()) {
           return {
-            success: false as const,
-            path: dirPath,
+            ok: false as const,
             error: `Path exists but is not a directory: ${dirPath}`
-          } as LSToolErrorResult;
+          };
         }
       } catch {
         return {
-          success: false as const,
-          path: dirPath,
+          ok: false as const,
           error: `Directory does not exist: ${dirPath}`
-        } as LSToolErrorResult;
+        };
       }
       
       // Read directory contents
@@ -521,18 +520,19 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       }
       
       return {
-        success: true as const,
-        path: resolvedPath,
-        entries: results,
-        count: results.length
-      } as LSToolSuccessResult;
+        ok: true as const,
+        data: {
+          path: resolvedPath,
+          entries: results,
+          count: results.length
+        }
+      };
     } catch (error: unknown) {
       this.logger?.error(`Error listing directory: ${(error as Error).message}`, error, LogCategory.TOOLS);
       return {
-        success: false as const,
-        path: dirPath,
+        ok: false as const,
         error: (error as Error).message
-      } as LSToolErrorResult;
+      };
     }
   }
 

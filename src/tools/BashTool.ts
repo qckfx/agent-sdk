@@ -4,38 +4,30 @@
 
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 export interface BashToolArgs {
   command: string;
   workingDir?: string;
 }
 
-interface BashToolSuccessResult {
-  success: true;
+interface BashToolData {
   stdout: string;
   stderr: string;
   command: string;
 }
 
-interface BashToolErrorResult {
-  success: false;
-  error: string;
-  stderr?: string;
-  stdout?: string;
-  command: string;
-}
-
-export type BashToolResult = BashToolSuccessResult | BashToolErrorResult;
+export type BashToolResult = ToolResult<BashToolData>;
 
 /**
  * Creates a tool for executing bash/shell commands
  * @returns The bash tool interface
  */
-export const createBashTool = (): Tool => {
+export const createBashTool = (): Tool<BashToolResult> => {
   return createTool({
     id: 'bash',
     name: 'BashTool',
-    description: '- Executes shell commands in your environment\n- Maintains state between command executions\n- Supports all standard shell features and operations\n- Runs commands in specified working directories\n- Use this tool when you need to run terminal commands\n- For finding files or searching content, use GlobTool and GrepTool instead\n\nUsage notes:\n- Command output is returned as text, but is LIMITED TO 100KB PER STREAM (stdout/stderr)\n- Large outputs will be truncated with a message indicating how many bytes were omitted\n- For large outputs, use more specific commands or process outputs incrementally\n- File operations use the current working directory unless specified\n- Environment variables and shell state persist between commands\n- IMPORTANT: Prefer GlobTool over \'find\' and GrepTool over \'grep\' for more reliable results\n- IMPORTANT: Prefer FileReadTool over \'cat\', \'head\', \'tail\' for more reliable results',
+    description: '- Executes shell commands in your environment\n- Maintains state between command executions\n- Supports all standard shell features and operations\n- Runs commands in specified working directories\n- Use this tool when you need to run terminal commands\n- For finding files or searching content, use GlobTool and GrepTool instead\n\nUsage notes:\n- Command output is returned as text, but is LIMITED TO 100KB PER STREAM (stdout/stderr)\n- Large outputs will be truncated with a message indicating how many bytes were omitted\n- For large outputs, use more specific commands or process outputs incrementally\n- File operations use the current working directory unless specified\n- Environment variables and shell state persist between commands\n- IMPORTANT: Prefer GlobTool over \'find\' and GrepTool over \'grep\' for more reliable results\n- IMPORTANT: Prefer FileReadTool over \'cat\', \'head\', \'tail\' for more reliable results\n\nExample call:\n            { "command": "npm install", "workingDir": "src" }',
     requiresPermission: true,
     category: ToolCategory.SHELL_EXECUTION,
     alwaysRequirePermission: true, // Shell execution always requires permission for security
@@ -91,27 +83,25 @@ export const createBashTool = (): Tool => {
         
         if (exitCode !== 0) {
           return { 
-            success: false,
-            error: truncatedStderr,
-            command: commandStr
+            ok: false,
+            error: truncatedStderr || `Command failed with exit code ${exitCode}`
           };
         }
 
         return { 
-          success: true,
-          stdout: truncatedStdout, 
-          stderr: truncatedStderr,
-          command: commandStr
+          ok: true,
+          data: {
+            stdout: truncatedStdout, 
+            stderr: truncatedStderr,
+            command: commandStr
+          }
         };
       } catch (error: unknown) {
         const err = error as Error & { stderr?: string; stdout?: string };
         context.logger?.error(`Error executing bash command: ${err.message}`);
         return { 
-          success: false,
-          error: err.message,
-          stderr: err.stderr,
-          stdout: err.stdout,
-          command: commandStr
+          ok: false,
+          error: err.message
         };
       }
     }

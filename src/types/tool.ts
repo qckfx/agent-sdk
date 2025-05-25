@@ -8,6 +8,7 @@ import { LSToolResult } from "../tools/LSTool.js";
 import { GitRepositoryInfo } from "./repository.js";
 import { SessionState } from "./model.js";
 import { PermissionManager } from "./permission.js";
+import { ToolResult } from "./tool-result.js";
 
 /**
  * Categories for tools to classify their purpose and permission requirements
@@ -71,7 +72,7 @@ export interface ValidationResult {
   reason?: string;
 }
 
-export interface ToolConfig {
+export interface ToolConfig<Res extends ToolResult = ToolResult> {
   id: string;
   name: string;
   description: string;
@@ -91,7 +92,7 @@ export interface ToolConfig {
    */
   alwaysRequirePermission?: boolean;
   
-  execute: (args: Record<string, unknown>, context: ToolContext) => Promise<unknown>;
+  execute: (args: Record<string, unknown>, context: ToolContext) => Promise<Res>;
   validateArgs?: (args: Record<string, unknown>) => ValidationResult;
 }
 
@@ -115,7 +116,7 @@ export interface ToolContext {
   [key: string]: unknown;
 }
 
-export interface Tool {
+export interface Tool<Res extends ToolResult = ToolResult> {
   id: string;
   name: string;
   description: string;
@@ -135,5 +136,5 @@ export interface Tool {
    */
   alwaysRequirePermission?: boolean;
   
-  execute: (args: Record<string, unknown>, context: ToolContext) => Promise<unknown>;
+  execute: (args: Record<string, unknown>, context: ToolContext) => Promise<Res>;
 }

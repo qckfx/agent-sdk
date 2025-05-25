@@ -1,6 +1,7 @@
 // Re-export all types
 export * from './agent.js';
 export * from './tool.js';
+export * from './tool-result.js';
 export * from './provider.js';
 
 // Export from config with explicit re-exports to avoid naming conflicts

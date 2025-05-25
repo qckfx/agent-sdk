@@ -5,6 +5,7 @@
 import path from 'path';
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 
 interface LSToolArgs {
@@ -26,21 +27,14 @@ export interface FileEntry {
   error?: string;
 }
 
-export interface LSToolSuccessResult {
-  success: true;
+interface LSToolData {
   path: string;
   entries: FileEntry[];
   count: number;
   totalCount?: number; // New field to indicate total count when limited
 }
 
-export interface LSToolErrorResult {
-  success: false;
-  path: string;
-  error: string;
-}
-
-export type LSToolResult = LSToolSuccessResult | LSToolErrorResult;
+export type LSToolResult = ToolResult<LSToolData>;
 
 // Cache for directory listings to improve performance
 const directoryCache = new Map<string, {
@@ -57,11 +51,11 @@ const CACHE_EXPIRATION = 5000;
  * Creates a tool for listing directory contents
  * @returns The LS tool interface
  */
-export const createLSTool = (): Tool => {
+export const createLSTool = (): Tool<LSToolResult> => {
   return createTool({
     id: 'ls',
     name: 'LSTool',
-    description: '- Lists files and directories in a given path\n- Provides directory exploration capabilities\n- Offers options for showing hidden files\n- Can display detailed file information\n- Use this tool to explore directory contents before working with files\n- For finding specific files by pattern, use GlobTool instead\n\nUsage notes:\n- Returns all files and directories in the specified path\n- Set showHidden=true to include files starting with \'.\'\n- Set details=true to get additional file information (size, dates)\n- Set limit=N to limit the number of entries returned (default: 100)\n- Results are not recursive - only shows direct children of the path\n- Use this before reading or writing files to confirm locations\n- For more targeted file finding, use GlobTool after exploring',
+    description: '- Lists files and directories in a given path\n- Provides directory exploration capabilities\n- Offers options for showing hidden files\n- Can display detailed file information\n- Use this tool to explore directory contents before working with files\n- For finding specific files by pattern, use GlobTool instead\n\nUsage notes:\n- Returns all files and directories in the specified path\n- Set showHidden=true to include files starting with \'.\'\n- Set details=true to get additional file information (size, dates)\n- Set limit=N to limit the number of entries returned (default: 100)\n- Results are not recursive - only shows direct children of the path\n- Use this before reading or writing files to confirm locations\n- For more targeted file finding, use GlobTool after exploring\n\nExample call:\n            { "path": "src", "showHidden": false, "details": true, "limit": 50 }',
     requiresPermission: false, // Listing directories is generally safe
     category: ToolCategory.READONLY,
     
@@ -141,11 +135,13 @@ export const createLSTool = (): Tool => {
         const entries = limit > 0 ? cachedResult.entries.slice(0, limit) : cachedResult.entries;
         
         return {
-          success: true,
-          path: dirPath,
-          entries,
-          count: entries.length,
-          totalCount: cachedResult.entries.length
+          ok: true,
+          data: {
+            path: dirPath,
+            entries,
+            count: entries.length,
+            totalCount: cachedResult.entries.length
+          }
         };
       }
       
@@ -153,31 +149,33 @@ export const createLSTool = (): Tool => {
       const executionAdapter = context.executionAdapter;
       const result = await executionAdapter.ls(context.executionId, dirPath, showHidden, details);
       
-      if (result.success) {
+      if (result.ok) {
         // Apply limit if needed
-        if (limit > 0 && result.entries.length > limit) {
-          const limitedEntries = result.entries.slice(0, limit);
+        if (limit > 0 && result.data.entries.length > limit) {
+          const limitedEntries = result.data.entries.slice(0, limit);
           
           // Cache the full result for future use
           directoryCache.set(cacheKey, {
-            entries: result.entries,
+            entries: result.data.entries,
             timestamp: now,
             showHidden,
             details
           });
           
           return {
-            success: true,
-            path: result.path,
-            entries: limitedEntries,
-            count: limitedEntries.length,
-            totalCount: result.entries.length
+            ok: true,
+            data: {
+              path: result.data.path,
+              entries: limitedEntries,
+              count: limitedEntries.length,
+              totalCount: result.data.entries.length
+            }
           };
         }
         
         // Cache the result for future use
         directoryCache.set(cacheKey, {
-          entries: result.entries,
+          entries: result.data.entries,
           timestamp: now,
           showHidden,
           details

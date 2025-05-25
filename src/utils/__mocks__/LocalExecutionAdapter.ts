@@ -2,9 +2,9 @@
  * Mock implementation of LocalExecutionAdapter
  */
 import { ExecutionAdapter } from '../../types/tool.js';
-import { LSToolErrorResult, LSToolSuccessResult } from '../../tools/LSTool.js';
-import { FileReadToolErrorResult, FileReadToolSuccessResult } from '../../tools/FileReadTool.js';
-import { FileEditToolErrorResult, FileEditToolSuccessResult } from '../../tools/FileEditTool.js';
+import { LSToolResult } from '../../tools/LSTool.js';
+import { FileReadToolResult } from '../../tools/FileReadTool.js';
+import { FileEditToolResult } from '../../tools/FileEditTool.js';
 import { GitRepositoryInfo } from '../../types/repository.js';
 
 export class LocalExecutionAdapter implements ExecutionAdapter {
@@ -15,13 +15,15 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     return new LocalExecutionAdapter();
   }
 
-  async readFile(): Promise<FileReadToolSuccessResult | FileReadToolErrorResult> {
+  async readFile(): Promise<FileReadToolResult> {
     return {
-      success: true,
-      path: 'mockFile.txt',
-      content: 'Mock file content',
-      size: 18,
-      encoding: 'utf8'
+      ok: true as const,
+      data: {
+        path: 'mockFile.txt',
+        content: 'Mock file content',
+        size: 18,
+        encoding: 'utf8'
+      }
     };
   }
 
@@ -37,29 +39,33 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     return ['mockFile1.txt', 'mockFile2.txt'];
   }
   
-  async editFile(): Promise<FileEditToolSuccessResult | FileEditToolErrorResult> {
+  async editFile(): Promise<FileEditToolResult> {
     return {
-      success: true,
-      path: 'mockFile.txt',
-      originalContent: 'Original content',
-      newContent: 'New content'
+      ok: true as const,
+      data: {
+        path: 'mockFile.txt',
+        originalContent: 'Original content',
+        newContent: 'New content'
+      }
     };
   }
 
-  async ls(): Promise<LSToolSuccessResult | LSToolErrorResult> {
-    return {    
-      success: true,
-      path: '/mock',
-      entries: [
-        {
-          name: 'mockFile.txt',
-          type: 'file',
-          isDirectory: false,
-          isFile: true,
-          isSymbolicLink: false
-        }
-      ],
-      count: 1
+  async ls(): Promise<LSToolResult> {
+    return {
+      ok: true as const,
+      data: {
+        path: '/mock',
+        entries: [
+          {
+            name: 'mockFile.txt',
+            type: 'file',
+            isDirectory: false,
+            isFile: true,
+            isSymbolicLink: false
+          }
+        ],
+        count: 1
+      }
     };
   }
 

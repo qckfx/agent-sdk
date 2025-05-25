@@ -1,8 +1,9 @@
 import { Sandbox } from 'e2b';
-import { FileEditToolErrorResult, FileEditToolSuccessResult } from '../tools/FileEditTool.js';
-import { FileReadToolErrorResult, FileReadToolSuccessResult } from '../tools/FileReadTool.js';
+import { FileEditToolResult } from '../tools/FileEditTool.js';
+import { FileReadToolResult } from '../tools/FileReadTool.js';
 import { ExecutionAdapter } from '../types/tool.js';
-import { FileEntry, LSToolErrorResult, LSToolSuccessResult } from '../tools/LSTool.js';
+import { FileEntry, LSToolResult } from '../tools/LSTool.js';
+import { ToolResult } from '../types/tool-result.js';
 import path from 'path';
 import { LogCategory } from './logger.js';
 import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
@@ -122,7 +123,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) {
+  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolResult> {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -139,10 +140,9 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       const exists = await this.sandbox.files.exists(filepath);
       if (!exists) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `File does not exist: ${filepath}`
-        } as FileReadToolErrorResult;
+        };
       }
       let fileContent = '';
       if (lineOffset > 0 || lineCount !== undefined) {
@@ -166,27 +166,31 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
         fileContent = lines.slice(startLine, endLine).join('\n');
         
         return {
-          success: true as const,
-          path: filepath,
-          content: fileContent,
-          size: fileContent.length,
-          encoding,
-          pagination: {
-            totalLines: lines.length,
-            startLine,
-            endLine,
-            hasMore: endLine < lines.length
+          ok: true as const,
+          data: {
+            path: filepath,
+            content: fileContent,
+            size: fileContent.length,
+            encoding,
+            pagination: {
+              totalLines: lines.length,
+              startLine,
+              endLine,
+              hasMore: endLine < lines.length
+            }
           }
-        } as FileReadToolSuccessResult;
+        };
       }
       
       return {
-        success: true as const,
-        path: filepath,
-        content: fileContent,
-        size: fileContent.length,
-        encoding
-      } as FileReadToolSuccessResult;
+        ok: true as const,
+        data: {
+          path: filepath,
+          content: fileContent,
+          size: fileContent.length,
+          encoding
+        }
+      };
     } catch (error: unknown) {
       const err = error as Error;
       throw new Error(`Failed to read file: ${err.message}`);
@@ -222,7 +226,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     }
   }
   
-  async editFile(filepath: string, searchCode: string, replaceCode: string, encoding?: string) {
+  async editFile(filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -230,10 +234,9 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       const exists = await this.sandbox.files.exists(filepath);
       if (!exists) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `File does not exist: ${filepath}`
-        } as FileEditToolErrorResult;
+        };
       }
       const fileContent = await this.sandbox.files.read(filepath);
 
@@ -247,18 +250,16 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     
       if (occurrences === 0) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `Search code not found in file: ${filepath}`
-        } as FileEditToolErrorResult;
+        };
       }
     
       if (occurrences > 1) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `Found ${occurrences} instances of the search code. Please provide a more specific search code that matches exactly once.`
-        } as FileEditToolErrorResult;
+        };
       }
     
       // Use a more robust replacement approach
@@ -268,10 +269,9 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       if (searchIndex === -1) {
         // This should not happen since we already checked occurrences
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
           error: `Internal error: Search code not found despite occurrence check`
-        } as FileEditToolErrorResult;
+        };
       }
       
       // Extract the parts before and after the search code
@@ -290,30 +290,30 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     
       await this.sandbox.files.write(filepath, newContent);
       return {
-        success: true as const,
-        path: filepath,
-        originalContent: fileContent,
-        newContent: newContent
-      } as FileEditToolSuccessResult;
+        ok: true as const,
+        data: {
+          path: filepath,
+          originalContent: fileContent,
+          newContent: newContent
+        }
+      };
     } catch (error: unknown) {
       const err = error as Error;
       return {
-        success: false as const,
-        path: filepath,
+        ok: false as const,
         error: err.message
-      } as FileEditToolErrorResult;
+      };
     }
   }
 
-  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false) {
+  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false): Promise<LSToolResult> {
     try {
       const exists = await this.sandbox.files.exists(dirPath);
       if (!exists) {
         return {
-          success: false as const,
-          path: dirPath,
+          ok: false as const,
           error: `Directory does not exist: ${dirPath}`
-        } as LSToolErrorResult;
+        };
       }
       
       // Read directory contents
@@ -396,19 +396,20 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
         }));
       }
 
-      return {    
-        success: true as const,
-        path: dirPath,
-        entries: results,
-        count: results.length
-      } as LSToolSuccessResult;
+      return {
+        ok: true as const,
+        data: {
+          path: dirPath,
+          entries: results,
+          count: results.length
+        }
+      };
     } catch (error: unknown) {
       const err = error as Error;
       return {
-        success: false as const,
-        path: dirPath,
+        ok: false as const,
         error: err.message
-      } as LSToolErrorResult;
+      };
     }
   }
 

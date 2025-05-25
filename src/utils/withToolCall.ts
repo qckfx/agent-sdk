@@ -1,6 +1,7 @@
 import { ToolCall, SessionState } from '../types/model.js';
 import { ToolResultEntry } from '../types/agent.js';
 import { ToolContext } from '../types/tool.js';
+import { ToolResult, LastToolError } from '../types/tool-result.js';
 
 /**
  * Executes a tool call and guarantees that a matching `tool_result` block is
@@ -13,7 +14,7 @@ export async function withToolCall(
   toolCall: ToolCall,
   sessionState: SessionState,
   toolResults: ToolResultEntry[],
-  exec: (ctx: ToolContext) => Promise<unknown>,
+  exec: (ctx: ToolContext) => Promise<ToolResult>,
   context: ToolContext,
 ): Promise<unknown> {
   console.log(`[withToolCall] Executing tool ${toolCall.toolId}, abortSignal=${context.abortSignal?.aborted}`);
@@ -55,6 +56,23 @@ export async function withToolCall(
         result = { aborted: true };
       } else {
         result = { error: String(err) };
+      }
+    }
+
+    // --------------------------------------------------------------
+    // Check if tool returned a typed error and set lastToolError
+    // --------------------------------------------------------------
+    if (result && typeof result === 'object' && 'ok' in result) {
+      const toolResult = result as ToolResult;
+      if (!toolResult.ok) {
+        sessionState.lastToolError = {
+          toolId: toolCall.toolId,
+          error: toolResult.error,
+          args: toolCall.args as Record<string, unknown>,
+        };
+      } else {
+        // Clear previous error on success
+        delete sessionState.lastToolError;
       }
     }
 

@@ -18,21 +18,15 @@ export { createThinkTool } from './ThinkTool.js';
 // Tool result types - using export type for type-only exports
 export type { 
   FileEditToolArgs,
-  FileEditToolResult, 
-  FileEditToolSuccessResult, 
-  FileEditToolErrorResult
+  FileEditToolResult
 } from './FileEditTool.js';
 
 export type { 
   FileReadToolArgs,
-  FileReadToolResult, 
-  FileReadToolSuccessResult, 
-  FileReadToolErrorResult
+  FileReadToolResult
 } from './FileReadTool.js';
 
 export type { 
-  LSToolResult, 
-  LSToolSuccessResult, 
-  LSToolErrorResult,
+  LSToolResult,
   FileEntry
 } from './LSTool.js';

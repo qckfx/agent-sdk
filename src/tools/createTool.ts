@@ -8,13 +8,14 @@ import {
   ToolContext, 
   ValidationResult 
 } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 /**
  * Creates a tool with a standardized interface
  * @param config - Tool configuration
  * @returns The tool interface
  */
-export const createTool = (config: ToolConfig): Tool => {
+export const createTool = <Res extends ToolResult>(config: ToolConfig<Res>): Tool<Res> => {
   // Validate required config
   if (!config.id) throw new Error('Tool requires an id');
   if (!config.name) throw new Error('Tool requires a name');
@@ -118,7 +119,7 @@ export const createTool = (config: ToolConfig): Tool => {
      * @param context - Execution context
      * @returns The result of execution
      */
-    async execute(args: Record<string, unknown>, context: ToolContext): Promise<unknown> {
+    async execute(args: Record<string, unknown>, context: ToolContext): Promise<Res> {
       // Validate args first
       const validationResult = validateArgs(args);
       if (!validationResult.valid) {

@@ -6,6 +6,7 @@ import path from 'path';
 import { glob } from 'glob';
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 /**
  * The `glob` function from `glob@^10` already returns a `Promise` when no
@@ -27,8 +28,7 @@ export interface GlobToolArgs {
   maxResults?: number;
 }
 
-interface GlobToolSuccessResult {
-  success: true;
+interface GlobToolData {
   pattern: string;
   cwd: string;
   matches: string[];
@@ -38,26 +38,17 @@ interface GlobToolSuccessResult {
   totalMatches: number; // Original count before truncation
 }
 
-interface GlobToolErrorResult {
-  success: false;
-  pattern: string;
-  cwd: string;
-  error: string;
-  truncated: boolean;
-  totalMatches: number;
-}
-
-export type GlobToolResult = GlobToolSuccessResult | GlobToolErrorResult;
+export type GlobToolResult = ToolResult<GlobToolData>;
 
 /**
  * Creates a tool for finding files using glob patterns
  * @returns The glob tool interface
  */
-export const createGlobTool = (): Tool => {
+export const createGlobTool = (): Tool<GlobToolResult> => {
   return createTool({
     id: 'glob',
     name: 'GlobTool',
-    description: '- Fast file pattern matching tool that works across the codebase\n- Searches for files based on name patterns (not content)\n- Supports powerful glob patterns for flexible matching\n- Provides options to filter results by type and attributes\n- Use this tool when you need to find files by name patterns\n- For searching file contents, use GrepTool instead\n\nUsage notes:\n- Glob patterns use wildcards to match filenames\n- Common patterns: \'**/*.js\' (all JS files), \'src/**/*.ts\' (all TS files in src)\n- Use the dot option to include hidden files (starting with \'.\')\n- Use nodir to exclude directories from results\n- Results are LIMITED TO MAX 100 FILES regardless of maxResults parameter\n- For large codebases, use more specific patterns to limit results\n- If you need to search comprehensively, make multiple targeted tool calls',
+    description: '- Fast file pattern matching tool that works across the codebase\n- Searches for files based on name patterns (not content)\n- Supports powerful glob patterns for flexible matching\n- Provides options to filter results by type and attributes\n- Use this tool when you need to find files by name patterns\n- For searching file contents, use GrepTool instead\n\nUsage notes:\n- Glob patterns use wildcards to match filenames\n- Common patterns: \'**/*.js\' (all JS files), \'src/**/*.ts\' (all TS files in src)\n- Use the dot option to include hidden files (starting with \'.\')\n- Use nodir to exclude directories from results\n- Results are LIMITED TO MAX 100 FILES regardless of maxResults parameter\n- For large codebases, use more specific patterns to limit results\n- If you need to search comprehensively, make multiple targeted tool calls\n\nExample call:\n            { "pattern": "**/*.ts", "cwd": "src", "nodir": true }',
     requiresPermission: false, // Finding files is generally safe
     category: ToolCategory.READONLY,
     
@@ -161,25 +152,23 @@ export const createGlobTool = (): Tool => {
         }
         
         return {
-          success: true,
-          pattern,
-          cwd: cwd,
-          matches,
-          count: matches.length,
-          hasMore: matches.length >= options.limit || truncated,
-          truncated: truncated,
-          totalMatches: totalMatches
+          ok: true,
+          data: {
+            pattern,
+            cwd: cwd,
+            matches,
+            count: matches.length,
+            hasMore: matches.length >= options.limit || truncated,
+            truncated: truncated,
+            totalMatches: totalMatches
+          }
         };
       } catch (error: unknown) {
         const err = error as Error;
         context.logger?.error(`Error in glob search: ${err.message}`);
         return {
-          success: false,
-          pattern,
-          cwd,
-          error: err.message,
-          truncated: false,
-          totalMatches: 0
+          ok: false,
+          error: err.message
         };
       }
     }

@@ -5,6 +5,7 @@
 
 import { Tool, ToolContext, ToolCategory } from '../types/tool.js';
 import { ToolDescription, ToolRegistry } from '../types/registry.js';
+import { ToolResult } from '../types/tool-result.js';
 
 /**
  * Creates a tool registry to manage available tools
@@ -170,7 +171,7 @@ function createToolRegistry(): ToolRegistry {
      * @param context - The execution context
      * @returns The result of the tool execution
      */
-    async executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<unknown> {
+    async executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
       console.info('Executing tool with callbacks', JSON.stringify(tools), toolId);
       const tool = tools.get(toolId);
       if (!tool) {

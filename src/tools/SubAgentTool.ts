@@ -10,6 +10,7 @@ import path from 'path';
 
 import { createTool } from './createTool.js';
 import { Tool } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 import { Agent } from '../Agent.js';
 
 export interface SubAgentReference {
@@ -53,7 +54,7 @@ export async function createSubAgentTool(
   return createTool({
     id: ref.name,
     name: ref.name,
-    description: parsed.description ?? `Sub-agent defined in ${ref.configFile}`,
+    description: (parsed.description ?? `Sub-agent defined in ${ref.configFile}`) + '\n\nExample call:\n            { "query": "analyze the performance of this codebase" }',
     parameters: {
       query: {
         type: 'string',
@@ -71,7 +72,11 @@ export async function createSubAgentTool(
 
       const agent = await getNestedAgent();
       console.info('Executing sub-agent with args:', args);
-      return agent.processQuery(query);
+      const result = await agent.processQuery(query);
+      return {
+        ok: true,
+        data: result.response || 'No response from sub-agent'
+      };
     },
   });
 }

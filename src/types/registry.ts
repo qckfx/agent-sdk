@@ -3,6 +3,7 @@
  */
 
 import { Tool, ParameterSchema, ToolContext, ToolCategory } from './tool.js';
+import { ToolResult } from './tool-result.js';
 
 export interface ToolDescription {
   id: string;
@@ -31,5 +32,5 @@ export interface ToolRegistry {
   onToolExecutionError(callback: (executionId: string, toolId: string, args: Record<string, unknown>, error: Error) => void): () => void;
   
   // Function to execute a tool with callback notifications
-  executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<unknown>;
+  executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolResult>;
 }

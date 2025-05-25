@@ -5,6 +5,7 @@
 import path from 'path';
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 // Removed unused interface
 // interface FileWriteToolArgs {
@@ -15,30 +16,23 @@ import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool
 //   createDir?: boolean;
 // }
 
-interface FileWriteToolSuccessResult {
-  success: true;
+interface FileWriteToolData {
   path: string;
   content: string;
   encoding: string;
 }
 
-interface FileWriteToolErrorResult {
-  success: false;
-  path: string;
-  error: string;
-}
-
-export type FileWriteToolResult = FileWriteToolSuccessResult | FileWriteToolErrorResult;
+export type FileWriteToolResult = ToolResult<FileWriteToolData>;
 
 /**
  * Creates a tool for writing new files
  * @returns The file write tool interface
  */
-export const createFileWriteTool = (): Tool => {
+export const createFileWriteTool = (): Tool<FileWriteToolResult> => {
   return createTool({
     id: 'file_write',
     name: 'FileWriteTool',
-    description: '- Creates new files with specified content\n- Optionally overwrites existing files\n- Supports various text encodings\n- Can automatically create parent directories\n- Use this tool to create new files or completely replace existing ones\n- For targeted edits to existing files, use FileEditTool instead\n\nUsage notes:\n- Specify whether to overwrite existing files with the overwrite parameter\n- Parent directories can be created automatically with createDir=true\n- IMPORTANT: Double-check the file path before writing\n- WARNING: Setting overwrite=true will completely replace any existing file\n- Files are written with the specified encoding',
+    description: '- Creates new files with specified content\n- Optionally overwrites existing files\n- Supports various text encodings\n- Can automatically create parent directories\n- Use this tool to create new files or completely replace existing ones\n- For targeted edits to existing files, use FileEditTool instead\n\nUsage notes:\n- Specify whether to overwrite existing files with the overwrite parameter\n- Parent directories can be created automatically with createDir=true\n- IMPORTANT: Double-check the file path before writing\n- WARNING: Setting overwrite=true will completely replace any existing file\n- Files are written with the specified encoding\n\nExample call:\n            { "path": "src/main.txt", "content": "hello world", "overwrite": true }',
     requiresPermission: true,
     category: ToolCategory.FILE_OPERATION,
     alwaysRequirePermission: false, // Can be bypassed in fast edit mode
@@ -119,12 +113,11 @@ export const createFileWriteTool = (): Tool => {
         try {
           const readResult = await context.executionAdapter.readFile(context.executionId, filePath);
           
-          if (readResult.success === true) {
+          if (readResult.ok === true) {
             // If overwrite is not enabled, don't allow writing
             if (!overwrite) {
               return {
-                success: false,
-                path: filePath,
+                ok: false,
                 error: `File already exists: ${filePath}. Set overwrite to true to replace it.`
               };
             }
@@ -134,8 +127,7 @@ export const createFileWriteTool = (): Tool => {
                 !context.sessionState.contextWindow.hasReadFile(filePath)) {
               context.logger?.warn(`Attempt to overwrite file ${filePath} without reading it first`);
               return {
-                success: false,
-                path: filePath,
+                ok: false,
                 error: `File must be read before overwriting. Please use FileReadTool first to read the file.`
               };
             }
@@ -161,17 +153,18 @@ export const createFileWriteTool = (): Tool => {
         await context.executionAdapter.writeFile(context.executionId, filePath, content, encoding);
         
         return {
-          success: true,
-          path: filePath,
-          content,
-          encoding
+          ok: true,
+          data: {
+            path: filePath,
+            content,
+            encoding
+          }
         };
       } catch (error: unknown) {
         const err = error as Error;
         context.logger?.error(`Error writing file: ${err.message}`);
         return {
-          success: false,
-          path: filePath,
+          ok: false,
           error: err.message
         };
       }

@@ -4,6 +4,7 @@
 
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 // Used for type checking in execute function
 export interface BatchToolArgs {
@@ -24,30 +25,22 @@ interface BatchToolItemResult {
   execution_time_ms?: number;
 }
 
-interface BatchToolSuccessResult {
-  success: true;
+interface BatchToolData {
   description: string;
   results: BatchToolItemResult[];
 }
 
-interface BatchToolErrorResult {
-  success: false;
-  error: string;
-  description: string;
-  results: BatchToolItemResult[];
-}
-
-export type BatchToolResult = BatchToolSuccessResult | BatchToolErrorResult;
+export type BatchToolResult = ToolResult<BatchToolData>;
 
 /**
  * Creates a tool for batch execution of multiple tool invocations
  * @returns The batch tool interface
  */
-export const createBatchTool = (): Tool => {
+export const createBatchTool = (): Tool<BatchToolResult> => {
   return createTool({
     id: 'batch',
     name: 'BatchTool',
-    description: '- Batch execution tool that runs multiple tool invocations in a single request\n- Tools are executed in parallel when possible, and otherwise serially\n- Takes a list of tool invocations (tool_name and input pairs)\n- Returns the collected results from all invocations\n- Use this tool when you need to run multiple independent tool operations at once -- it is awesome for speeding up your workflow, reducing both context usage and latency\n- Each tool will respect its own permissions and validation rules\n- The tool\'s outputs are NOT shown to the user; to answer the user\'s query, you MUST send a message with the results after the tool call completes, otherwise the user will not see the results',
+    description: '- Batch execution tool that runs multiple tool invocations in a single request\n- Tools are executed in parallel when possible, and otherwise serially\n- Takes a list of tool invocations (tool_name and input pairs)\n- Returns the collected results from all invocations\n- Use this tool when you need to run multiple independent tool operations at once -- it is awesome for speeding up your workflow, reducing both context usage and latency\n- Each tool will respect its own permissions and validation rules\n- The tool\'s outputs are NOT shown to the user; to answer the user\'s query, you MUST send a message with the results after the tool call completes, otherwise the user will not see the results\n\nExample call:\n            { "description": "Read multiple files", "invocations": [{ "tool_name": "FileReadTool", "input": { "path": "src/index.js" } }, { "tool_name": "FileReadTool", "input": { "path": "src/utils.js" } }] }',
     requiresPermission: true, // Since it can execute multiple tools, permissions should be checked
     category: [ToolCategory.READONLY, ToolCategory.FILE_OPERATION, ToolCategory.SHELL_EXECUTION, ToolCategory.NETWORK],
     alwaysRequirePermission: true, // Always require permission since it can run any tool
@@ -205,9 +198,11 @@ export const createBatchTool = (): Tool => {
         // The BatchTool itself always succeeds if it processed all subtool invocations
         // Even if some subtools failed, this is considered a successful batch operation
         return {
-          success: true,
-          description,
-          results
+          ok: true,
+          data: {
+            description,
+            results
+          }
         };
       } catch (error) {
         // This should only happen if there's an error in the BatchTool itself,
@@ -215,10 +210,8 @@ export const createBatchTool = (): Tool => {
         const err = error instanceof Error ? error : new Error(String(error));
         
         return {
-          success: false,
-          error: `Error in BatchTool execution: ${err.message}`,
-          description,
-          results
+          ok: false,
+          error: `Error in BatchTool execution: ${err.message}`
         };
       }
     }

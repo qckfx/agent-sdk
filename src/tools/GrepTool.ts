@@ -7,6 +7,7 @@ import { promisify } from 'util';
 import { exec } from 'child_process';
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 
 const execAsync = promisify(exec);
 
@@ -18,8 +19,7 @@ interface GrepResult {
   raw?: string;
 }
 
-interface GrepToolSuccessResult {
-  success: true;
+interface GrepToolData {
   pattern: string;
   path: string;
   results: GrepResult[];
@@ -29,27 +29,17 @@ interface GrepToolSuccessResult {
   totalMatches: number; // Original count before truncation
 }
 
-interface GrepToolErrorResult {
-  success: false;
-  pattern: string;
-  path: string;
-  error: string;
-  stderr?: string;
-  truncated: boolean;
-  totalMatches: number;
-}
-
-export type GrepToolResult = GrepToolSuccessResult | GrepToolErrorResult;
+export type GrepToolResult = ToolResult<GrepToolData>;
 
 /**
  * Creates a tool for searching file contents
  * @returns The grep tool interface
  */
-export const createGrepTool = (): Tool => {
+export const createGrepTool = (): Tool<GrepToolResult> => {
   return createTool({
     id: 'grep',
     name: 'GrepTool',
-    description: '- Fast content search tool that works across the codebase\n- Searches file contents using patterns or regular expressions\n- Supports recursive directory traversal\n- Filters files by pattern to narrow search scope\n- Use this tool when you need to find specific text in file contents\n- For finding files by name, use GlobTool instead\n\nUsage notes:\n- Provide a search pattern to find matching content in files\n- Use ignoreCase=true for case-insensitive searching\n- Limit search to specific file types with filePattern\n- Search within a specific directory using the path parameter\n- Results are limited by maxResults to prevent overwhelming output\n- For complex content searches, consider using multiple tool calls',
+    description: '- Fast content search tool that works across the codebase\n- Searches file contents using patterns or regular expressions\n- Supports recursive directory traversal\n- Filters files by pattern to narrow search scope\n- Use this tool when you need to find specific text in file contents\n- For finding files by name, use GlobTool instead\n\nUsage notes:\n- Provide a search pattern to find matching content in files\n- Use ignoreCase=true for case-insensitive searching\n- Limit search to specific file types with filePattern\n- Search within a specific directory using the path parameter\n- Results are limited by maxResults to prevent overwhelming output\n- For complex content searches, consider using multiple tool calls\n\nExample call:\n            { "pattern": "function.*create", "path": "src", "filePattern": "*.ts", "ignoreCase": true }',
     requiresPermission: false, // Reading/searching is generally safe
     category: ToolCategory.READONLY,
     
@@ -179,39 +169,38 @@ export const createGrepTool = (): Tool => {
         }
         
         return {
-          success: true,
-          pattern,
-          path: searchPath,
-          results,
-          count: results.length,
-          hasMore: results.length >= maxResults || truncated,
-          truncated,
-          totalMatches
+          ok: true,
+          data: {
+            pattern,
+            path: searchPath,
+            results,
+            count: results.length,
+            hasMore: results.length >= maxResults || truncated,
+            truncated,
+            totalMatches
+          }
         };
       } catch (error: unknown) {
         // Check if it's just "no results" error
         if ((error as { code?: number }).code === 1 && !(error as { stderr?: string }).stderr) {
           return {
-            success: true,
-            pattern,
-            path: searchPath,
-            results: [],
-            count: 0,
-            hasMore: false,
-            truncated: false,
-            totalMatches: 0
+            ok: true,
+            data: {
+              pattern,
+              path: searchPath,
+              results: [],
+              count: 0,
+              hasMore: false,
+              truncated: false,
+              totalMatches: 0
+            }
           };
         }
         
         context.logger?.error(`Error in grep search: ${(error as Error).message}`);
         return {
-          success: false,
-          pattern,
-          path: searchPath,
-          error: (error as Error).message,
-          stderr: (error as { stderr?: string }).stderr,
-          truncated: false,
-          totalMatches: 0
+          ok: false,
+          error: (error as Error).message
         };
       }
     }

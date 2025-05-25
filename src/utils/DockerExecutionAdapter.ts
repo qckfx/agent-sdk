@@ -1,8 +1,9 @@
 import path from 'path';
 import { ExecutionAdapter } from '../types/tool.js';
-import { FileEditToolErrorResult, FileEditToolSuccessResult } from '../tools/FileEditTool.js';
-import { FileReadToolErrorResult, FileReadToolSuccessResult } from '../tools/FileReadTool.js';
-import { FileEntry, LSToolErrorResult, LSToolSuccessResult } from '../tools/LSTool.js';
+import { FileEditToolResult } from '../tools/FileEditTool.js';
+import { FileReadToolResult } from '../tools/FileReadTool.js';
+import { FileEntry, LSToolResult } from '../tools/LSTool.js';
+import { ToolResult } from '../types/tool-result.js';
 import { DockerContainerManager, ContainerInfo } from './DockerContainerManager.js';
 import { LogCategory } from './logger.js';
 import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
@@ -207,7 +208,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Read a file from the container
    */
-  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolSuccessResult | FileReadToolErrorResult> {
+  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolResult> {
     try {
       if (!encoding) {
         encoding = 'utf8';
@@ -223,8 +224,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const containerInfo = await this.containerManager.getContainerInfo();
       if (!containerInfo) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
+          
           error: 'Container is not available'
         };
       }
@@ -239,9 +240,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         const displayPath = this.formatPathForDisplay(filepath, containerInfo);
         
         return {
-          success: false as const,
-          path: filepath,
-          displayPath,
+          ok: false as const,
+          
           error: `File does not exist: ${displayPath}`
         };
       }
@@ -255,9 +255,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         const displayPath = this.formatPathForDisplay(filepath, containerInfo);
         
         return {
-          success: false as const,
-          path: filepath,
-          displayPath,
+          ok: false as const,
+          
           error: `Unable to determine file size: ${displayPath}`
         };
       }
@@ -267,9 +266,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         const displayPath = this.formatPathForDisplay(filepath, containerInfo);
         
         return {
-          success: false as const,
-          path: filepath,
-          displayPath,
+          ok: false as const,
+          
           error: `File is too large (${fileSize} bytes) to read. Max size: ${maxSize} bytes`
         };
       }
@@ -301,8 +299,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       if (exitCode !== 0) {
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
+          
           error: stderr || `Failed to read file: ${filepath}`
         };
       }
@@ -322,17 +320,18 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         const displayPath = this.formatPathForDisplay(filepath, containerInfo);
         
         return {
-          success: true as const,
-          path: filepath,
-          displayPath, // Add formatted path for UI display
-          content: content,
-          size: fileSize,
-          encoding,
-          pagination: {
-            totalLines,
-            startLine,
-            endLine,
-            hasMore: endLine < totalLines
+          ok: true as const,
+          data: {
+            path: filepath,
+            content: content,
+            size: fileSize,
+            encoding,
+            pagination: {
+              totalLines,
+              startLine,
+              endLine,
+              hasMore: endLine < totalLines
+            }
           }
         };
       }
@@ -341,17 +340,18 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const displayPath = this.formatPathForDisplay(filepath, containerInfo);
       
       return {
-        success: true as const,
-        path: filepath,
-        displayPath, // Add formatted path for UI display
-        content: content,
-        size: fileSize,
-        encoding
+        ok: true as const,
+        data: {
+          path: filepath,
+          content: content,
+          size: fileSize,
+          encoding
+        }
       };
     } catch (error) {
       return {
-        success: false as const,
-        path: filepath,
+        ok: false as const,
+        
         error: `Error reading file: ${(error as Error).message}`
       };
     }
@@ -437,7 +437,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * Edit a file by replacing content
    * Uses a binary-safe approach to handle files with special characters
    */
-  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolSuccessResult | FileEditToolErrorResult> {
+  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
     if (!encoding) {
       encoding = 'utf8';
     }
@@ -448,8 +448,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       if (!containerInfo) {
         console.error(`Container is not available`);
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
+          
           error: 'Container is not available'
         };
       }
@@ -461,26 +461,24 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       if (!this.isPathWithinWorkingDir(containerPath, containerInfo)) {
         console.error(`Security constraint: Can only modify files within the working directory. Attempted to modify ${filepath}`);
         return {
-          success: false as const,
-          path: filepath,
+          ok: false as const,
+          
           error: `Security constraint: Can only modify files within the working directory. Attempted to modify ${filepath}`
         };
       }
       
       // For the UI display, we want to read with line numbers (for the UI only)
       const fileResult = await this.readFile(executionId, filepath);
-      if (!fileResult.success) {
+      if (!fileResult.ok) {
         console.error(`Error reading file: ${filepath}`);
         return {
-          success: false as const,
-          path: filepath,
-          displayPath: this.formatPathForDisplay(filepath, containerInfo),
+          ok: false as const,
           error: fileResult.error
         };
       }
       
       // The numbered content is for display purposes only
-      const displayContent = fileResult.content;
+      const displayContent = fileResult.data.content;
       
       // Binary-safe approach using temporary files to avoid escaping issues
       // Create a unique identifier for this operation to avoid conflicts
@@ -570,9 +568,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           
           const displayPath = this.formatPathForDisplay(filepath, containerInfo);
           return {
-            success: false as const,
-            path: filepath,
-            displayPath,
+            ok: false as const,
+            
             error: `Search pattern not found in file: ${displayPath}`
           };
         }
@@ -583,9 +580,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           
           const displayPath = this.formatPathForDisplay(filepath, containerInfo);
           return {
-            success: false as const,
-            path: filepath,
-            displayPath,
+            ok: false as const,
+            
             error: `Found multiple instances of the search pattern. Please provide a more specific search pattern that matches exactly once.`
           };
         }
@@ -596,9 +592,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           
           const displayPath = this.formatPathForDisplay(filepath, containerInfo);
           return {
-            success: false as const,
-            path: filepath,
-            displayPath,
+            ok: false as const,
+            
             error: `Error during binary replacement: ${scriptError || scriptOutput || "Unknown error"}`
           };
         }
@@ -611,9 +606,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
           await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
           
           return {
-            success: false as const,
-            path: filepath,
-            displayPath: this.formatPathForDisplay(filepath, containerInfo),
+            ok: false as const,
             error: `Failed to create edited file - binary replacement produced no output`
           };
         }
@@ -637,7 +630,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const newFileResult = await this.readFile(executionId, filepath);
       
       // Log results of re-reading the file
-      if (newFileResult.success) {
+      if (newFileResult.ok) {
         console.info(`File edited successfully: ${filepath}`);
       } else {
         console.error(`Error editing file: ${filepath}`);
@@ -647,17 +640,16 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       const displayPath = this.formatPathForDisplay(filepath, containerInfo);
       
       return {
-        success: true as const,
-        path: filepath,
-        displayPath,
-        originalContent: displayContent, // Original numbered content for display
-        newContent: newFileResult.success ? newFileResult.content : "Content updated but unavailable for display" // Show the new content with line numbers
+        ok: true as const,
+        data: {
+          path: filepath,
+          originalContent: displayContent, // Original numbered content for display
+          newContent: newFileResult.ok ? newFileResult.data.content : "Content updated but unavailable for display" // Show the new content with line numbers
+        }
       };
     } catch (error) {
       return {
-        success: false as const,
-        path: filepath,
-        displayPath: filepath, // Use original path for display in case of early errors
+        ok: false as const,
         error: `Error editing file: ${(error as Error).message}`
       };
     }
@@ -699,14 +691,14 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * List directory contents
    */
-  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false): Promise<LSToolSuccessResult | LSToolErrorResult> {
+  async ls(executionId: string, dirPath: string, showHidden: boolean = false, details: boolean = false): Promise<LSToolResult> {
     try {
       // Get container info
       const containerInfo = await this.containerManager.getContainerInfo();
       if (!containerInfo) {
         return {
-          success: false as const,
-          path: dirPath,
+          ok: false as const,
+          
           error: 'Container is not available'
         };
       }
@@ -719,8 +711,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       if (exitCode !== 0) {
         return {
-          success: false as const,
-          path: dirPath,
+          ok: false as const,
+          
           error: `Directory does not exist: ${dirPath}`
         };
       }
@@ -741,8 +733,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       
       if (lsExitCode !== 0) {
         return {
-          success: false as const,
-          path: dirPath,
+          ok: false as const,
+          
           error: stderr || `Failed to list directory: ${dirPath}`
         };
       }
@@ -873,16 +865,18 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
       }
       
       return {
-        success: true as const,
-        path: dirPath,
-        entries: results,
-        count: results.length
+        ok: true as const,
+        data: {
+          path: dirPath,
+          entries: results,
+          count: results.length
+        }
       };
     } catch (error) {
       this.logger?.error(`Error listing directory: ${(error as Error).message}`, error, LogCategory.TOOLS);
       return {
-        success: false as const,
-        path: dirPath,
+        ok: false as const,
+        
         error: `Error listing directory: ${(error as Error).message}`
       };
     }

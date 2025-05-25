@@ -5,6 +5,7 @@
 import path from 'path';
 import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
+import { ToolResult } from '../types/tool-result.js';
 // Logger imports removed as they are unused
 
 // Interface for the arguments accepted by the FileEditTool
@@ -16,32 +17,24 @@ export interface FileEditToolArgs {
   encoding?: string;
 }
 
-export interface FileEditToolSuccessResult {
-  success: true;
+interface FileEditToolData {
   path: string;
   displayPath?: string; // Optional formatted path for UI display
   originalContent: string;
   newContent: string;
 }
 
-export interface FileEditToolErrorResult {
-  success: false;
-  path: string;
-  displayPath?: string; // Optional formatted path for UI display
-  error: string;
-}
-
-export type FileEditToolResult = FileEditToolSuccessResult | FileEditToolErrorResult;
+export type FileEditToolResult = ToolResult<FileEditToolData>;
 
 /**
  * Creates a tool for editing file contents
  * @returns The file edit tool interface
  */
-export const createFileEditTool = (): Tool => {
+export const createFileEditTool = (): Tool<FileEditToolResult> => {
   return createTool({
     id: 'file_edit',
     name: 'FileEditTool',
-    description: '- Modifies existing files by replacing specific content\n- Ensures precise targeting of text to be replaced\n- Preserves file structure and formatting\n- Maintains file encodings during edits\n- Normalizes line endings for consistent handling\n- Use this tool for targeted edits to existing files\n- For creating new files, use FileWriteTool instead\n\nUsage notes:\n- First use FileReadTool to understand the file\'s contents\n- The searchCode MUST match exactly once in the file\n- IMPORTANT: Include sufficient context in searchCode to ensure uniqueness\n- Make sure replaceCode maintains correct syntax and indentation\n- WARNING: The edit will fail if searchCode is found multiple times\n- WARNING: The edit will fail if searchCode isn\'t found exactly as provided\n- TIP: For complex edits, consider using FileWriteTool instead\n- TIP: When possible, include a few lines before and after the code you want to replace',
+    description: '- Modifies existing files by replacing specific content\n- Ensures precise targeting of text to be replaced\n- Preserves file structure and formatting\n- Maintains file encodings during edits\n- Normalizes line endings for consistent handling\n- Use this tool for targeted edits to existing files\n- For creating new files, use FileWriteTool instead\n\nUsage notes:\n- First use FileReadTool to understand the file\'s contents\n- The searchCode MUST match exactly once in the file\n- IMPORTANT: Include sufficient context in searchCode to ensure uniqueness\n- Make sure replaceCode maintains correct syntax and indentation\n- WARNING: The edit will fail if searchCode is found multiple times\n- WARNING: The edit will fail if searchCode isn\'t found exactly as provided\n- TIP: For complex edits, consider using FileWriteTool instead\n- TIP: When possible, include a few lines before and after the code you want to replace\n\nExample call:\n            { "path": "src/utils.js", "searchCode": "function oldName() {\\n  return true;\\n}", "replaceCode": "function newName() {\\n  return true;\\n}" }',
     requiresPermission: true,
     category: ToolCategory.FILE_OPERATION,
     alwaysRequirePermission: false, // Can be bypassed in fast edit mode
@@ -104,8 +97,7 @@ export const createFileEditTool = (): Tool => {
           !context.sessionState.contextWindow.hasReadFile(filePath)) {
         context.logger?.warn(`Attempt to edit file ${filePath} without reading it first`);
         return {
-          success: false,
-          path: filePath,
+          ok: false,
           error: `File must be read before editing. Please use FileReadTool first to read the file.`
         };
       }
@@ -134,8 +126,7 @@ export const createFileEditTool = (): Tool => {
         const err = error as Error;
         console.error(`Error editing file: ${err.message}`);
         return {
-          success: false,
-          path: filePath,
+          ok: false,
           error: err.message
         };
       }

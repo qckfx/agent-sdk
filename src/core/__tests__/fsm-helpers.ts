@@ -167,25 +167,31 @@ export function stubExecutionAdapter(): ExecutionAdapter {
   return {
     executeCommand: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
     editFile: async (): Promise<FileEditToolResult> => ({
-      success: true,
-      path: '/test/path',
-      originalContent: 'original',
-      newContent: 'modified'
+      ok: true,
+      data: {
+        path: '/test/path',
+        originalContent: 'original',
+        newContent: 'modified'
+      }
     }),
     glob: async () => [],
     readFile: async (): Promise<FileReadToolResult> => ({
-      success: true,
-      path: '/test/path',
-      content: '',
-      size: 0,
-      encoding: 'utf-8'
+      ok: true,
+      data: {
+        path: '/test/path',
+        content: '',
+        size: 0,
+        encoding: 'utf-8'
+      }
     }),
     writeFile: async () => {},
     ls: async (): Promise<LSToolResult> => ({
-      success: true,
-      path: '/test/path',
-      entries: [],
-      count: 0
+      ok: true,
+      data: {
+        path: '/test/path',
+        entries: [],
+        count: 0
+      }
     }),
     generateDirectoryMap: async () => '',
     getGitRepositoryInfo: async () => [],

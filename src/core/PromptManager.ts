@@ -129,6 +129,13 @@ export class BasicPromptManager implements PromptManager {
         "Please correct your approach accordingly.";
       
       prompts.push(errorContext);
+      
+      // Add reflection prompt for tool failures
+      const reflectionPrompt = 'Reflect on why the previous tool call failed, then propose a ' +
+        'corrected call (or different strategy). Do not repeat the same ' +
+        'invalid parameters.';
+      
+      prompts.push(reflectionPrompt);
     }
     
     // Add tool limit reached context as the last message if applicable (most dynamic)

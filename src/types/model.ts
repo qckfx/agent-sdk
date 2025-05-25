@@ -8,6 +8,7 @@ import { PromptManager } from '../core/PromptManager.js';
 import { Logger } from '../utils/logger.js';
 import { ExecutionAdapter } from './tool.js';
 import { ContextWindow } from './contextWindow.js';
+import { LastToolError } from './tool-result.js';
 
 export interface ToolCall {
   toolId: string;
@@ -56,11 +57,7 @@ export interface SessionState {
   /** Conversation context with file tracking */
   contextWindow: ContextWindow;
   
-  lastToolError?: {
-    toolId: string;
-    error: string;
-    args: Record<string, unknown>;
-  };
+  lastToolError?: LastToolError;
   isExplorationSession?: boolean;
   shouldExplore?: boolean;
   tokenUsage?: TokenUsage;
