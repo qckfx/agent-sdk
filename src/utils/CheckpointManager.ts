@@ -246,21 +246,30 @@ export async function snapshot(
     throw new Error(`Snapshot failed: bundle end marker missing. Output tail:\n${tail}`);
   }
 
-  // Read the bundle file as base64 via the adapter – allow up to 50 MB
-  const readRes: any = await (adapter as any).readFile(
-    executionId,
-    bundlePath,
-    50 * 1024 * 1024, // 50 MB
-    undefined,
-    undefined,
-    'base64',
+  // Read the temporary bundle file (base64-encoded) via the adapter. The
+  // ExecutionAdapter.readFile implementation follows the standard ToolResult
+  // convention:  `{ ok: true, data: { content: '...' } }` for success and
+  // `{ ok: false, error: '...' }` for failure.  Older code expected the
+  // non-existent `success` boolean and `content` property at the top level.
+  //
+  // To stay compatible with the current signature we map the returned object
+  // to the new format and throw a descriptive error when the read fails.
+  const readRes = await adapter.readFile(
+      executionId,
+      bundlePath,
+      50 * 1024 * 1024, // 50 MB
+      undefined,
+      undefined,
+      'base64'
   );
 
-  if (!readRes || !readRes.success) {
-    throw new Error(`Snapshot failed: unable to read bundle file (${readRes?.error || 'unknown error'})`);
+  if (!readRes || !readRes.ok) {
+      throw new Error(
+          `Snapshot failed: unable to read bundle file (${readRes?.error || 'unknown error'})`
+      );
   }
 
-  const bundleBuffer = Buffer.from(readRes.content as string, 'base64');
+  const bundleBuffer = Buffer.from(readRes.data.content, 'base64');
 
   // Clean-up temporary bundle file (best-effort)
   await adapter.executeCommand(executionId, `rm -f "${bundlePath}"`).catch(() => {});

@@ -226,7 +226,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     }
   }
   
-  async editFile(filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
+  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
     if (!encoding) {
       encoding = 'utf8';
     }
