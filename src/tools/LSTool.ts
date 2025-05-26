@@ -8,7 +8,7 @@ import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool
 import { ToolResult } from '../types/tool-result.js';
 
 
-interface LSToolArgs {
+export interface LSToolArgs {
   path?: string;
   showHidden?: boolean;
   details?: boolean;

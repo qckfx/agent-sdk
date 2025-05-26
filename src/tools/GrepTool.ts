@@ -11,7 +11,26 @@ import { ToolResult } from '../types/tool-result.js';
 
 const execAsync = promisify(exec);
 
-// Interface used for tool arguments
+// ------------------------------------------------------------
+// Public argument & result helper types
+// ------------------------------------------------------------
+
+export interface GrepToolArgs {
+  /** Search pattern (plain text or regex) */
+  pattern: string;
+  /** Directory or file path to search.  Defaults to '.' */
+  path?: string;
+  /** Search recursively?  Defaults to true */
+  recursive?: boolean;
+  /** Case-insensitive search? */
+  ignoreCase?: boolean;
+  /** Glob pattern to restrict files */
+  filePattern?: string;
+  /** Maximum number of results to return.  Defaults to 100 */
+  maxResults?: number;
+}
+
+// Internal helper interface for parsed grep output lines
 interface GrepResult {
   file?: string;
   line?: number;

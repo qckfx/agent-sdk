@@ -5,47 +5,20 @@
       "type": "object",
       "properties": {
         "environment": {
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "const": "local"
-                }
-              },
-              "required": [
-                "type"
-              ],
-              "additionalProperties": false
+          "type": "object",
+          "properties": {
+            "dockerfile": {
+              "type": "string"
             },
-            {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "const": "docker"
-                }
-              },
-              "required": [
-                "type"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "const": "remote"
-                }
-              },
-              "required": [
-                "type"
-              ],
-              "additionalProperties": false
+            "repos": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$"
+              }
             }
-          ]
+          },
+          "additionalProperties": false
         },
         "defaultModel": {
           "type": "string"
@@ -138,9 +111,6 @@
           "default": {}
         }
       },
-      "required": [
-        "environment"
-      ],
       "additionalProperties": false
     }
   },

@@ -4,11 +4,39 @@ import { z } from 'zod';
 /* Schema version 1.0                                                          */
 /* -------------------------------------------------------------------------- */
 
-const EnvironmentSchema = z.union([
-  z.object({ type: z.literal('local') }).strict(),
-  z.object({ type: z.literal('docker') }).strict(),
-  z.object({ type: z.literal('remote') }).strict(),
-]);
+/**
+ * Execution environment declaration
+ *
+ * Both keys are optional so an empty object – or omitting the `environment`
+ * block entirely – is allowed and represents the _default_ local execution
+ * with no extra repositories.
+ *
+ * Example:
+ *   {
+ *     "dockerfile": "./Dockerfile",
+ *     "repos": ["openai/openai-cookbook"]
+ *   }
+ */
+const EnvironmentSchema = z
+  .object({
+    // Relative path (string) to a Dockerfile used for this agent. Optional.
+    dockerfile: z.string().optional(),
+
+    // Additional GitHub repositories (owner/repo) the agent should have
+    // access to.  These are *in addition* to the repository the agent lives
+    // in, which is always included automatically.
+    repos: z
+      .array(
+        z
+          .string()
+          // Basic validation for "owner/repo" slug
+          .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, {
+            message: 'Repository must be in the form "owner/repo"',
+          }),
+      )
+      .optional(),
+  })
+  .strict();
 
 const LogLevelSchema = z.enum(['debug', 'info', 'warn', 'error']);
 
@@ -35,7 +63,7 @@ const ExperimentalFeaturesSchema = z
 
 export const AgentConfigSchemaV1 = z
   .object({
-    environment: EnvironmentSchema,
+    environment: EnvironmentSchema.optional(),
 
     defaultModel: z.string().optional(),
     logLevel: LogLevelSchema.optional().default('info'),

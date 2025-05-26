@@ -64,6 +64,21 @@ export type {
   GlobToolResult,
 } from './src/types/tool-result.js';
 
+// ---------------------------------------------------------------------------
+// Tool Argument types – exported for convenience
+// ---------------------------------------------------------------------------
+
+export type {
+  BashToolArgs,
+  BatchToolArgs,
+  FileReadToolArgs,
+  FileEditToolArgs,
+  FileWriteToolArgs,
+  GlobToolArgs,
+  GrepToolArgs,
+  LSToolArgs,
+} from './src/tools/index.js';
+
 // Stuff on SessionState
 export type {
   SessionState

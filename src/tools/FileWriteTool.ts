@@ -7,14 +7,24 @@ import { createTool } from './createTool.js';
 import { Tool, ToolContext, ValidationResult, ToolCategory } from '../types/tool.js';
 import { ToolResult } from '../types/tool-result.js';
 
-// Removed unused interface
-// interface FileWriteToolArgs {
-//   path: string;
-//   content: string;
-//   encoding?: string;
-//   overwrite?: boolean;
-//   createDir?: boolean;
-// }
+// ---------------------------------------------------------------------------
+// Public argument type
+// ---------------------------------------------------------------------------
+
+export interface FileWriteToolArgs {
+  /** Path where the file should be created */
+  path: string;
+  /** Content to write into the file */
+  content: string;
+  /** Optional encoding (defaults to utf8) */
+  encoding?: string;
+  /** Overwrite existing file?  Default: false */
+  overwrite?: boolean;
+  /** Automatically create parent directories?  Default: true */
+  createDir?: boolean;
+}
+
+// ---------------------------------------------------------------------------
 
 interface FileWriteToolData {
   path: string;

@@ -16,17 +16,22 @@ export { createLSTool } from './LSTool.js';
 export { createThinkTool } from './ThinkTool.js';
 
 // Tool result types - using export type for type-only exports
-export type { 
-  FileEditToolArgs,
-  FileEditToolResult
-} from './FileEditTool.js';
+// ---------------------------------------------------------------------------
+// Tool argument & result types – re-exported for convenience
+// ---------------------------------------------------------------------------
 
-export type { 
-  FileReadToolArgs,
-  FileReadToolResult
-} from './FileReadTool.js';
+// Bash
+export type { BashToolArgs, BashToolResult } from './BashTool.js';
 
-export type { 
-  LSToolResult,
-  FileEntry
-} from './LSTool.js';
+// Batch
+export type { BatchToolArgs, BatchToolResult } from './BatchTool.js';
+
+// File tools
+export type { FileEditToolArgs, FileEditToolResult } from './FileEditTool.js';
+export type { FileReadToolArgs, FileReadToolResult } from './FileReadTool.js';
+export type { FileWriteToolArgs, FileWriteToolResult } from './FileWriteTool.js';
+
+// Glob / Grep / LS
+export type { GlobToolArgs, GlobToolResult } from './GlobTool.js';
+export type { GrepToolArgs, GrepToolResult } from './GrepTool.js';
+export type { LSToolArgs, LSToolResult, FileEntry } from './LSTool.js';
