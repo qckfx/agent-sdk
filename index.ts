@@ -79,6 +79,24 @@ export type {
   LSToolArgs,
 } from './src/tools/index.js';
 
+// ---------------------------------------------------------------------------
+// Additional supporting types for tools – for authoring custom tools
+// ---------------------------------------------------------------------------
+
+export type {
+  // Core tool config & helpers
+  ToolConfig,
+  ParameterSchema,
+  ValidationResult,
+  ExecutionAdapter,
+} from './src/types/tool.js';
+
+// Enum export (value + type)
+export { ToolCategory } from './src/types/tool.js';
+
+// Convenience export for common sub-types used in tool results
+export type { FileEntry } from './src/tools/LSTool.js';
+
 // Stuff on SessionState
 export type {
   SessionState
