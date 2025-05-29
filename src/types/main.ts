@@ -168,7 +168,7 @@ export interface Agent {
     warn: (message: string, ...args: unknown[]) => void;
     error: (message: string, ...args: unknown[]) => void;
   };
-  
+
   // Helper methods
   /**
    * Process a single query with the agent

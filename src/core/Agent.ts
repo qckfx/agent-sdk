@@ -5,7 +5,7 @@
 import { Agent, CoreAgentConfig } from '../types/main.js';
 import { ModelProvider, SessionState } from '../types/model.js';
 import { LogLevel, createLogger } from '../utils/logger.js';
-import { createContextWindow } from '../types/contextWindow.js';
+import { ContextWindow, createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
 import { createModelClient } from './ModelClient.js';
@@ -201,16 +201,7 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
     logger,
 
     // Helper methods
-    async processQuery(query, model, sessionState: SessionState = {
-      id: uuidv4().toString(),
-      contextWindow: createContextWindow(), 
-      abortController: new AbortController(), 
-      agentServiceConfig: { 
-        defaultModel: '', 
-        cachingEnabled: true 
-      },
-      llmApiKey: undefined,
-    }) {
+    async processQuery(query, model, sessionState: SessionState = createSessionState(config)) {
       const runner = await _agentRunner(sessionState.id, sessionState.executionAdapter);
 
       if (!sessionState.abortController) {
@@ -269,4 +260,17 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
       toolRegistry.registerTool(tool);
     },
   };
+};
+
+export const createSessionState = (config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): SessionState => {
+ return {
+   id: sessionId ?? uuidv4().toString(),
+   contextWindow: contextWindow ?? createContextWindow(), 
+   abortController: new AbortController(), 
+   agentServiceConfig: { 
+     defaultModel: config.defaultModel, 
+     cachingEnabled: config.cachingEnabled ?? true 
+   },
+   llmApiKey: undefined,
+ };
 };

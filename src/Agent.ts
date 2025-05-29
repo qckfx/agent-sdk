@@ -8,7 +8,8 @@ import { AgentEvent, AgentEventMap } from './types/events.js';
 import { SessionState } from './types/model.js';
 import { Tool } from './types/tool.js';
 import { createAgent } from './core/Agent.js';
-import { Agent as AgentInterface } from './types/main.js';
+import type { Agent as AgentInterface } from './types/main.js';
+import { createSessionState } from './core/Agent.js';
 import { ProcessQueryResult, ConversationResult } from './types/agent.js';
 import { AgentConfigSchema, AgentConfig } from '@qckfx/sdk-schema';
 import { CoreAgentConfig } from './types/main.js';
@@ -26,6 +27,7 @@ import {
   CHECKPOINT_READY_EVENT 
 } from './events/checkpoint-events.js';
 import { LLMFactory } from './providers/AnthropicProvider.js';
+import { ContextWindow } from './types/contextWindow.js';
 
 // Legacy to new event name mapping 
 const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
@@ -292,6 +294,10 @@ export class Agent {
     }
     
     return this._core.processQuery(query, chosenModel, sessionState);
+  }
+
+  static createSessionState(config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): SessionState {
+    return createSessionState(config, sessionId, contextWindow);
   }
   
   /**
