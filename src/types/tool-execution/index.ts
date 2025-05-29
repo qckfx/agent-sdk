@@ -240,6 +240,7 @@ export interface ToolExecutionManager {
    * Create a permission request for a tool execution
    */
   requestPermission(
+    sessionId: string,
     executionId: string, 
     args: Record<string, unknown>
   ): PermissionRequestState;

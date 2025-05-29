@@ -102,7 +102,7 @@ export interface CoreAgentConfig {
    * ```
    */
   permissionUIHandler?: {
-    requestPermission: (toolId: string, args: Record<string, unknown>) => Promise<boolean>;
+    requestPermission: (sessionId: string, toolId: string, args: Record<string, unknown>) => Promise<boolean>;
   };
 
   /**

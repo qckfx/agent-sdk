@@ -101,6 +101,7 @@ export interface ProcessingErrorData {
  * Environment status event data
  */
 export interface EnvironmentStatusData {
+  sessionId: string;
   environmentType: 'local' | 'docker' | 'remote';
   status: 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'error';
   isReady: boolean;
@@ -134,6 +135,7 @@ export interface RollbackData {
  * Permission event data
  */
 export interface PermissionData {
+  sessionId: string;
   toolId: string;
   args: Record<string, unknown>;
 }

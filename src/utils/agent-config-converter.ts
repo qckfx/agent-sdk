@@ -62,8 +62,9 @@ export function convertToCoreAgentConfig(
 
   if (callbacks?.onPermissionRequested && typeof callbacks.onPermissionRequested === 'function') {
     config.permissionUIHandler = {
-      requestPermission: async (toolId: string, args: Record<string, unknown>) => {
+      requestPermission: async (sessionId: string, toolId: string, args: Record<string, unknown>) => {
         return await callbacks.onPermissionRequested!({
+          sessionId,
           toolId,
           args,
         });

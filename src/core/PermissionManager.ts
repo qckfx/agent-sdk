@@ -30,7 +30,7 @@ const createPermissionManager = (
   
   // UI handler for requesting permissions
   const uiHandler: UIHandler = config.uiHandler || {
-    async requestPermission(toolId: string, args: Record<string, unknown>): Promise<boolean> {
+    async requestPermission(sessionId: string, toolId: string, args: Record<string, unknown>): Promise<boolean> {
       // Default implementation could be console-based
       logger?.info(`Tool ${toolId} wants to execute with args:`, LogCategory.PERMISSIONS, args);
       return true; // Always grant in default implementation
@@ -45,7 +45,7 @@ const createPermissionManager = (
      * @param args - The arguments the tool will use
      * @returns Whether permission was granted
      */
-    async requestPermission(toolId: string, args: Record<string, unknown>): Promise<boolean> {
+    async requestPermission(sessionId: string, toolId: string, args: Record<string, unknown>): Promise<boolean> {
       // Debug logging for all permission requests
       logger?.info(`Permission request for tool: ${toolId}`, LogCategory.PERMISSIONS, {
         toolId,
@@ -76,13 +76,13 @@ const createPermissionManager = (
       // Handle unknown tools - require permission by default
       if (!tool) {
         logger?.info(`Unknown tool ${toolId}, requesting permission from user`, LogCategory.PERMISSIONS);
-        return await uiHandler.requestPermission(toolId, args);
+        return await uiHandler.requestPermission(sessionId,toolId, args);
       }
       
       // If tool always requires permission, always prompt regardless of mode
       if (tool.alwaysRequirePermission) {
         logger?.info(`Tool ${toolId} has alwaysRequirePermission=true, requesting permission`, LogCategory.PERMISSIONS);
-        return await uiHandler.requestPermission(toolId, args);
+        return await uiHandler.requestPermission(sessionId, toolId, args);
       }
       
       // If we're in fast edit mode and this is a file operation, auto-approve
@@ -99,7 +99,7 @@ const createPermissionManager = (
       
       // Otherwise, request permission normally
       console.info(`Requesting user permission for tool: ${toolId}`);
-      const granted = await uiHandler.requestPermission(toolId, args);
+      const granted = await uiHandler.requestPermission(sessionId, toolId, args);
       
       // Log the permission decision
       if (granted) {

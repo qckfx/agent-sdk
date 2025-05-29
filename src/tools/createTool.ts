@@ -133,7 +133,7 @@ export const createTool = <Res extends ToolResult>(config: ToolConfig<Res>): Too
       if ((this.requiresPermission || this.alwaysRequirePermission) && context.permissionManager) {
         // Always call requestPermission which will handle all the checks internally
         // This will ask for permission every time unless in fast edit mode
-        const granted = await context.permissionManager.requestPermission(this.id, args);
+        const granted = await context.permissionManager.requestPermission(context.sessionState.id, this.id, args);
         if (!granted) {
           throw new Error(`Permission denied for ${this.name}`);
         }

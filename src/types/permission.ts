@@ -3,7 +3,7 @@
  */
 
 export interface UIHandler {
-  requestPermission(toolId: string, args: Record<string, unknown>): Promise<boolean>;
+  requestPermission(sessionId: string, toolId: string, args: Record<string, unknown>): Promise<boolean>;
 }
 
 export interface PermissionManagerConfig {
@@ -21,7 +21,7 @@ export interface PermissionManagerConfig {
 }
 
 export interface PermissionManager {
-  requestPermission(toolId: string, args: Record<string, unknown>): Promise<boolean>;
+  requestPermission(sessionId: string, toolId: string, args: Record<string, unknown>): Promise<boolean>;
   
   // Fast Edit Mode methods
   setFastEditMode(enabled: boolean): void;
