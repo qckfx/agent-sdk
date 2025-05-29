@@ -4,7 +4,7 @@
 
 import { Agent, CoreAgentConfig } from '../types/main.js';
 import { ModelProvider, SessionState } from '../types/model.js';
-import { LogLevel, createLogger } from '../utils/logger.js';
+import { LogLevel, Logger, createLogger } from '../utils/logger.js';
 import { ContextWindow, createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
@@ -34,6 +34,9 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { isSessionAborted } from '../utils/sessionUtils.js';
+import { AgentConfig } from '@qckfx/sdk-schema';
+import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
+
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
@@ -138,47 +141,25 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
   }
 
   console.info('Tool registry tools:', toolRegistry.getAllTools());
-
-  const _createExecutionAdapter = async (sessionId: string) => {
-    // Select the appropriate execution adapter based on environment type
-    switch (config.environment.type) {
-      case 'local':
-        return new LocalExecutionAdapter();
-      case 'docker': {
-        // Create container manager and adapter
-        const containerManager = new DockerContainerManager({
-          projectRoot: process.cwd(),
-          logger
-        });
-        return new DockerExecutionAdapter(containerManager, { logger });
-      }
-      case 'remote': {
-        if (!config.getRemoteId) {
-          throw new Error('Remote environment requires a getRemoteId callback.');
-        }
-
-        const remoteId = await config.getRemoteId(sessionId);
-        if (!remoteId) {
-          throw new Error('Remote environment requires a getRemoteId callback to resolve the remoteId.');
-        }
-
-        // Create remote execution adapter using E2B under the hood
-        return await E2BExecutionAdapter.create(remoteId, {
-          logger,
-          projectsRoot: '/home/user/projects'
-        });
-      }
-      default:
-        return new LocalExecutionAdapter();
-    }
-  }
   
   // Create the agent runner (private implementation)
   const _agentRunner = async (sessionId: string, sessionExecutionAdapter?: ExecutionAdapter) => {
     let executionAdapter = sessionExecutionAdapter;
     
     if (!executionAdapter) {
-      executionAdapter = await _createExecutionAdapter(sessionId);
+      const remoteId = await config.getRemoteId!(sessionId);
+      const { adapter } = await createExecutionAdapter({
+        sessionId: sessionId,
+        type: 'remote',
+        logger: config.logger,
+        projectsRoot: "/home/user/projects",
+        e2b: {
+          sandboxId: remoteId,
+          projectsRoot: "/home/user/projects",
+        },
+        autoFallback: false,
+      });
+      executionAdapter = adapter;
     }
     
     return createAgentRunner({
@@ -201,7 +182,11 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
     logger,
 
     // Helper methods
-    async processQuery(query, model, sessionState: SessionState = createSessionState(config)) {
+    async processQuery(query, model, sessionState?: SessionState) {
+      if (!sessionState) {
+        sessionState = await createSessionState(config);
+      }
+
       const runner = await _agentRunner(sessionState.id, sessionState.executionAdapter);
 
       if (!sessionState.abortController) {
@@ -262,15 +247,30 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
   };
 };
 
-export const createSessionState = (config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): SessionState => {
+export const createSessionState = async (config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): Promise<SessionState> => {
+ const sid = sessionId ?? uuidv4().toString();
+ const remoteId = await config.getRemoteId!(sid);
+ const { adapter } = await createExecutionAdapter({
+  sessionId: sid,
+  type: 'remote',
+  logger: config.logger,
+  projectsRoot: "/home/user/projects",
+  e2b: {
+    sandboxId: remoteId,
+    projectsRoot: "/home/user/projects",
+  },
+  autoFallback: false,
+ });
+
  return {
-   id: sessionId ?? uuidv4().toString(),
+   id: sid,
    contextWindow: contextWindow ?? createContextWindow(), 
    abortController: new AbortController(), 
    agentServiceConfig: { 
      defaultModel: config.defaultModel, 
      cachingEnabled: config.cachingEnabled ?? true 
    },
-   llmApiKey: undefined,
+   remoteId: remoteId,
+   executionAdapter: adapter,
  };
 };

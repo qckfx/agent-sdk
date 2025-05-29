@@ -296,8 +296,8 @@ export class Agent {
     return this._core.processQuery(query, chosenModel, sessionState);
   }
 
-  static createSessionState(config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): SessionState {
-    return createSessionState(config, sessionId, contextWindow);
+  static async createSessionState(config: AgentConfig, sessionId?: string, contextWindow?: ContextWindow): Promise<SessionState> {
+    return await createSessionState(convertToCoreAgentConfig(config), sessionId, contextWindow);
   }
   
   /**
