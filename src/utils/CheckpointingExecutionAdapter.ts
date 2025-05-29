@@ -18,6 +18,8 @@ import { CheckpointEvents, CHECKPOINT_READY_EVENT, CheckpointPayload } from '../
  */
 export class CheckpointingExecutionAdapter implements ExecutionAdapter {
 
+  private _checkpointingEnabled: boolean = true;
+
   constructor(
     private inner: ExecutionAdapter,
     private sessionId: string,
@@ -109,25 +111,43 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     return true;
   }
 
+  disableCheckpointing() {
+    this._checkpointingEnabled = false;
+  }
+
+  enableCheckpointing() {
+    this._checkpointingEnabled = true;
+  }
+
+  isCheckpointingEnabled() {
+    return this._checkpointingEnabled;
+  }
+
   // State-changing operations that trigger checkpoints
   
-  async writeFile(executionId: string, filepath: string, content: string, encoding?: string): Promise<void> {
-    // First take a checkpoint
-    await this.cp(executionId, 'writeFile');
+  async writeFile(executionId: string, filepath: string, content: string, encoding?: string, checkpoint: boolean = true): Promise<void> {
+    if (checkpoint && this._checkpointingEnabled) {
+      // First take a checkpoint
+      await this.cp(executionId, 'writeFile');
+    }
     // Then execute the operation
     return await this.inner.writeFile(executionId, filepath, content, encoding);
   }
   
-  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string): Promise<FileEditToolResult> {
-    // First take a checkpoint
-    await this.cp(executionId, 'editFile');
+  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string, checkpoint: boolean = true): Promise<FileEditToolResult> {
+    if (checkpoint && this._checkpointingEnabled) {
+      // First take a checkpoint
+      await this.cp(executionId, 'editFile');
+    }
     // Then execute the operation
     return await this.inner.editFile(executionId, filepath, searchCode, replaceCode, encoding);
   }
   
-  async executeCommand(executionId: string, command: string, workingDir?: string) {
-    // First take a checkpoint
-    await this.cp(executionId, 'bash');
+  async executeCommand(executionId: string, command: string, workingDir?: string, checkpoint: boolean = true) {
+    if (checkpoint && this._checkpointingEnabled) {
+      // First take a checkpoint
+      await this.cp(executionId, 'bash');
+    }
     // Then execute the operation
     return await this.inner.executeCommand(executionId, command, workingDir);
   }

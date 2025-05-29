@@ -4,13 +4,14 @@
  * This module re-exports the main public interfaces and types used by the agent.
  */
 
-import { AgentRunner, ProcessQueryResult, ConversationResult } from './agent.js';
+import { ProcessQueryResult, ConversationResult } from './agent.js';
 import { ModelClient, SessionState } from './model.js';
 import { PermissionManager } from './permission.js';
 import { ToolRegistry } from './registry.js';
 import { Tool } from './tool.js';
 import { ModelProvider } from './model.js';
 import { ToolExecutionEvent, ToolExecutionStatus } from './tool-execution/index.js';
+import { ContextWindow } from './contextWindow.js';
 
 // Re-export tool execution types
 export { ToolExecutionEvent, ToolExecutionStatus };
@@ -24,9 +25,9 @@ export type RepositoryEnvironment =
 /**
  * Configuration options for creating a new agent
  *
- * @interface AgentConfig
+ * @interface CoreAgentConfig
  */
-export interface AgentConfig {
+export interface CoreAgentConfig {
   /**
    * The model provider to use for generating responses
    * @example

@@ -58,10 +58,7 @@ export interface SessionState {
   contextWindow: ContextWindow;
   
   lastToolError?: LastToolError;
-  isExplorationSession?: boolean;
-  shouldExplore?: boolean;
   tokenUsage?: TokenUsage;
-  historyTrimmed?: boolean;
   /** Shared AbortController for the session - always present */
   abortController: AbortController;
   /** Optional timestamp when the session was aborted */

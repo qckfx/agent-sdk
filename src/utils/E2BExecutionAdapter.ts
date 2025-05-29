@@ -198,7 +198,10 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
   }
 
   async writeFile(executionId: string, filepath: string, content: string) {
-    await this.sandbox.files.write(filepath, content);
+    console.log('writeFile', filepath, content);
+    const result = await this.sandbox.files.write(filepath, content);
+    console.log('writeFile result', result);
+    return;
   }
   
   async executeCommand(executionId: string, command: string, workingDir?: string) {

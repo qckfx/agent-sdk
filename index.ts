@@ -13,17 +13,12 @@
 // ---------------------------------------------------------------------------
 
 export { Agent } from './src/Agent.js';
-export { AgentConfigJSON } from './schemas/agent-config.zod.js';
+export { AgentConfig } from '@qckfx/sdk-schema';
 export { createTool } from './src/tools/createTool.js';
 
 // ---------------------------------------------------------------------------
 // Public types – re-exported for developer ergonomics
 // ---------------------------------------------------------------------------
-
-export type {
-  // Configuration & state
-  AgentConfig,
-} from './src/types/main.js';
 
 // Tooling
 export type {

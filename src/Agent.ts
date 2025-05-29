@@ -3,7 +3,6 @@
  */
 
 import { EventEmitter } from 'events';
-import { AgentConfig } from './types/main.js';
 import { AgentCallbacks } from './types/callbacks.js';
 import { AgentEvent, AgentEventMap } from './types/events.js';
 import { SessionState } from './types/model.js';
@@ -11,8 +10,9 @@ import { Tool } from './types/tool.js';
 import { createAgent } from './core/Agent.js';
 import { Agent as AgentInterface } from './types/main.js';
 import { ProcessQueryResult, ConversationResult } from './types/agent.js';
-import { AgentConfigJSON, validateAgentConfig } from '../schemas/agent-config.zod.js';
-import { convertToAgentConfig } from './utils/agent-config-converter.js';
+import { AgentConfigSchema, AgentConfig } from '@qckfx/sdk-schema';
+import { CoreAgentConfig } from './types/main.js';
+import { convertToCoreAgentConfig } from './utils/agent-config-converter.js';
 import { rollbackSession } from './utils/RollbackManager.js';
 import { isSessionAborted, setSessionAborted, clearSessionAborted } from './utils/sessionUtils.js';
 
@@ -62,7 +62,7 @@ export class Agent {
   // Private members
   private _core!: AgentInterface;
   private _bus: EventEmitter;
-  private _config: AgentConfig;
+  private _config: CoreAgentConfig;
   private _callbacks?: AgentCallbacks;
 
   // ---------------------------------------------------------------------
@@ -95,15 +95,15 @@ export class Agent {
    * @returns A new Agent instance
    * @throws ConfigValidationError if the config is invalid
    */
-  static async create({config, callbacks}: {config: AgentConfigJSON, callbacks?: AgentCallbacks}): Promise<Agent> {
+  static async create({config, callbacks}: {config: AgentConfig, callbacks?: AgentCallbacks}): Promise<Agent> {
     // Validate the JSON config with Zod
-    const validatedConfig = validateAgentConfig(config);
+    const validatedConfig = AgentConfigSchema.parse(config);
     
     // Convert to AgentConfig
-    const agentConfig = convertToAgentConfig(validatedConfig, callbacks);
+    const coreAgentConfig = convertToCoreAgentConfig(validatedConfig, callbacks);
     
     // Create the agent instance
-    const agent = new Agent({config: agentConfig, callbacks});
+    const agent = new Agent({config: coreAgentConfig, callbacks});
     await agent._init();
     return agent;
   }
@@ -114,7 +114,7 @@ export class Agent {
    * @param config The agent configuration object
    * @param callbacks Optional runtime callbacks for events and dynamic data
    */
-  private constructor({config, callbacks}: {config: AgentConfig, callbacks?: AgentCallbacks}) {
+  private constructor({config, callbacks}: {config: CoreAgentConfig, callbacks?: AgentCallbacks}) {
     // Validate config
     this._config = config;
     this._callbacks = callbacks;

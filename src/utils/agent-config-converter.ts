@@ -5,8 +5,8 @@
  * and the internal AgentConfig type expected by the Agent implementation.
  */
 
-import { AgentConfig, RepositoryEnvironment } from '../types/main.js';
-import { AgentConfigJSON } from '../../schemas/agent-config.zod.js';
+import { CoreAgentConfig, RepositoryEnvironment } from '../types/main.js';
+import { AgentConfig } from '@qckfx/sdk-schema';
 import { LLMFactory } from '../providers/index.js';
 import { AgentCallbacks } from '../types/callbacks.js';
 
@@ -14,7 +14,7 @@ import { AgentCallbacks } from '../types/callbacks.js';
  * A version of AgentConfig without the required properties so we can build it step by step.
  * This is for internal use only during the conversion process.
  */
-type PartialAgentConfig = Partial<AgentConfig>;
+type PartialAgentConfig = Partial<CoreAgentConfig>;
 
 /**
  * Convert a Zod-validated AgentConfigJSON to the internal AgentConfig type.
@@ -23,10 +23,10 @@ type PartialAgentConfig = Partial<AgentConfig>;
  * @param modelProvider The model provider to use
  * @returns A proper AgentConfig object
  */
-export function convertToAgentConfig(
-  jsonConfig: AgentConfigJSON, 
+export function convertToCoreAgentConfig(
+  jsonConfig: AgentConfig, 
   callbacks?: AgentCallbacks
-): AgentConfig {
+): CoreAgentConfig {
 
   
   // Do NOT clearSessionAborted() here - that will be done in AgentRunner after abort is handled
@@ -73,5 +73,5 @@ export function convertToAgentConfig(
   
   
   // Return as complete AgentConfig
-  return config as AgentConfig;
+  return config as CoreAgentConfig;
 }

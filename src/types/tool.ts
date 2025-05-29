@@ -21,7 +21,7 @@ export enum ToolCategory {
 }
 
 export interface ExecutionAdapter {
-  executeCommand: (executionId: string, command: string, workingDir?: string) => Promise<{
+  executeCommand: (executionId: string, command: string, workingDir?: string, checkpoint?: boolean) => Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;

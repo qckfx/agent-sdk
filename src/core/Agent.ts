@@ -2,7 +2,7 @@
  * Agent - Main factory for creating agents
  */
 
-import { Agent, AgentConfig } from '../types/main.js';
+import { Agent, CoreAgentConfig } from '../types/main.js';
 import { ModelProvider, SessionState } from '../types/model.js';
 import { LogLevel, createLogger } from '../utils/logger.js';
 import { createContextWindow } from '../types/contextWindow.js';
@@ -34,12 +34,13 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { isSessionAborted } from '../utils/sessionUtils.js';
+import { CheckpointingExecutionAdapter } from '../utils/CheckpointingExecutionAdapter.js';
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
  * @returns The configured agent
  */
-export const createAgent = async (config: AgentConfig): Promise<Agent> => {
+export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
   if (!config.modelProvider) {
     throw new Error('Agent requires a modelProvider function');
   }
