@@ -22,7 +22,7 @@ export interface DynamicDataCallbacks {
    * Required when using remote environment (type === 'remote')
    * @returns Promise resolving to remote environment ID
    */
-  getRemoteId?: () => Promise<string>;
+  getRemoteId?: (sessionId: string) => Promise<string>;
 }
 
 /**

@@ -149,7 +149,7 @@ export interface CoreAgentConfig {
    * resolution is performed lazily by the core implementation when the remote
    * adapter is first required.
    */
-  getRemoteId?: () => Promise<string>;
+  getRemoteId?: (sessionId: string) => Promise<string>;
 }
 
 /**

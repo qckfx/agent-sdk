@@ -25,7 +25,7 @@ export interface SubAgentReference {
  */
 export async function createSubAgentTool(
   ref: SubAgentReference,
-  getRemoteId?: () => Promise<string>,
+  getRemoteId?: (sessionId: string) => Promise<string>,
 ): Promise<Tool> {
   if (!ref?.name || !ref?.configFile) {
     throw new Error('createSubAgentTool requires both "name" and "configFile"');

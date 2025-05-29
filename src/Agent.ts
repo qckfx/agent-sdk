@@ -78,13 +78,28 @@ export class Agent {
     if (this._config.environment.type !== 'remote') return;
 
     if (this._callbacks?.getRemoteId) {
-      // Always fetch if callback provided to ensure freshest ID
-      process.env.REMOTE_ID = await this._callbacks.getRemoteId();
       return;
     }
 
     // Fallback to existing environment variable (if any)
-    if (process.env.REMOTE_ID?.length) return;
+    if (process.env.REMOTE_ID?.length) {
+      console.warn(
+        'Remote environment specified without getRemoteId callback. ' +
+        'Falling back to REMOTE_ID environment variable.'
+      );
+      if (!this._callbacks) {
+        this._callbacks = {};
+      }
+      this._callbacks.getRemoteId = async () => {
+        if (!process.env.REMOTE_ID) {
+          throw new Error('REMOTE_ID environment variable is not set.');
+        }
+        return process.env.REMOTE_ID;
+      };
+      return;
+    }
+
+    throw new Error('Remote environment requires a getRemoteId callback or REMOTE_ID environment variable to be set.');
   }
 
   /**
@@ -118,14 +133,6 @@ export class Agent {
     // Validate config
     this._config = config;
     this._callbacks = callbacks;
-
-    // Validate remote environment configuration
-    if (config.environment.type === 'remote' && !callbacks?.getRemoteId) {
-      console.warn(
-        'Remote environment specified without getRemoteId callback. ' +
-        'Falling back to REMOTE_ID environment variable.'
-      );
-    }
 
     // Create private event bus
     this._bus = new EventEmitter();

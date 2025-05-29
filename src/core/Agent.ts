@@ -34,7 +34,6 @@ import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { isSessionAborted } from '../utils/sessionUtils.js';
-import { CheckpointingExecutionAdapter } from '../utils/CheckpointingExecutionAdapter.js';
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
@@ -140,7 +139,7 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
 
   console.info('Tool registry tools:', toolRegistry.getAllTools());
 
-  const _createExecutionAdapter = async () => {
+  const _createExecutionAdapter = async (sessionId: string) => {
     // Select the appropriate execution adapter based on environment type
     switch (config.environment.type) {
       case 'local':
@@ -154,14 +153,13 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
         return new DockerExecutionAdapter(containerManager, { logger });
       }
       case 'remote': {
-        let remoteId: string | undefined = (config as any).remoteId;
-
-        if (!remoteId && typeof (config as any).getRemoteId === 'function') {
-          remoteId = await (config as any).getRemoteId();
+        if (!config.getRemoteId) {
+          throw new Error('Remote environment requires a getRemoteId callback.');
         }
 
+        const remoteId = await config.getRemoteId(sessionId);
         if (!remoteId) {
-          throw new Error('Remote environment requires a remoteId to be resolved via getRemoteId callback.');
+          throw new Error('Remote environment requires a getRemoteId callback to resolve the remoteId.');
         }
 
         // Create remote execution adapter using E2B under the hood
@@ -176,11 +174,11 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
   }
   
   // Create the agent runner (private implementation)
-  const _agentRunner = async (sessionExecutionAdapter?: ExecutionAdapter) => {
+  const _agentRunner = async (sessionId: string, sessionExecutionAdapter?: ExecutionAdapter) => {
     let executionAdapter = sessionExecutionAdapter;
     
     if (!executionAdapter) {
-      executionAdapter = await _createExecutionAdapter();
+      executionAdapter = await _createExecutionAdapter(sessionId);
     }
     
     return createAgentRunner({
@@ -201,7 +199,7 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
     modelClient,
     environment: config.environment,
     logger,
-    
+
     // Helper methods
     async processQuery(query, model, sessionState: SessionState = {
       id: uuidv4().toString(),
@@ -213,7 +211,7 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
       },
       llmApiKey: undefined,
     }) {
-      const runner = await _agentRunner(sessionState.executionAdapter);
+      const runner = await _agentRunner(sessionState.id, sessionState.executionAdapter);
 
       if (!sessionState.abortController) {
         sessionState.abortController = new AbortController();
@@ -263,7 +261,7 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
      * @returns The conversation results
      */
     async runConversation(initialQuery, model) {
-      const runner = await _agentRunner();
+      const runner = await _agentRunner(uuidv4().toString());
       return runner.runConversation(initialQuery, model);
     },
     
