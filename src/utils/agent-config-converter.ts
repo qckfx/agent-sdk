@@ -64,6 +64,8 @@ export function convertToCoreAgentConfig(
     config.getRemoteId = callbacks.getRemoteId;
   }
 
+  config.environment = { type: 'remote' };
+
   if (callbacks?.onPermissionRequested && typeof callbacks.onPermissionRequested === 'function') {
     config.permissionUIHandler = {
       requestPermission: async (sessionId: string, toolId: string, args: Record<string, unknown>) => {
