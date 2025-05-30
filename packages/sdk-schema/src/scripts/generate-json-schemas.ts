@@ -16,9 +16,13 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 const __filename = fileURLToPath(import.meta.url);
-const pkgRoot = path.resolve(path.dirname(__filename), '../../'); // dist/scripts/.. -> package root
+// When compiled the file resides in                          dist/esm/scripts/..,
+// therefore three `..` segments bring us back to the **package root**.
+const pkgRoot = path.resolve(path.dirname(__filename), '../../../');
 
-const distDir = path.join(pkgRoot, 'dist');
+// The ESM compilation is emitted to "dist/esm" – that is where we import the
+// transpiled Zod schemas from to generate the JSON Schema documents.
+const distDir = path.join(pkgRoot, 'dist', 'esm');
 
 // Utility: turn "v1" -> "1.0" (major only for now)
 const versionFolderToVersion = (folder: string): string => {

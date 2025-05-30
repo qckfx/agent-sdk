@@ -1,18 +1,20 @@
 {
   "name": "@qckfx/sdk-schema",
-  "version": "0.2.0-alpha.2",
+  "version": "0.2.0-alpha.3",
   "description": "qckfx Agent configuration schema and validation utilities (stand-alone).",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/esm/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
   "files": [
     "dist",
     "agent-config.schema.json"
   ],
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "types": "./dist/esm/index.d.ts"
     },
     "./schema": "./agent-config.schema.json"
   },
@@ -20,9 +22,10 @@
     "access": "public"
   },
   "scripts": {
-    "build": "npm run build:ts && npm run generate:schema",
-    "build:ts": "tsc -p tsconfig.json",
-    "generate:schema": "node dist/scripts/generate-json-schemas.js"
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node postbuild-cjs.cjs",
+    "build": "npm run build:esm && npm run build:cjs && npm run generate:schema",
+    "generate:schema": "node dist/esm/scripts/generate-json-schemas.js"
   },
   "dependencies": {
     "zod": "^3.24.3"

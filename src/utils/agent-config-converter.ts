@@ -60,6 +60,10 @@ export function convertToCoreAgentConfig(
     config.tools = jsonConfig.tools;
   }
 
+  if (callbacks?.getRemoteId && typeof callbacks.getRemoteId === 'function') {
+    config.getRemoteId = callbacks.getRemoteId;
+  }
+
   if (callbacks?.onPermissionRequested && typeof callbacks.onPermissionRequested === 'function') {
     config.permissionUIHandler = {
       requestPermission: async (sessionId: string, toolId: string, args: Record<string, unknown>) => {
