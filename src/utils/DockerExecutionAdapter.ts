@@ -3,25 +3,23 @@ import { ExecutionAdapter } from '../types/tool.js';
 import { FileEditToolResult } from '../tools/FileEditTool.js';
 import { FileReadToolResult } from '../tools/FileReadTool.js';
 import { FileEntry, LSToolResult } from '../tools/LSTool.js';
-import { ToolResult } from '../types/tool-result.js';
 import { DockerContainerManager, ContainerInfo } from './DockerContainerManager.js';
-import { LogCategory } from './logger.js';
-import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
+import { LogCategory, Logger } from './logger.js';
+import { EnvironmentStatusEvent } from './sessionUtils.js';
+import { TypedEventEmitter } from './TypedEventEmitter.js';
+import { BusEvents, BusEvent } from '../types/bus-events.js';
 import { GitRepositoryInfo } from '../types/repository.js';
 import { GitInfoHelper } from './GitInfoHelper.js';
 import { MultiRepoManager } from './MultiRepoManager.js';
+import { SessionState } from '../types/model.js';
 
 /**
  * Execution adapter that runs commands in a Docker container
  */
 export class DockerExecutionAdapter implements ExecutionAdapter {
+  private sessionId: string;
   private containerManager: DockerContainerManager;
-  private logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  private logger?: Logger;
   private lastEmittedStatus?: 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'error';
   
   // Git information helper for optimized git operations
@@ -29,6 +27,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   
   // Multi-repo manager for handling multiple repositories
   private multiRepoManager: MultiRepoManager;
+  private eventBus: TypedEventEmitter<BusEvents>;
   
   public initialized = false;
 
@@ -36,18 +35,17 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * Create a Docker execution adapter with a container manager
    */
   constructor(
+    sessionId: string,
     containerManager: DockerContainerManager,
-    options?: {
-      logger?: {
-        debug: (message: string, ...args: unknown[]) => void;
-        info: (message: string, ...args: unknown[]) => void;
-        warn: (message: string, ...args: unknown[]) => void;
-        error: (message: string, ...args: unknown[]) => void;
-      }
+    options: {
+      logger?: Logger;
+      eventBus: TypedEventEmitter<BusEvents>;
     }
   ) {
+    this.sessionId = sessionId;
     this.containerManager = containerManager;
-    this.logger = options?.logger;
+    this.logger = options.logger;
+    this.eventBus = options.eventBus;
     
     // Initialize git helper with same logger
     this.gitInfoHelper = new GitInfoHelper({ logger: this.logger });
@@ -137,7 +135,10 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     if (error) {
       this.logger?.error(`Docker environment status error: ${error}`, LogCategory.SYSTEM);
     }
-    AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, statusEvent);
+    this.eventBus.emit(BusEvent.ENVIRONMENT_STATUS_CHANGED, {
+      sessionId: this.sessionId,
+      ...statusEvent
+    });
   }
 
   /**

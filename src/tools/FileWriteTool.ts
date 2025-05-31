@@ -154,7 +154,7 @@ export const createFileWriteTool = (): Tool<FileWriteToolResult> => {
             await context.executionAdapter.executeCommand(context.executionId, `mkdir -p ${dirPath}`);
           } catch (error: unknown) {
             // If directory creation fails, the writeFile will also fail
-            context.logger?.warn(`Failed to create directory: ${dirPath}`, error);
+            context.logger?.warn(`Failed to create directory: ${dirPath}`, (error as Error).message);
           }
         }
         

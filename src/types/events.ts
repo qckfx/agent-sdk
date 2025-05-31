@@ -3,6 +3,8 @@
  * @module Events
  */
 
+import { ToolExecutionState } from './tool-execution/index.js';
+
 /**
  * Constants for processing lifecycle events
  */
@@ -148,10 +150,10 @@ export interface AgentEventMap {
   [ProcessingEvents.STARTED]: ProcessingStartedData;
   [ProcessingEvents.COMPLETED]: ProcessingCompletedData;
   [ProcessingEvents.ERROR]: ProcessingErrorData;
-  [ProcessingEvents.ABORTED]: string; // sessionId
-  [ToolExecutionEvents.STARTED]: import('./tool-execution/index.js').ToolExecutionState;
-  [ToolExecutionEvents.COMPLETED]: import('./tool-execution/index.js').ToolExecutionState;
-  [ToolExecutionEvents.ERROR]: import('./tool-execution/index.js').ToolExecutionState;
+  [ProcessingEvents.ABORTED]: { sessionId: string; };
+  [ToolExecutionEvents.STARTED]: ToolExecutionState;
+  [ToolExecutionEvents.COMPLETED]: ToolExecutionState;
+  [ToolExecutionEvents.ERROR]: ToolExecutionState;
   [EnvironmentEvents.STATUS_CHANGED]: EnvironmentStatusData;
   [CheckpointEvents.READY]: CheckpointData;
   [RollbackEvents.COMPLETED]: RollbackData;

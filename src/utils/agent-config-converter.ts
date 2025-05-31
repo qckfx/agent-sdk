@@ -6,6 +6,8 @@
  */
 
 import { CoreAgentConfig, RepositoryEnvironment } from '../types/main.js';
+import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+import { BusEvents } from '../types/bus-events.js';
 import { AgentConfig } from '@qckfx/sdk-schema';
 import { LLMFactory } from '../providers/index.js';
 import { AgentCallbacks } from '../types/callbacks.js';
@@ -24,7 +26,8 @@ type PartialAgentConfig = Partial<CoreAgentConfig>;
  * @returns A proper AgentConfig object
  */
 export function convertToCoreAgentConfig(
-  jsonConfig: AgentConfig, 
+  jsonConfig: AgentConfig,
+  eventBus: TypedEventEmitter<BusEvents>,
   callbacks?: AgentCallbacks
 ): CoreAgentConfig {
 
@@ -77,8 +80,9 @@ export function convertToCoreAgentConfig(
       },
     };
   }
+
+  config.eventBus = eventBus;
   
   
-  // Return as complete AgentConfig
   return config as CoreAgentConfig;
 }

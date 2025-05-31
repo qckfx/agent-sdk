@@ -47,7 +47,7 @@ export interface LifecycleCallbacks {
   /**
    * Called when a query processing is aborted
    */
-  onProcessingAborted?: (sessionId: string) => void;
+  onProcessingAborted?: ({ sessionId }: { sessionId: string }) => void;
   
   /**
    * Called when a tool execution starts

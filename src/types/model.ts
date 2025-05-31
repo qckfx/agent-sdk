@@ -56,6 +56,10 @@ export interface SessionState {
   id: string;
   /** Conversation context with file tracking */
   contextWindow: ContextWindow;
+
+  aborted: boolean;
+
+  skipAbortAck?: boolean;
   
   lastToolError?: LastToolError;
   tokenUsage?: TokenUsage;

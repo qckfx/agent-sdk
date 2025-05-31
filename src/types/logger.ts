@@ -33,6 +33,7 @@ export enum LogCategory {
  */
 export interface LoggerOptions {
   level: LogLevel;
+  sessionId: string;
   prefix?: string;
   silent?: boolean;
   formatOptions?: {

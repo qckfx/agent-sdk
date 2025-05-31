@@ -7,8 +7,8 @@
  * - Working directory status - always checked in parallel
  */
 
-import { GitRepositoryInfo, CleanRepositoryStatus, DirtyRepositoryStatus } from '../types/repository.js';
-import { LogCategory } from './logger.js';
+import { GitRepositoryInfo } from '../types/repository.js';
+import { LogCategory, Logger } from './logger.js';
 
 // Type for execution function that runs git commands
 export type ExecuteCommandFn = (command: string) => Promise<{
@@ -37,20 +37,10 @@ export class GitInfoHelper {
   private commitsCache: CommitsCache | null = null;
   
   // Logger reference for debug info
-  private logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  private logger?: Logger;
   
   constructor(options?: { 
-    logger?: {
-      debug: (message: string, ...args: unknown[]) => void;
-      info: (message: string, ...args: unknown[]) => void;
-      warn: (message: string, ...args: unknown[]) => void;
-      error: (message: string, ...args: unknown[]) => void;
-    }
+    logger?: Logger;
   }) {
     this.logger = options?.logger;
   }

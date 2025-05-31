@@ -4,16 +4,15 @@ import { promisify } from 'util';
 import { ExecutionAdapter } from '../types/tool.js';
 import path from 'path';
 import { glob } from 'glob';
-import { FileReadToolResult } from '../tools/FileReadTool.js';
-import { FileEditToolResult } from '../tools/FileEditTool.js';
-import { FileEntry, LSToolResult } from '../tools/LSTool.js';
-import { ToolResult } from '../types/tool-result.js';
-import { LogCategory } from './logger.js';
-import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
+import { FileEntry } from '../tools/LSTool.js';
+import { LogCategory, Logger } from './logger.js';
+import { TypedEventEmitter } from './TypedEventEmitter.js';
+import { BusEvents, BusEvent } from '../types/bus-events.js';
 import os from 'os';
 import { GitRepositoryInfo } from '../types/repository.js';
 import { GitInfoHelper } from './GitInfoHelper.js';
 import { MultiRepoManager } from './MultiRepoManager.js';
+import { EnvironmentStatusEvent } from './sessionUtils.js';
 
 const execAsync = promisify(exec);
 const readFileAsync = promisify(fs.readFile);
@@ -23,12 +22,8 @@ const mkdirAsync = promisify(fs.mkdir);
 const globAsync = promisify(glob);
 
 export class LocalExecutionAdapter implements ExecutionAdapter {
-  private logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  private sessionId: string;
+  private logger?: Logger;
   
   // Git information helper for optimized git operations
   private gitInfoHelper: GitInfoHelper;
@@ -36,15 +31,16 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
   // Multi-repo manager for handling multiple repositories
   private multiRepoManager: MultiRepoManager;
 
-  constructor(options?: { 
-    logger?: {
-      debug: (message: string, ...args: unknown[]) => void;
-      info: (message: string, ...args: unknown[]) => void;
-      warn: (message: string, ...args: unknown[]) => void;
-      error: (message: string, ...args: unknown[]) => void;
-    }
+
+  private eventBus: TypedEventEmitter<BusEvents>;
+
+  constructor(sessionId: string, options: { 
+    logger?: Logger;
+    eventBus: TypedEventEmitter<BusEvents>;
   }) {
-    this.logger = options?.logger;
+    this.sessionId = sessionId;
+    this.logger = options.logger;
+    this.eventBus = options.eventBus;
     
     // Initialize git helper with same logger
     this.gitInfoHelper = new GitInfoHelper({ logger: this.logger });
@@ -72,7 +68,10 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     };
     
     this.logger?.info(`Emitting local environment status: ${status}, ready=${isReady}`, LogCategory.SYSTEM);
-    AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, statusEvent);
+    this.eventBus.emit(BusEvent.ENVIRONMENT_STATUS_CHANGED, {
+      sessionId: this.sessionId,
+      ...statusEvent
+    });
   }
   async executeCommand(executionId: string, command: string, workingDir?: string) {
     try {

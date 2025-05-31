@@ -98,25 +98,13 @@ export { ToolCategory } from './src/types/tool.js';
 // Convenience export for common sub-types used in tool results
 export type { FileEntry } from './src/tools/LSTool.js';
 
-// Stuff on SessionState
-export type {
-  SessionState
-} from './src/types/model.js';
-
 export {
   ContextWindow,
 } from './src/types/contextWindow.js';
 
-// Messaging helpers
 export type {
-  StructuredContent,
-  TextContentPart,
-  ContentPart,
-  ToolCallReference,
-  Message,
-  MessageAddedEvent,
-  MessageUpdatedEvent,
-} from './src/types/message.js';
+  Message
+} from './src/types/contextWindow.js';
 
 export type {
   CheckpointData,
@@ -127,12 +115,6 @@ export type {
   ProcessingStartedData,
 } from './src/types/events.js';
 
-// Utility helpers
-export { parseStructuredContent } from './src/types/message.js';
-
-// Instance event system
-export type { AgentEvent, AgentEventMap } from './src/types/events.js';
-
-export { ProcessingEvents, ToolExecutionEvents, EnvironmentEvents, CheckpointEvents } from './src/types/events.js';
+export { BusEvent, BusEvents } from './src/types/bus-events.js';
 
 // Nothing else is exported – **intentional**.

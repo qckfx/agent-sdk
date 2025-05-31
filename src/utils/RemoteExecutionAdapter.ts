@@ -3,22 +3,19 @@ import { FileEditToolResult } from '../tools/FileEditTool.js';
 import { FileReadToolResult } from '../tools/FileReadTool.js';
 import { ExecutionAdapter } from '../types/tool.js';
 import { FileEntry, LSToolResult } from '../tools/LSTool.js';
-import { ToolResult } from '../types/tool-result.js';
 import path from 'path';
-import { LogCategory } from './logger.js';
-import { AgentEvents, AgentEventType, EnvironmentStatusEvent } from './sessionUtils.js';
+import { LogCategory, Logger } from './logger.js';
+import { EnvironmentStatusEvent } from './sessionUtils.js';
+import { TypedEventEmitter } from './TypedEventEmitter.js';
+import { BusEvents, BusEvent } from '../types/bus-events.js';
 import { GitRepositoryInfo } from '../types/repository.js';
 import { GitInfoHelper } from './GitInfoHelper.js';
 import { MultiRepoManager } from './MultiRepoManager.js';
 
-export class E2BExecutionAdapter implements ExecutionAdapter {
+export class RemoteExecutionAdapter implements ExecutionAdapter {
   private sandbox: Sandbox;
-  private logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  private sessionId: string;
+  private logger?: Logger;
   
   // Git information helper for optimized git operations
   private gitInfoHelper: GitInfoHelper;
@@ -29,18 +26,18 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
   // Multi-repo manager for handling multiple repositories
   private multiRepoManager: MultiRepoManager;
 
-  private constructor(sandbox: Sandbox, options: { 
-    logger?: {
-      debug: (message: string, ...args: unknown[]) => void;
-      info: (message: string, ...args: unknown[]) => void;
-      warn: (message: string, ...args: unknown[]) => void;
-      error: (message: string, ...args: unknown[]) => void;
-    };
+  private eventBus: TypedEventEmitter<BusEvents>;
+
+  private constructor(sandbox: Sandbox, sessionId: string, options: { 
+    logger?: Logger;
     projectsRoot: string;
+    eventBus: TypedEventEmitter<BusEvents>;
   }) {
     this.sandbox = sandbox;
+    this.sessionId = sessionId;
     this.logger = options?.logger;
     this.projectsRoot = options.projectsRoot;
+    this.eventBus = options.eventBus;
     
     // Initialize git helper with same logger
     this.gitInfoHelper = new GitInfoHelper({ logger: this.logger });
@@ -68,7 +65,10 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
     };
     
     this.logger?.info(`Emitting E2B environment status: ${status}, ready=${isReady}`, LogCategory.SYSTEM);
-    AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, statusEvent);
+    this.eventBus.emit(BusEvent.ENVIRONMENT_STATUS_CHANGED, {
+      sessionId: this.sessionId,
+      ...statusEvent
+    });
   }
 
   /**
@@ -78,32 +78,28 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
    * @returns A fully initialized E2BExecutionAdapter
    * @throws Error if connection to the sandbox fails
    */
-  public static async create(sandboxId: string, options: { 
-    logger?: {
-      debug: (message: string, ...args: unknown[]) => void;
-      info: (message: string, ...args: unknown[]) => void;
-      warn: (message: string, ...args: unknown[]) => void;
-      error: (message: string, ...args: unknown[]) => void;
-    };
+  public static async create(sandboxId: string, sessionId: string, options: { 
+    logger?: Logger;
     projectsRoot: string;
-  }): Promise<E2BExecutionAdapter> {
+    eventBus: TypedEventEmitter<BusEvents>;
+  }): Promise<RemoteExecutionAdapter> {
     try {
       // Emit initializing status before connecting
-      if (options?.logger) {
-        options.logger.info('E2B sandbox connecting...', LogCategory.SYSTEM);
-      }
+      options.logger?.info('E2B sandbox connecting...', LogCategory.SYSTEM);
       console.log('E2BExecutionAdapter: Connecting to sandbox', sandboxId);
       
-      // Emit event from static context before instance is created
       const initStatusEvent: EnvironmentStatusEvent = {
         environmentType: 'remote',
         status: 'connecting',
-        isReady: false
+        isReady: false,
       };
-      AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, initStatusEvent);
+      options.eventBus.emit(BusEvent.ENVIRONMENT_STATUS_CHANGED, {
+        sessionId: sandboxId,
+        ...initStatusEvent
+      });
       
       const sandbox = await Sandbox.connect(sandboxId);
-      return new E2BExecutionAdapter(sandbox, options);
+      return new RemoteExecutionAdapter(sandbox, sessionId, options);
     } catch (error) {
       if (options?.logger) {
         options.logger.error('Failed to connect to E2B sandbox:', error, LogCategory.SYSTEM);
@@ -118,7 +114,10 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
         isReady: false,
         error: (error as Error).message
       };
-      AgentEvents.emit(AgentEventType.ENVIRONMENT_STATUS_CHANGED, errorStatusEvent);
+      options.eventBus.emit(BusEvent.ENVIRONMENT_STATUS_CHANGED, {
+        sessionId: sessionId,
+        ...errorStatusEvent
+      });
       
       throw error;
     }

@@ -2,18 +2,15 @@
  * Types and interfaces for permission management
  */
 
+import { Logger } from "./logger.js";
+
 export interface UIHandler {
   requestPermission(sessionId: string, toolId: string, args: Record<string, unknown>): Promise<boolean>;
 }
 
 export interface PermissionManagerConfig {
   uiHandler?: UIHandler;
-  logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  logger?: Logger;
   // Optional initial state for fast edit mode
   initialFastEditMode?: boolean;
   // DANGER_MODE: Auto-approve all tool operations (use only in sandbox environments)

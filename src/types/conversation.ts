@@ -9,7 +9,7 @@
  * `ContextWindow.getMessages()` which exposes only the Anthropic shape.
  */
 
-import { Anthropic } from '@anthropic-ai/sdk';
+import { Message } from './contextWindow.js';
 
 export interface ConversationMessage {
   /**
@@ -21,7 +21,7 @@ export interface ConversationMessage {
   /**
    * The underlying Anthropic message that is sent to / received from the API.
    */
-  anthropic: Anthropic.Messages.MessageParam;
+  anthropic: Message;
 
   /**
    * Epoch‑ms timestamp indicating when we inserted the message into the

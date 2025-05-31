@@ -11,7 +11,9 @@ import { ToolRegistry } from './registry.js';
 import { Tool } from './tool.js';
 import { ModelProvider } from './model.js';
 import { ToolExecutionEvent, ToolExecutionStatus } from './tool-execution/index.js';
-import { ContextWindow } from './contextWindow.js';
+import { Logger } from '../utils/logger.js';
+import { BusEvents } from './bus-events.js';
+import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 
 // Re-export tool execution types
 export { ToolExecutionEvent, ToolExecutionStatus };
@@ -79,12 +81,7 @@ export interface CoreAgentConfig {
    * Optional logger interface for agent logs
    * If not provided, a default logger will be created
    */
-  logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  logger?: Logger;
 
   /**
    * Optional UI handler for permission requests
@@ -150,6 +147,11 @@ export interface CoreAgentConfig {
    * adapter is first required.
    */
   getRemoteId?: (sessionId: string) => Promise<string>;
+
+  /**
+   * The per-agent event bus used for all lifecycle notifications.
+   */
+  eventBus: TypedEventEmitter<BusEvents>;
 }
 
 /**
@@ -162,12 +164,7 @@ export interface Agent {
   permissionManager: PermissionManager;
   modelClient: ModelClient;
   environment?: RepositoryEnvironment;
-  logger: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  logger: Logger;
 
   // Helper methods
   /**
@@ -178,15 +175,6 @@ export interface Agent {
    * @returns A Promise resolving to the query result
    */
   processQuery(query: string, model: string, sessionState?: SessionState): Promise<ProcessQueryResult>;
-  
-  /**
-   * Run a simplified automated conversation
-   * This method is primarily used for testing and evaluation purposes
-   * @param initialQuery The initial user query
-   * @param model The model to use for this conversation
-   * @returns A Promise resolving to the conversation result
-   */
-  runConversation(initialQuery: string, model: string): Promise<ConversationResult>;
   
   /**
    * Register a new tool with the agent

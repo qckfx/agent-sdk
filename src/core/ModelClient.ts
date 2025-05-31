@@ -210,14 +210,14 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
               toolUseId: toolUse.id, // Save this for returning results
             },
             toolChosen: true,
-            aborted: isSessionAborted(getSessionId(sessionState)) // Check current abort status
+            aborted: isSessionAborted(sessionState) // Check current abort status
           };
           
           return toolCallResponse;
         }
       }
       
-      return {response: response, toolChosen: false, aborted: isSessionAborted(getSessionId(sessionState))};
+      return {response: response, toolChosen: false, aborted: isSessionAborted(sessionState)};
     },
     
     /**

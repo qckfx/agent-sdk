@@ -2,9 +2,7 @@
  * Agent class - Main entry point for the agent-core SDK
  */
 
-import { EventEmitter } from 'events';
 import { AgentCallbacks } from './types/callbacks.js';
-import { AgentEvent, AgentEventMap } from './types/events.js';
 import { SessionState } from './types/model.js';
 import { Tool } from './types/tool.js';
 import { createAgent } from './core/Agent.js';
@@ -12,33 +10,18 @@ import type { Agent as AgentInterface } from './types/main.js';
 import { createSessionState } from './core/Agent.js';
 import { ProcessQueryResult, ConversationResult } from './types/agent.js';
 import { AgentConfigSchema, AgentConfig } from '@qckfx/sdk-schema';
-import { CoreAgentConfig } from './types/main.js';
+import { CoreAgentConfig, ToolExecutionStatus } from './types/main.js';
 import { convertToCoreAgentConfig } from './utils/agent-config-converter.js';
 import { rollbackSession } from './utils/RollbackManager.js';
-import { isSessionAborted, setSessionAborted, clearSessionAborted } from './utils/sessionUtils.js';
+import { setSessionAborted } from './utils/sessionUtils.js';
 
 // Import legacy event emitters
-import { 
-  AgentEvents, 
-  AgentEventType
-} from './utils/sessionUtils.js';
-import { 
-  CheckpointEvents, 
-  CHECKPOINT_READY_EVENT 
-} from './events/checkpoint-events.js';
+import { CheckpointEvents, CHECKPOINT_READY_EVENT } from './events/checkpoint-events.js';
 import { LLMFactory } from './providers/AnthropicProvider.js';
-import { ContextWindow } from './types/contextWindow.js';
-import { ToolRegistry } from './types/registry.js';
+import { ContextWindow, createContextWindow, Message } from './types/contextWindow.js';
 
-// Legacy to new event name mapping 
-const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
-  [AgentEventType.PROCESSING_COMPLETED]: 'processing:completed',
-  [AgentEventType.ABORT_SESSION]: 'processing:aborted',
-  [AgentEventType.ENVIRONMENT_STATUS_CHANGED]: 'environment:status_changed',
-  [CHECKPOINT_READY_EVENT]: 'checkpoint:ready',
-  [AgentEventType.ROLLBACK_COMPLETED]: 'rollback:completed',
-  // Tool execution events are already properly named with the 'tool:' prefix
-};
+import { TypedEventEmitter } from './utils/TypedEventEmitter.js';
+import { BusEvents, BusEventKey, BusEvent } from './types/bus-events.js';
 
 /**
  * Main Agent class for creating and managing AI agents
@@ -64,9 +47,10 @@ const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
 export class Agent {
   // Private members
   private _core!: AgentInterface;
-  private _bus: EventEmitter;
-  private _config: CoreAgentConfig;
+  private _bus: TypedEventEmitter<BusEvents>;
+  private _config!: CoreAgentConfig;
   private _callbacks?: AgentCallbacks;
+  private _sessionState!: SessionState;
 
   // ---------------------------------------------------------------------
   // Private helpers
@@ -113,15 +97,12 @@ export class Agent {
    * @returns A new Agent instance
    * @throws ConfigValidationError if the config is invalid
    */
-  static async create({config, callbacks}: {config: AgentConfig, callbacks?: AgentCallbacks}): Promise<Agent> {
+  static async create({ config, callbacks }: { config: AgentConfig; callbacks?: AgentCallbacks }): Promise<Agent> {
     // Validate the JSON config with Zod
     const validatedConfig = AgentConfigSchema.parse(config);
-    
-    // Convert to AgentConfig
-    const coreAgentConfig = convertToCoreAgentConfig(validatedConfig, callbacks);
-    
-    // Create the agent instance
-    const agent = new Agent({config: coreAgentConfig, callbacks});
+
+    // Create the agent instance (constructor will perform conversion)
+    const agent = new Agent({ jsonConfig: validatedConfig, callbacks });
     await agent._init();
     return agent;
   }
@@ -216,50 +197,29 @@ export class Agent {
    * @param config The agent configuration object
    * @param callbacks Optional runtime callbacks for events and dynamic data
    */
-  private constructor({config, callbacks}: {config: CoreAgentConfig, callbacks?: AgentCallbacks}) {
-    // Validate config
-    this._config = config;
+  private constructor({ jsonConfig, callbacks }: { jsonConfig: AgentConfig; callbacks?: AgentCallbacks }) {
+    this._bus = new TypedEventEmitter<BusEvents>();
+    this._config = convertToCoreAgentConfig(jsonConfig, this._bus, callbacks);
     this._callbacks = callbacks;
-
-    // Create private event bus
-    this._bus = new EventEmitter();
-
-    // Set up event forwarding from legacy global emitters to instance event bus
-    this._bridgeLegacyEvents();
-
-    // Attach callbacks if provided
     if (callbacks) {
       this._attachCallbacks(callbacks);
     }
+
+    CheckpointEvents.on(CHECKPOINT_READY_EVENT, (payload) => {
+      this._bus.emit('checkpoint:ready', payload as any);
+    });
   }
 
   private async _init(): Promise<void> {
+    this._sessionState = await createSessionState(this._config);
+
     // Initialize the core agent (no environment transformation needed)
-    this._core = await createAgent(this._config);
+    this._core = await createAgent(this._config, this._sessionState.id);
 
     // Bridge tool-registry events now that _core is available
     this._setupToolRegistryBridges();
   }
   
-  /**
-   * Bridge legacy global events to instance event bus
-   * This is an internal method to forward global events to this instance
-   */
-  private _bridgeLegacyEvents(): void {
-    // Forward agent events
-    for (const [legacyEvent, newEvent] of Object.entries(LEGACY_TO_NEW_EVENT_MAP)) {
-      const forwarder = (data: any) => {
-        console.log('Agent: Forwarding event', legacyEvent, 'to', newEvent, data);
-        this._bus.emit(newEvent, data);
-      };
-      
-      if (legacyEvent === CHECKPOINT_READY_EVENT) {
-        CheckpointEvents.on(legacyEvent, forwarder);
-      } else {
-        AgentEvents.on(legacyEvent, forwarder);
-      }
-    }
-  }
 
   /**
    * Hook tool-registry event emitters once the core agent has been created.
@@ -274,41 +234,51 @@ export class Agent {
       }
     }
 
-    this._core.toolRegistry.onToolExecutionStart((executionId, toolId, _toolUseId, args) => {
+    this._core.toolRegistry.onToolExecutionStart((executionId, toolId, startTime, toolUseId, args) => {
       const { toolName } = resolveToolMeta(toolId);
-      this._bus.emit('tool:execution:started', {
+      this._bus.emit(BusEvent.TOOL_EXECUTION_STARTED, {
+        sessionId: this._sessionState?.id,
+        status: ToolExecutionStatus.RUNNING,
+        toolUseId: toolUseId,
         id: executionId,
         toolName,
         toolId,
         args,
-        startTime: new Date().toISOString(),
+        startTime: new Date(startTime).toISOString(),
       });
     });
 
-    this._core.toolRegistry.onToolExecutionComplete((executionId, toolId, args, result, executionTime) => {
+    this._core.toolRegistry.onToolExecutionComplete((executionId, toolId, toolUseId, args, result, startTime, executionTime) => {
       const { toolName } = resolveToolMeta(toolId);
 
-      this._bus.emit('tool:execution:completed', {
+      this._bus.emit(BusEvent.TOOL_EXECUTION_COMPLETED, {
+        sessionId: this._sessionState.id,
+        status: ToolExecutionStatus.COMPLETED,
         id: executionId,
         toolName,
         toolId,
         args,
         result,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(startTime + executionTime).toISOString(),
         executionTime,
-        endTime: new Date().toISOString(),
+        toolUseId: toolUseId,
       });
     });
 
-    this._core.toolRegistry.onToolExecutionError((executionId, toolId, args, error) => {
+    this._core.toolRegistry.onToolExecutionError((executionId, toolId, toolUseId, startTime, args, error) => {
       const { toolName } = resolveToolMeta(toolId);
 
       this._bus.emit('tool:execution:error', {
+        sessionId: this._sessionState.id,
+        status: ToolExecutionStatus.ERROR,
         id: executionId,
         toolName,
         toolId,
         args,
         error,
-        endTime: new Date().toISOString(),
+        startTime: new Date(startTime).toISOString(),
+        toolUseId: toolUseId
       });
     });
   }
@@ -319,39 +289,39 @@ export class Agent {
    */
   private _attachCallbacks(callbacks: AgentCallbacks): void {
     if (callbacks.onProcessingStarted) {
-      this._bus.on('processing:started', callbacks.onProcessingStarted);
+      this._bus.on(BusEvent.PROCESSING_STARTED, callbacks.onProcessingStarted);
     }
     
     if (callbacks.onProcessingCompleted) {
-      this._bus.on('processing:completed', callbacks.onProcessingCompleted);
+      this._bus.on(BusEvent.PROCESSING_COMPLETED, callbacks.onProcessingCompleted);
     }
     
     if (callbacks.onProcessingError) {
-      this._bus.on('processing:error', callbacks.onProcessingError);
+      this._bus.on(BusEvent.PROCESSING_ERROR, callbacks.onProcessingError);
     }
     
     if (callbacks.onProcessingAborted) {
-      this._bus.on('processing:aborted', callbacks.onProcessingAborted);
+      this._bus.on(BusEvent.PROCESSING_ABORTED, callbacks.onProcessingAborted);
     }
     
     if (callbacks.onToolExecutionStarted) {
-      this._bus.on('tool:execution:started', callbacks.onToolExecutionStarted);
+      this._bus.on(BusEvent.TOOL_EXECUTION_STARTED, callbacks.onToolExecutionStarted);
     }
     
     if (callbacks.onToolExecutionCompleted) {
-      this._bus.on('tool:execution:completed', callbacks.onToolExecutionCompleted);
+      this._bus.on(BusEvent.TOOL_EXECUTION_COMPLETED, callbacks.onToolExecutionCompleted);
     }
     
     if (callbacks.onToolExecutionError) {
-      this._bus.on('tool:execution:error', callbacks.onToolExecutionError);
+      this._bus.on(BusEvent.TOOL_EXECUTION_ERROR, callbacks.onToolExecutionError);
     }
     
     if (callbacks.onEnvironmentStatusChanged) {
-      this._bus.on('environment:status_changed', callbacks.onEnvironmentStatusChanged);
+      this._bus.on(BusEvent.ENVIRONMENT_STATUS_CHANGED, callbacks.onEnvironmentStatusChanged);
     }
     
     if (callbacks.onCheckpointReady) {
-      this._bus.on('checkpoint:ready', callbacks.onCheckpointReady);
+      this._bus.on(BusEvent.CHECKPOINT_READY, callbacks.onCheckpointReady);
     }
   }
   
@@ -360,14 +330,14 @@ export class Agent {
    * 
    * @param query The query string to process
    * @param model Optional model to use (required if defaultModel not set in config)
-   * @param sessionState Optional session state
+   * @param contextWindow Optional context window. If omitted, the session will continue.
    * @returns A promise that resolves to the query result
    * @throws Error if no model is provided and no defaultModel is set in config
    */
   async processQuery(
     query: string, 
     model?: string, 
-    sessionState?: SessionState
+    contextWindow?: ContextWindow
   ): Promise<ProcessQueryResult> {
     await this._ensureRemoteId();
 
@@ -378,58 +348,44 @@ export class Agent {
         'Model must be supplied either in processQuery() or as defaultModel in config'
       );
     }
-    
-    return this._core.processQuery(query, chosenModel, sessionState);
-  }
 
-  static async createSessionState(config: AgentConfig, getRemoteId?: (sessionId: string) => Promise<string>, sessionId?: string, contextWindow?: ContextWindow): Promise<SessionState> {
-    return await createSessionState(convertToCoreAgentConfig(config, { getRemoteId }), sessionId, contextWindow);
-  }
-  
-  /**
-   * Run a simplified automated conversation
-   * This method is primarily used for testing and evaluation
-   * 
-   * @param initialQuery The initial user query
-   * @param model Optional model to use (required if defaultModel not set in config)
-   * @returns A promise that resolves to the conversation result
-   * @throws Error if no model is provided and no defaultModel is set in config
-   */
-  async runConversation(
-    initialQuery: string, 
-    model?: string
-  ): Promise<ConversationResult> {
-    await this._ensureRemoteId();
-
-    const chosenModel = model ?? this._config.defaultModel;
-    
-    if (!chosenModel) {
-      throw new Error(
-        'Model must be supplied either in runConversation() or as defaultModel in config'
-      );
+    if (contextWindow) {
+      this._sessionState.contextWindow = contextWindow;
     }
     
-    return this._core.runConversation(initialQuery, chosenModel);
+    this._sessionState.abortController = new AbortController();
+    this._sessionState.aborted = false;
+
+    return this._core.processQuery(query, chosenModel, this._sessionState);
   }
 
-  static async performRollback(sessionId: string, sessionState: SessionState, messageId: string) {
-    return rollbackSession(sessionId, sessionState, messageId);
+  static async createContextWindow(messages?: Message[]): Promise<ContextWindow> {
+    return createContextWindow(messages);
+  }
+  
+  abort() {
+    setSessionAborted(this._sessionState, this._bus);
+  }
+
+  isAborted() {
+    return this._sessionState.aborted;
+  }
+
+  clearAbort() {
+    this._sessionState.aborted = false;
+  }
+
+  performRollback(messageId: string) {
+    return rollbackSession(this._sessionState, messageId, this._bus);
+  }
+
+  static async performRollback(sessionState: SessionState, messageId: string) {
+    const bus = new TypedEventEmitter<BusEvents>();
+    return rollbackSession(sessionState, messageId, bus);
   }
 
   static async getAvailableModels(llmApiKey?: string) {
     return LLMFactory.getAvailableModels(llmApiKey);
-  }
-
-  static isSessionAborted(sessionId: string) {
-    return isSessionAborted(sessionId);
-  }
-
-  static setSessionAborted(sessionId: string) {
-    return setSessionAborted(sessionId);
-  }
-
-  static clearSessionAborted(sessionId: string) {
-    return clearSessionAborted(sessionId);
   }
 
   setFastEditMode(enabled: boolean) {
@@ -463,9 +419,9 @@ export class Agent {
    * @param handler The event handler function
    * @returns A function that can be called to unsubscribe the handler
    */
-  on<E extends AgentEvent>(
+  on<E extends BusEventKey>(
     event: E, 
-    handler: (data: AgentEventMap[E]) => void
+    handler: (data: BusEvents[E]) => void
   ): () => void {
     this._bus.on(event, handler);
     return () => this._bus.off(event, handler);
@@ -477,9 +433,9 @@ export class Agent {
    * @param event The event name to unsubscribe from
    * @param handler The event handler function to remove
    */
-  off<E extends AgentEvent>(
-    event: E, 
-    handler: (data: AgentEventMap[E]) => void
+  off<E extends BusEventKey>(
+    event: E,
+    handler: (data: BusEvents[E]) => void
   ): void {
     this._bus.off(event, handler);
   }

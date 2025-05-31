@@ -18,9 +18,9 @@ function createToolRegistry(): ToolRegistry {
   // Index to look up tools by category
   const toolsByCategory = new Map<ToolCategory, Set<string>>();
   
-  const startCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void> = [];
-  const completeCallbacks: Array<(executionId: string, toolId: string, args: Record<string, unknown>, result: unknown, executionTime: number) => void> = [];
-  const errorCallbacks: Array<(executionId: string, toolId: string, args: Record<string, unknown>, error: Error) => void> = [];
+  const startCallbacks: Array<(executionId: string, toolId: string, startTime: number, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void> = [];
+  const completeCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, result: unknown, startTime: number, executionTime: number) => void> = [];
+  const errorCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, startTime: number, args: Record<string, unknown>, error: Error) => void> = [];
   
   return {
     /**
@@ -90,7 +90,7 @@ function createToolRegistry(): ToolRegistry {
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionStart(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void {
+    onToolExecutionStart(callback: (executionId: string, toolId: string, startTime: number, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void {
       startCallbacks.push(callback);
       
       // Return unsubscribe function
@@ -107,7 +107,7 @@ function createToolRegistry(): ToolRegistry {
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionComplete(callback: (executionId: string, toolId: string, args: Record<string, unknown>, result: unknown, executionTime: number) => void): () => void {
+    onToolExecutionComplete(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, result: unknown, startTime: number, executionTime: number) => void): () => void {
       completeCallbacks.push(callback);
       
       // Return unsubscribe function
@@ -124,7 +124,7 @@ function createToolRegistry(): ToolRegistry {
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionError(callback: (executionId: string, toolId: string, args: Record<string, unknown>, error: Error) => void): () => void {
+    onToolExecutionError(callback: (executionId: string, toolId: string, toolUseId: string, startTime: number, args: Record<string, unknown>, error: Error) => void): () => void {
       errorCallbacks.push(callback);
       
       // Return unsubscribe function
@@ -180,7 +180,7 @@ function createToolRegistry(): ToolRegistry {
       }
 
       // Notify start callbacks
-      startCallbacks.forEach(callback => callback(context.executionId, toolId, toolUseId, args, context));
+      startCallbacks.forEach(callback => callback(context.executionId, toolId, startTime, toolUseId, args, context));
       
       const startTime = Date.now();
       try {
@@ -194,7 +194,7 @@ function createToolRegistry(): ToolRegistry {
        
         // Notify complete callbacks
         completeCallbacks.forEach(callback => 
-          callback(context.executionId, toolId, args, result, executionTime)
+          callback(context.executionId, toolId, toolUseId, args, result, startTime, executionTime)
         );
         
         return result;
@@ -202,7 +202,7 @@ function createToolRegistry(): ToolRegistry {
         console.error('Tool execution error:', error);
         // Notify error callbacks
         errorCallbacks.forEach(callback => 
-          callback(context.executionId, toolId, args, error instanceof Error ? error : new Error(String(error)))
+          callback(context.executionId, toolId, toolUseId, startTime, args, error instanceof Error ? error : new Error(String(error)))
         );
         
         // Re-throw the error

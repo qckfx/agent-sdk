@@ -4,19 +4,13 @@
 
 import { Agent, CoreAgentConfig } from '../types/main.js';
 import { ModelProvider, SessionState } from '../types/model.js';
-import { LogLevel, Logger, createLogger } from '../utils/logger.js';
+import { LogLevel, createLogger } from '../utils/logger.js';
 import { ContextWindow, createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
 import { createModelClient } from './ModelClient.js';
 import { createDefaultPromptManager, createPromptManager } from './PromptManager.js';
 import { createAgentRunner } from './AgentRunner.js';
-
-// Execution adapters
-import { LocalExecutionAdapter } from '../utils/LocalExecutionAdapter.js';
-import { E2BExecutionAdapter } from '../utils/E2BExecutionAdapter.js';
-import { DockerContainerManager } from '../utils/DockerContainerManager.js';
-import { DockerExecutionAdapter } from '../utils/DockerExecutionAdapter.js';
 
 // Default tools
 import { createBashTool } from '../tools/BashTool.js';
@@ -33,8 +27,6 @@ import { createSubAgentTool } from '../tools/SubAgentTool.js';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { isSessionAborted } from '../utils/sessionUtils.js';
-import { AgentConfig } from '@qckfx/sdk-schema';
 import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
 
 /**
@@ -42,13 +34,13 @@ import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
  * @param config - Agent configuration
  * @returns The configured agent
  */
-export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
+export const createAgent = async (config: CoreAgentConfig, sessionId: string): Promise<Agent> => {
   if (!config.modelProvider) {
     throw new Error('Agent requires a modelProvider function');
   }
   
   // Create core components
-  const logger = config.logger || createLogger({ level: LogLevel.INFO });
+  const logger = config.logger || createLogger({ level: LogLevel.INFO, sessionId: sessionId });
   
   // Create tool registry first
   const toolRegistry = createToolRegistry();
@@ -150,10 +142,11 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
       const remoteId = await config.getRemoteId!(sessionId);
       const { adapter } = await createExecutionAdapter({
         sessionId: sessionId,
+        eventBus: config.eventBus,
         type: 'remote',
         logger: config.logger,
         projectsRoot: "/home/user/projects",
-        e2b: {
+        remote: {
           sandboxId: remoteId,
           projectsRoot: "/home/user/projects",
         },
@@ -167,6 +160,7 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
       toolRegistry,
       permissionManager,
       logger,
+      eventBus: config.eventBus,
       executionAdapter,
       promptManager: config.promptManager || createDefaultPromptManager()
     });
@@ -182,19 +176,8 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
     logger,
 
     // Helper methods
-    async processQuery(query, model, sessionState?: SessionState) {
-      if (!sessionState) {
-        sessionState = await createSessionState(config);
-      }
-
+    async processQuery(query, model, sessionState: SessionState) {
       const runner = await _agentRunner(sessionState.id, sessionState.executionAdapter);
-
-      if (!sessionState.abortController) {
-        sessionState.abortController = new AbortController();
-      } else if (sessionState.abortController.signal.aborted && !isSessionAborted(sessionState.id)) {
-        // We already processed the abort, safe to refresh
-        sessionState.abortController = new AbortController();
-      }
 
       // Generate directory structure and git state maps only if they haven't been generated for this session yet
       const isDirectoryStructureGenerated = sessionState.multiRepoTracking?.directoryStructureGenerated ?? sessionState.directoryStructureGenerated ?? false;
@@ -230,17 +213,6 @@ export const createAgent = async (config: CoreAgentConfig): Promise<Agent> => {
       return runner.processQuery(query, model, sessionState);
     },
     
-    /**
-     * Run a simplified automated conversation (primarily used for testing)
-     * @param initialQuery - The initial user query
-     * @param model - The model to use for this conversation
-     * @returns The conversation results
-     */
-    async runConversation(initialQuery, model) {
-      const runner = await _agentRunner(uuidv4().toString());
-      return runner.runConversation(initialQuery, model);
-    },
-    
     registerTool(tool) {
       toolRegistry.registerTool(tool);
     },
@@ -254,8 +226,9 @@ export const createSessionState = async (config: CoreAgentConfig, sessionId?: st
   sessionId: sid,
   type: 'remote',
   logger: config.logger,
+  eventBus: config.eventBus,
   projectsRoot: "/home/user/projects",
-  e2b: {
+  remote: {
     sandboxId: remoteId,
     projectsRoot: "/home/user/projects",
   },
@@ -270,6 +243,7 @@ export const createSessionState = async (config: CoreAgentConfig, sessionId?: st
      defaultModel: config.defaultModel, 
      cachingEnabled: config.cachingEnabled ?? true 
    },
+   aborted: false,
    remoteId: remoteId,
    executionAdapter: adapter,
  };

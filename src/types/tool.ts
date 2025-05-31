@@ -9,6 +9,7 @@ import { GitRepositoryInfo } from "./repository.js";
 import { SessionState } from "./model.js";
 import { PermissionManager } from "./permission.js";
 import { ToolResult } from "./tool-result.js";
+import { Logger } from "./logger.js";
 
 /**
  * Categories for tools to classify their purpose and permission requirements
@@ -99,12 +100,7 @@ export interface ToolConfig<Res extends ToolResult = ToolResult> {
 export interface ToolContext {
   executionId: string;
   permissionManager?: PermissionManager;
-  logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  logger?: Logger;
   executionAdapter: ExecutionAdapter;
   toolRegistry?: {
     getAllTools: () => Tool[];

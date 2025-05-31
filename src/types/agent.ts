@@ -9,6 +9,10 @@ import { ToolRegistry } from './registry.js';
 import { ExecutionAdapter } from './tool.js';
 import { SessionState } from './model.js';
 import { PromptManager } from '../core/PromptManager.js';
+import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+import { BusEvents } from './bus-events.js';
+import { Logger } from './logger.js';
+import { ContextWindow } from './contextWindow.js';
 
 /** @internal */
 export interface AgentRunnerConfig {
@@ -17,12 +21,8 @@ export interface AgentRunnerConfig {
   permissionManager: PermissionManager;
   executionAdapter: ExecutionAdapter;
   promptManager: PromptManager;
-  logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  eventBus: TypedEventEmitter<BusEvents>;
+  logger: Logger;
 }
 
 /** @internal */
@@ -43,7 +43,7 @@ export interface ProcessQueryResult {
   };
   // Response may be undefined if a rollback occurred during the query.
   response?: string;
-  sessionState: SessionState;
+  contextWindow: ContextWindow;
   done: boolean;
   error?: string;
   /** Whether the operation was aborted */
@@ -61,7 +61,6 @@ export interface AgentRunner {
   executionAdapter: ExecutionAdapter;
   promptManager: PromptManager;
   processQuery(query: string, model: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
-  runConversation(initialQuery: string, model: string): Promise<ConversationResult>;
 }
 
 // Legacy interfaces from the original agent.ts file

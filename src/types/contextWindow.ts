@@ -21,7 +21,7 @@ export class ContextWindow {
   // Private file tracking
   private _filesRead: Set<string>;
   
-  constructor(messages?: Anthropic.Messages.MessageParam[]) {
+  constructor(messages?: Message[]) {
     // If we were given raw Anthropic messages, wrap them so we maintain a
     // consistent internal shape.  This scenario happens mainly in tests.
     if (messages) {
@@ -86,7 +86,7 @@ export class ContextWindow {
    * API.  No new code inside the repo should rely on positional indexes; use
    * the wrapper objects instead when you need metadata.
    */
-  public getMessages(): Anthropic.Messages.MessageParam[] {
+  public getMessages(): Message[] {
     return this._messages.map((m) => m.anthropic);
   }
 
@@ -107,7 +107,7 @@ export class ContextWindow {
     return this._messages[this._messages.length - 1];
   }
 
-  public push(message: Anthropic.Messages.MessageParam): string {
+  public push(message: Message): string {
     const id = nanoid();
     this._messages.push({
       id,
@@ -209,7 +209,7 @@ export class ContextWindow {
     return this._messages.length;
   }
   
-  public setMessages(messages: Anthropic.Messages.MessageParam[]): void {
+  public setMessages(messages: Message[]): void {
     this._messages = messages.map((m) => ({
       id: nanoid(),
       anthropic: m,
@@ -241,7 +241,9 @@ export class ContextWindow {
   }
 }
 
+export type Message = Anthropic.Messages.MessageParam;
+
 // Factory function for creating new context windows
-export function createContextWindow(messages?: Anthropic.Messages.MessageParam[]): ContextWindow {
+export function createContextWindow(messages?: Message[]): ContextWindow {
   return new ContextWindow(messages);
 }

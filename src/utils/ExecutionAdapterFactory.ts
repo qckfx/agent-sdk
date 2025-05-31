@@ -2,9 +2,11 @@ import { ExecutionAdapter } from '../types/tool.js';
 import { LocalExecutionAdapter } from './LocalExecutionAdapter.js';
 import { DockerExecutionAdapter } from './DockerExecutionAdapter.js';
 import { DockerContainerManager } from './DockerContainerManager.js';
-import { E2BExecutionAdapter } from './E2BExecutionAdapter.js';
+import { RemoteExecutionAdapter } from './RemoteExecutionAdapter.js';
 import { CheckpointingExecutionAdapter } from './CheckpointingExecutionAdapter.js';
-import { LogCategory } from './logger.js';
+import { LogCategory, Logger } from './logger.js';
+import { TypedEventEmitter } from './TypedEventEmitter.js';
+import { BusEvents } from '../types/bus-events.js';
 
 export type ExecutionAdapterType = 'local' | 'docker' | 'remote';
 
@@ -34,9 +36,9 @@ export interface ExecutionAdapterFactoryOptions {
   };
   
   /**
-   * E2B-specific options
+   * Remote execution options
    */
-  e2b?: {
+  remote?: {
     sandboxId?: string;
     projectsRoot?: string;
   };
@@ -51,17 +53,17 @@ export interface ExecutionAdapterFactoryOptions {
   /**
    * Logger for execution adapter
    */
-  logger?: {
-    debug: (message: string, ...args: unknown[]) => void;
-    info: (message: string, ...args: unknown[]) => void;
-    warn: (message: string, ...args: unknown[]) => void;
-    error: (message: string, ...args: unknown[]) => void;
-  };
+  logger?: Logger;
   
   /**
    * Session ID (for checkpointing)
    */
   sessionId: string;
+
+  /**
+   * The per-agent event bus for lifecycle events.
+   */
+  eventBus: TypedEventEmitter<BusEvents>;
 }
 
 /**
@@ -118,7 +120,7 @@ export async function createExecutionAdapter(
       }
       
       // Create Docker execution adapter
-      const dockerAdapter = new DockerExecutionAdapter(containerManager, { logger });
+      const dockerAdapter = new DockerExecutionAdapter(options.sessionId, containerManager, { logger, eventBus: options.eventBus });
       
       // Verify Docker adapter is working by running a simple test command
       try {
@@ -166,15 +168,16 @@ export async function createExecutionAdapter(
     if (type === 'remote') {
       logger?.info('Creating E2B execution adapter', LogCategory.SYSTEM);
       
-      if (!options.e2b?.sandboxId) {
+      if (!options.remote?.sandboxId) {
         fallbackReason = 'E2B sandbox ID is required';
         throw new Error(fallbackReason);
       }
       
-      const projectsRoot = options.e2b.projectsRoot || options.projectsRoot || '/home/user/projects';
-      const e2bAdapter = await E2BExecutionAdapter.create(options.e2b.sandboxId, { 
+      const projectsRoot = options.remote.projectsRoot || options.projectsRoot || '/home/user/projects';
+      const e2bAdapter = await RemoteExecutionAdapter.create(options.remote.sandboxId, options.sessionId, { 
         logger,
-        projectsRoot 
+        projectsRoot,
+        eventBus: options.eventBus,
       });
       
       // Create concrete adapter
@@ -218,7 +221,7 @@ export async function createExecutionAdapter(
   logger?.info('Creating local execution adapter', LogCategory.SYSTEM);
   
   // Create concrete adapter
-  const localAdapter = new LocalExecutionAdapter({ logger });
+  const localAdapter = new LocalExecutionAdapter(options.sessionId, { logger, eventBus: options.eventBus });
   let concreteAdapter: ExecutionAdapter = localAdapter;
  
   const res = await localAdapter.executeCommand('get-pwd', 'pwd');

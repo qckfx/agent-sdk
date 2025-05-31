@@ -11,12 +11,9 @@ import {
 import { SessionState } from '../types/model.js';
 import { LogCategory, createLogger, LogLevel } from '../utils/logger.js';
 
-import { 
-  isSessionAborted, 
-  clearSessionAborted, 
-  AgentEvents, 
-  AgentEventType 
-} from '../utils/sessionUtils.js';
+import { isSessionAborted, clearSessionAborted } from '../utils/sessionUtils.js';
+import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+import { BusEvents, BusEvent } from '../types/bus-events.js';
 import { FsmDriver } from './FsmDriver.js';
 import { createContextWindow } from '../types/contextWindow.js';
 import { attachCheckpointSync } from '../utils/CheckpointSync.js';
@@ -28,13 +25,12 @@ import { attachCheckpointSync } from '../utils/CheckpointSync.js';
  * @internal
  */
 export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
+  const eventBus: TypedEventEmitter<BusEvents> = config.eventBus;
+
   // Listen for abort events just for logging purposes
-  AgentEvents.on(
-    AgentEventType.ABORT_SESSION,
-    (sessionId: string) => {
-      console.log(`AgentRunner received abort event for session: ${sessionId}`);
-    }
-  );
+  eventBus.on(BusEvent.PROCESSING_ABORTED, ({ sessionId }) => {
+    console.log(`AgentRunner received abort event for session: ${sessionId}`);
+  });
   // Validate required dependencies
   if (!config.modelClient) throw new Error('AgentRunner requires a modelClient');
   if (!config.toolRegistry) throw new Error('AgentRunner requires a toolRegistry');
@@ -45,10 +41,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
   const toolRegistry = config.toolRegistry;
   const permissionManager = config.permissionManager;
   const executionAdapter = config.executionAdapter;
-  const logger = config.logger || createLogger({
-    level: LogLevel.DEBUG,
-    prefix: 'AgentRunner'
-  });
+  const logger = config.logger;
   
   // Return the public interface
   return {
@@ -72,35 +65,21 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         logger.error('Cannot process query: Missing sessionId in session state', LogCategory.SYSTEM);
         return {
           error: 'Missing sessionId in session state',
-          sessionState,
+          contextWindow: sessionState.contextWindow,
           done: true,
           aborted: false
         };
       }
       
       // Check if the session is already aborted - short-circuit if it is
-      if (isSessionAborted(sessionId)) {
+      if (isSessionAborted(sessionState)) {
         logger.info(`Session ${sessionId} is aborted, skipping FSM execution`, LogCategory.SYSTEM);
-        try {
-          return {
-            aborted: true,
-            done: true,
-            sessionState,
-            response: "Operation aborted by user"
-          };
-        } finally {
-          // Always clear abort status and refresh the AbortController
-          clearSessionAborted(sessionId);
-          sessionState.abortController = new AbortController();
-          logger.info(`Cleared abort status for short-circuit path`, LogCategory.SYSTEM);
-        }
-      }
-      
-      // Make sure we have an AbortController
-      if (!sessionState.abortController) {
-        // Create a new AbortController in the sessionState
-        sessionState.abortController = new AbortController();
-        console.log(`[AgentRunner] Created new AbortController for session ${sessionId}`);
+        return {
+          aborted: true,
+          done: true,
+          contextWindow: sessionState.contextWindow,
+          response: "Operation aborted by user"
+        };
       }
 
       // Keep the session's ContextWindow synced with checkpoints (idempotent)
@@ -116,7 +95,8 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         // Create a logger for the FSM driver
         const fsmLogger = createLogger({
           level: LogLevel.DEBUG,
-          prefix: 'FsmDriver'
+          prefix: 'FsmDriver',
+          sessionId
         });
         
         // Create the finite state machine driver
@@ -149,7 +129,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
         //   2. Clear the abort status and swap in a fresh AbortController so
         //      subsequent requests can proceed normally.
         if (aborted) {
-          const skipAck = (sessionState as any).skipAbortAck === true;
+          const skipAck = sessionState.skipAbortAck === true;
 
           const msgs = sessionState.contextWindow.getMessages();
           const last = msgs[msgs.length - 1];
@@ -167,27 +147,27 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
 
           // We've honoured the abort request – reset the session‑level flag
           // and prepare for the next interaction.
-          clearSessionAborted(sessionId);  // We've honored the abort request
+          clearSessionAborted(sessionState);  // We've honored the abort request
           // Create a new AbortController for the next message
           sessionState.abortController = new AbortController();
 
           // Clear one-shot suppression flag so future aborts still generate
           // the acknowledgement message.
-          if ((sessionState as any).skipAbortAck) {
-            delete (sessionState as any).skipAbortAck;
+          if (sessionState.skipAbortAck) {
+            delete sessionState.skipAbortAck;
           }
           logger.info(`Cleared abort status after handling abort in FSM`, LogCategory.SYSTEM);
         }
 
         // Emit an event to signal processing is completed - will be captured by WebSocketService
-        AgentEvents.emit(AgentEventType.PROCESSING_COMPLETED, {
+        eventBus.emit(BusEvent.PROCESSING_COMPLETED, {
           sessionId,
-          response
+          response: response || '',
         });
         
         // Return the result
         return {
-          sessionState,
+          contextWindow: sessionState.contextWindow,
           response,
           done: true,
           aborted,
@@ -197,55 +177,15 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
           }
         };
       } catch (error: unknown) {
-        logger.error('Error in processQuery:', error, LogCategory.SYSTEM);
+        logger.error('Error in processQuery:', error as Error, LogCategory.SYSTEM);
         
         return {
           error: (error as Error).message,
-          sessionState,
+          contextWindow: sessionState.contextWindow,
           done: true,
-          aborted: isSessionAborted(sessionId)
+          aborted: isSessionAborted(sessionState)
         };
       }
-    },
-    
-    /**
-     * Run a conversation loop until completion
-     * @param initialQuery - The initial user query
-     * @param model - The model to use for this conversation
-     * @returns The final result
-     */
-    async runConversation(initialQuery: string, model: string): Promise<ConversationResult> {
-      let query = initialQuery;
-      let sessionState: Record<string, unknown> = { contextWindow: createContextWindow() };
-      let done = false;
-      const responses: string[] = [];
-      
-      while (!done) {
-        const result = await this.processQuery(query, model, sessionState);
-        
-        if (result.error) {
-          logger.error('Error in conversation:', result.error, LogCategory.SYSTEM);
-          responses.push(`Error: ${result.error}`);
-          break;
-        }
-        
-        if (result.response) {
-          responses.push(result.response);
-        }
-        
-        sessionState = result.sessionState;
-        done = result.done;
-        
-        // If not done, we would get the next user query here
-        if (!done) {
-          query = 'Continue'; // For automated runs
-        }
-      }
-      
-      return {
-        responses,
-        sessionState
-      };
     },
   };
 }

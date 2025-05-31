@@ -3,8 +3,10 @@
  * @module SessionUtils
  * @internal
  */
-import { EventEmitter } from 'events';
+import { BusEvent, BusEvents } from '../types/bus-events.js';
+import { SessionState } from '../types/model.js';
 import { GitRepositoryInfo, DirtyRepositoryStatus } from '../types/repository.js';
+import { TypedEventEmitter } from './TypedEventEmitter.js';
 
 /**
  * Global event emitter for agent-wide events
@@ -21,49 +23,7 @@ import { GitRepositoryInfo, DirtyRepositoryStatus } from '../types/repository.js
  * });
  * ```
  */
-export const AgentEvents = new EventEmitter();
-
-/**
- * Event types for agent operations
- * 
- * These events represent high-level agent lifecycle and operational events
- * that can be subscribed to through the {@link AgentEvents} emitter.
- * 
- * @enum {string}
- */
-export enum AgentEventType {
-  /**
-   * Emitted when a session is manually aborted by the user or system
-   * @event
-   * @type {string} sessionId - The ID of the aborted session
-   */
-  ABORT_SESSION = 'abort_session',
-  
-  /**
-   * Emitted when the execution environment status changes
-   * @event
-   * @type {EnvironmentStatusEvent} - Environment status information
-   */
-  ENVIRONMENT_STATUS_CHANGED = 'environment_status_changed',
-  
-  /**
-   * Emitted when the agent completes processing a user query
-   * @event
-   * @type {object} data
-   * @property {string} sessionId - The session ID
-   * @property {string} response - The response text from the agent
-   */
-  PROCESSING_COMPLETED = 'processing_completed'
-
-  ,
-  /**
-   * Emitted when a rollback operation successfully completes.
-   * @event
-   * @type {{ sessionId: string; commitSha: string }} data – details of the
-   *   rollback that was applied.
-   */
-  ROLLBACK_COMPLETED = 'rollback_completed'
-}
+// All event handling is now performed through a per-Agent TypedEventEmitter.
 
 /**
  * Environment status update event data
@@ -97,13 +57,6 @@ export interface EnvironmentStatusEvent {
 }
 
 /**
- * Track aborted sessions with timestamps
- * This is the single source of truth for abort status
- * @internal
- */
-export const abortedSessions = new Map<string, number>();
-
-/**
  * Check if a session has been aborted
  * This function is used to check if an operation should be stopped mid-execution.
  * 
@@ -111,9 +64,9 @@ export const abortedSessions = new Map<string, number>();
  * @returns Whether the session has been aborted
  * @internal
  */
-export function isSessionAborted(sessionId: string): boolean {
+export function isSessionAborted(sessionState: SessionState): boolean {
   // Check for aborted events in the session registry - the single source of truth
-  return abortedSessions.has(sessionId);
+  return sessionState.aborted;
 }
 
 /**
@@ -122,8 +75,8 @@ export function isSessionAborted(sessionId: string): boolean {
  * @returns The timestamp when the session was aborted, or null if not aborted
  * @internal
  */
-export function getAbortTimestamp(sessionId: string): number | null {
-  return abortedSessions.get(sessionId) ?? null;
+export function getAbortTimestamp(sessionState: SessionState): number | null {
+  return sessionState.abortedAt ?? null;
 }
 
 /**
@@ -132,13 +85,13 @@ export function getAbortTimestamp(sessionId: string): number | null {
  * @returns The timestamp when the session was aborted
  * @internal
  */
-export function setSessionAborted(sessionId: string): number {
+export function setSessionAborted(sessionState: SessionState, eventBus: TypedEventEmitter<BusEvents>): number {
   // Update the centralized abort registry with the current timestamp
   const timestamp = Date.now();
-  abortedSessions.set(sessionId, timestamp);
+  sessionState.aborted = true;
   
   // Emit abort event for all listeners
-  AgentEvents.emit(AgentEventType.ABORT_SESSION, sessionId);
+  eventBus.emit(BusEvent.PROCESSING_ABORTED, { sessionId: sessionState.id });
   
   return timestamp;
 }
@@ -148,8 +101,8 @@ export function setSessionAborted(sessionId: string): number {
  * @param sessionId The session ID to clear
  * @internal
  */
-export function clearSessionAborted(sessionId: string): void {
-  abortedSessions.delete(sessionId);
+export function clearSessionAborted(sessionState: SessionState): void {
+  sessionState.aborted = false;
 }
 
 /**
