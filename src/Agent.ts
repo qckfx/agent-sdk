@@ -28,6 +28,7 @@ import {
 } from './events/checkpoint-events.js';
 import { LLMFactory } from './providers/AnthropicProvider.js';
 import { ContextWindow } from './types/contextWindow.js';
+import { ToolRegistry } from './types/registry.js';
 
 // Legacy to new event name mapping 
 const LEGACY_TO_NEW_EVENT_MAP: Record<string, AgentEvent> = {
@@ -124,6 +125,90 @@ export class Agent {
     await agent._init();
     return agent;
   }
+
+
+  /**
+   * Execute a tool manually while preserving all the bookkeeping the agent
+   * normally performs when the LLM initiates the call.  This will:
+   *   • append the correct `tool_use` / `tool_result` blocks to the
+   *     session's ContextWindow
+   *   • fire the tool execution lifecycle events that the Agent instance
+   *     already re-emits (`tool:execution:*`)
+   *   • honour permission prompts, abort signals and checkpoint logic – all
+   *     handled internally by the same helper that the FSM driver uses.
+   *
+   * @param toolId        The identifier of the tool to run
+   * @param args          Arguments for the tool
+   * @param sessionState  Optional session.  If omitted a new one is created
+   *                      (mirrors `processQuery` behaviour).
+   *
+   * @returns The raw value returned by the tool’s `execute` method
+   */
+  public async invokeTool(
+    toolId: string,
+    args: Record<string, unknown>,
+    sessionState?: SessionState,
+  ): Promise<unknown> {
+    // Lazily create a session when the caller does not provide one.
+    if (!sessionState) {
+      sessionState = await createSessionState(this._config);
+    }
+
+    // Ensure we have an AbortController to match AgentRunner semantics.
+    if (!sessionState.abortController) {
+      sessionState.abortController = new AbortController();
+    }
+
+    const toolRegistry = this._core.toolRegistry;
+
+    const tool = toolRegistry.getTool(toolId);
+    if (!tool) {
+      throw new Error(`Tool '${toolId}' is not registered with this Agent.`);
+    }
+
+    // ------------------------------------------------------------------
+    // Conversation history – record the tool_use message first
+    // ------------------------------------------------------------------
+    const { nanoid } = await import('nanoid');
+    const toolUseId = nanoid();
+    const cw = sessionState.contextWindow;
+
+    // Push the tool_use.  Capture the conversation-message id so we can use
+    // it as the executionId when propagating events.
+    const executionId = cw.pushToolUse({
+      id: toolUseId,
+      name: toolId,
+      input: args,
+    });
+
+    // ------------------------------------------------------------------
+    // Execute through the same helper path as the FSM driver
+    // ------------------------------------------------------------------
+    const { withToolCall } = await import('./utils/withToolCall.js');
+
+    // We do not need the cumulative array for external callers, but
+    // withToolCall requires one for in-memory tracking.
+    const toolResults: any[] = [];
+
+    const result = await withToolCall(
+      { toolId, toolUseId, args },
+      sessionState,
+      toolResults as any,
+      (ctx) =>
+        toolRegistry.executeToolWithCallbacks(toolId, toolUseId, args, ctx),
+      {
+        executionId,
+        permissionManager: this._core.permissionManager,
+        logger: this._core.logger,
+        executionAdapter: sessionState.executionAdapter!,
+        toolRegistry,
+        sessionState,
+        abortSignal: sessionState.abortController?.signal,
+      },
+    );
+
+    return result;
+  }
   
   /**
    * Create a new agent instance
@@ -164,6 +249,7 @@ export class Agent {
     // Forward agent events
     for (const [legacyEvent, newEvent] of Object.entries(LEGACY_TO_NEW_EVENT_MAP)) {
       const forwarder = (data: any) => {
+        console.log('Agent: Forwarding event', legacyEvent, 'to', newEvent, data);
         this._bus.emit(newEvent, data);
       };
       

@@ -92,6 +92,7 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
       if (options?.logger) {
         options.logger.info('E2B sandbox connecting...', LogCategory.SYSTEM);
       }
+      console.log('E2BExecutionAdapter: Connecting to sandbox', sandboxId);
       
       // Emit event from static context before instance is created
       const initStatusEvent: EnvironmentStatusEvent = {

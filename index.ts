@@ -26,6 +26,12 @@ export type {
   ToolContext,
 } from './src/types/tool.js';
 
+export { ToolRegistry } from './src/types/registry.js';
+
+export type {
+  ToolDescription,
+} from './src/types/registry.js';
+
 export type {
   ToolExecutionState,
   PermissionRequestState
