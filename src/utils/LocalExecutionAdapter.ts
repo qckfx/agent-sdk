@@ -19,7 +19,6 @@ const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const mkdtempAsync = promisify(fs.mkdtemp);
 const mkdirAsync = promisify(fs.mkdir);
-const globAsync = promisify(glob);
 
 export class LocalExecutionAdapter implements ExecutionAdapter {
   private sessionId: string;
@@ -268,7 +267,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
   }
 
   async glob(executionId: string, pattern: string, options: any = {}): Promise<string[]> {
-    return globAsync(pattern, options) as Promise<string[]>;
+    return glob(pattern, options) as Promise<string[]>;
   }
 
   async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string) {
@@ -328,52 +327,60 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       }
     }
     
-    // For text files, use standard text reading approach
-    let content = '';
-    if (lineOffset > 0 || lineCount !== undefined) {
-      // Use head and tail with nl for pagination, starting line numbers from lineOffset+1
-      const { stdout } = await execAsync(`head -n ${lineOffset + (lineCount || 0)} "${resolvedPath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`);
-      content = stdout;
-    } else {
-      // Use nl for the whole file
-      const { stdout } = await execAsync(`nl "${resolvedPath}"`);
-      content = stdout;
-    }
-    
-    // Handle line pagination if requested
-    if (lineOffset > 0 || lineCount !== undefined) {
-      const lines = content.split('\n');
-      const startLine = Math.min(lineOffset, lines.length);
-      const endLine = lineCount !== undefined 
-        ? Math.min(startLine + lineCount, lines.length) 
-        : lines.length;
-      
-      content = lines.slice(startLine, endLine).join('\n');
-      
-      return {
-        ok: true as const,
-        data: {
-          path: resolvedPath,
-          content,
-          size: stats.size,
-          encoding,
-          pagination: {
-            totalLines: lines.length,
-            startLine,
-            endLine,
-            hasMore: endLine < lines.length
-          }
-        }
-      };
-    }
-    
+    // ------------------------------------------------------
+    // TEXT FILE HANDLING (utf-8 and friends)
+    // ------------------------------------------------------
+    // The previous implementation relied on spawning external
+    // `head`, `tail` and `nl` commands. That approach had a few
+    // drawbacks:
+    //   1. Performance – every invocation spawns a new shell
+    //      process which is noticeably slower, especially on
+    //      macOS and even more so on Windows where GNU coreutils
+    //      are not available by default.
+    //   2. Portability – `nl` is not shipped with the default
+    //      Windows environment leading to runtime failures.
+    //   3. Correctness – once the command already paginated the
+    //      output, we were slicing the text a second time which
+    //      produced empty results for many (offset, count)
+    //      combinations.
+    //
+    // Given that FileReadTool imposes a hard 500 kB limit (and
+    // passes the requested `maxSize` to this adapter) it is safe
+    // and much faster to read the file directly into memory and
+    // perform the minimal pagination/numbering logic in JS.
+
+    // Read the entire file – we have already checked that it does
+    // not exceed `maxSize`.
+    const rawText = await fs.promises.readFile(resolvedPath, encoding as BufferEncoding);
+
+    // Split into lines (preserve empty trailing line if present)
+    const allLines = rawText.split(/\r?\n/);
+
+    // Determine slice bounds
+    const startIdx = Math.max(0, lineOffset);
+    const endIdx = lineCount !== undefined ? Math.min(startIdx + lineCount, allLines.length) : allLines.length;
+
+    const requestedLines = allLines.slice(startIdx, endIdx);
+
+    // Prefix each line with its (1-based) number using a tab – the
+    // same format that the `nl` utility would produce.
+    const numbered = requestedLines.map((ln, i) => `${(startIdx + i + 1).toString().padStart(6, ' ')}\t${ln}`);
+
+    const content = numbered.join('\n');
+
     return {
       ok: true as const,
       data: {
         path: resolvedPath,
         content,
         size: stats.size,
-        encoding
+        encoding,
+        pagination: {
+          totalLines: allLines.length,
+          startLine: startIdx,
+          endLine: endIdx,
+          hasMore: endIdx < allLines.length
+        }
       }
     };
   } 
