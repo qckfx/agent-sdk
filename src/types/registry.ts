@@ -28,7 +28,7 @@ export interface ToolRegistry {
   isToolInCategory(toolId: string, category: ToolCategory): boolean;
   
   // Methods for tool execution event handling
-  onToolExecutionStart(callback: (executionId: string, toolId: string, startTime: number, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void;
+  onToolExecutionStart(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void;
   onToolExecutionComplete(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, result: unknown, startTime: number, executionTime: number) => void): () => void;
   onToolExecutionError(callback: (executionId: string, toolId: string, toolUseId: string, startTime: number, args: Record<string, unknown>, error: Error) => void): () => void;
   

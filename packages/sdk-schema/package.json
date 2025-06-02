@@ -1,6 +1,6 @@
 {
   "name": "@qckfx/sdk-schema",
-  "version": "0.2.0-alpha.3",
+  "version": "0.3.0-alpha.2",
   "description": "qckfx Agent configuration schema and validation utilities (stand-alone).",
   "type": "module",
   "main": "dist/esm/index.js",

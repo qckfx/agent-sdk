@@ -19,8 +19,10 @@ import { ExecutionAdapter } from '../types/tool.js';
 import { Logger } from '../utils/logger.js';
 import { withToolCall } from '../utils/withToolCall.js';
 import { ToolResultEntry } from '../types/agent.js';
-import { Anthropic } from '@anthropic-ai/sdk';
-import { isTextBlock, isToolUseBlock, TextBlock } from '../types/anthropic.js';
+import type { LLM } from '../types/llm.js';
+import { isTextBlock, isToolUseBlock } from '../types/llm.js';
+
+type TextBlock = LLM.Messages.TextBlock;
 
 interface DriverDeps {
   modelClient: ModelClient;
@@ -63,7 +65,7 @@ export class FsmDriver {
   }> {
     // Initialize tracking
     const toolResults: ToolResultEntry[] = [];
-    let finalAssistant: Anthropic.Messages.Message | undefined;
+    let finalAssistant: LLM.Messages.Message | undefined;
     let currentToolCall: ToolCall | undefined;
     
     // Get quick references to dependencies and contextWindow
@@ -307,7 +309,11 @@ export class FsmDriver {
     }
 
     // Return assistant text from all text blocks
-    if (finalAssistant && finalAssistant.content && finalAssistant.content.length > 0) {
+      if (
+        finalAssistant &&
+        Array.isArray(finalAssistant.content) &&
+        finalAssistant.content.length > 0
+      ) {
       const textBlocks = finalAssistant.content.filter(isTextBlock) as TextBlock[];
       const responseText = textBlocks
         .map(block => block.text)

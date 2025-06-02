@@ -3,16 +3,16 @@
  */
 
 import { SessionState, MessageTokenUsage, TokenManager as TokenManagerInterface } from "../types/model.js";
-import { Anthropic } from "@anthropic-ai/sdk";
+import type { LLM } from "../types/llm.js";
 import { LogCategory, Logger } from "../utils/logger.js";
-import { isToolUseBlock } from "../types/anthropic.js";
+import { isToolUseBlock } from "../types/llm.js";
 
 /**
  * Tracks token usage from model responses, including cache metrics if available
  * @param response - The model response with usage information
  * @param sessionState - The current session state
  */
-const trackTokenUsage = (response: Anthropic.Messages.Message, sessionState: SessionState): void => {
+const trackTokenUsage = (response: LLM.Messages.Message, sessionState: SessionState): void => {
   if (response && response.usage) {
     // Initialize token tracking if it doesn't exist
     if (!sessionState.tokenUsage) {
@@ -108,7 +108,7 @@ const manageConversationSize = (
     if (message.role === 'assistant' && 
         message.content && 
         Array.isArray(message.content) && 
-        message.content.some((c: Anthropic.Messages.ContentBlockParam) => c.type === 'tool_use')) {
+        message.content.some((c: LLM.Messages.ContentBlockParam) => c.type === 'tool_use')) {
       
       const toolUse = Array.isArray(message.content) ? 
         message.content.find(isToolUseBlock) : 
@@ -123,7 +123,7 @@ const manageConversationSize = (
           if (resultMessage.role === 'user' && 
               resultMessage.content && 
               Array.isArray(resultMessage.content) &&
-              resultMessage.content.some((c: Anthropic.Messages.ContentBlockParam) => c.type === 'tool_result' && c.tool_use_id === toolUseId)) {
+            resultMessage.content.some((c: LLM.Messages.ContentBlockParam) => c.type === 'tool_result' && c.tool_use_id === toolUseId)) {
             
             // Calculate total tokens for this pair
             const toolUseTokens = sessionState.tokenUsage.tokensByMessage.find(t => t.messageIndex === i)?.tokens || 0;
@@ -170,7 +170,7 @@ const manageConversationSize = (
         !(content && 
           typeof content !== 'string' &&
           Array.isArray(content) &&
-          content.some((c: Anthropic.Messages.ContentBlockParam) => c.type === 'tool_result'))) {
+          content.some((c: LLM.Messages.ContentBlockParam) => c.type === 'tool_result'))) {
       lastUserMessageIndex = i;
       break;
     }
@@ -189,7 +189,7 @@ const manageConversationSize = (
       // identify tool_use messages by scanning their content blocks.
 
       const containsToolUse = Array.isArray(message.content) && message.content.some(
-        (c: Anthropic.Messages.ContentBlockParam) => (c as any).type === 'tool_use',
+        (c: LLM.Messages.ContentBlockParam) => (c as any).type === 'tool_use',
       );
 
       if (message.role === 'assistant' && !containsToolUse) {
@@ -227,7 +227,7 @@ const manageConversationSize = (
       if (message.role === 'user' && 
           !(message.content && 
             typeof message.content !== 'string' &&
-            message.content.some((c: Anthropic.Messages.ContentBlockParam) => c.type === 'tool_result'))) { // Not a tool result message
+            message.content.some((c: LLM.Messages.ContentBlockParam) => c.type === 'tool_result'))) { // Not a tool result message
         const tokens = sessionState.tokenUsage.tokensByMessage.find(t => t.messageIndex === i)?.tokens || 0;
         
         logger?.debug(`Removing user message (index ${i}): ${JSON.stringify(message.content)}`, LogCategory.MODEL);
@@ -253,7 +253,7 @@ const manageConversationSize = (
       
       // Prioritize assistant messages over user messages
       const msg = sessionState.contextWindow.getMessages()[i];
-      const isToolUse = Array.isArray(msg.content) && msg.content.some((c: Anthropic.Messages.ContentBlockParam) => (c as any).type === 'tool_use');
+      const isToolUse = Array.isArray(msg.content) && msg.content.some((c: LLM.Messages.ContentBlockParam) => (c as any).type === 'tool_use');
 
       if (msg.role === 'assistant' && !isToolUse) {
         const tokens = sessionState.tokenUsage.tokensByMessage.find(t => t.messageIndex === i)?.tokens || 0;

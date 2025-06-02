@@ -60,7 +60,7 @@ export interface ToolExecutionState {
   /**
    * The ISO timestamp when the tool execution started
    */
-  startTime: string;
+  startTime?: string;
   
   /**
    * The ISO timestamp when the tool execution completed (or errored/aborted)

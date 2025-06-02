@@ -234,17 +234,16 @@ export class Agent {
       }
     }
 
-    this._core.toolRegistry.onToolExecutionStart((executionId, toolId, startTime, toolUseId, args) => {
+    this._core.toolRegistry.onToolExecutionStart((executionId, toolId, toolUseId, args) => {
       const { toolName } = resolveToolMeta(toolId);
       this._bus.emit(BusEvent.TOOL_EXECUTION_STARTED, {
         sessionId: this._sessionState?.id,
-        status: ToolExecutionStatus.RUNNING,
+        status: ToolExecutionStatus.PENDING,
         toolUseId: toolUseId,
         id: executionId,
         toolName,
         toolId,
         args,
-        startTime: new Date(startTime).toISOString(),
       });
     });
 

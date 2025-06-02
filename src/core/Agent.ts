@@ -84,15 +84,15 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
 
   // Map built-in tool names to factory functions
   const builtInFactories: Record<string, () => Tool> = {
-    BashTool: createBashTool,
-    GlobTool: createGlobTool,
-    GrepTool: createGrepTool,
-    LSTool: createLSTool,
-    FileReadTool: createFileReadTool,
-    FileEditTool: createFileEditTool,
-    FileWriteTool: createFileWriteTool,
-    ThinkTool: createThinkTool,
-    BatchTool: createBatchTool,
+    bash: createBashTool,
+    glob: createGlobTool,
+    grep: createGrepTool,
+    ls: createLSTool,
+    file_read: createFileReadTool,
+    file_edit: createFileEditTool,
+    file_write: createFileWriteTool,
+    think: createThinkTool,
+    batch: createBatchTool,
   };
 
   const registerBuiltIn = (name: string): void => {
@@ -139,20 +139,43 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
     let executionAdapter = sessionExecutionAdapter;
     
     if (!executionAdapter) {
-      const remoteId = await config.getRemoteId!(sessionId);
-      const { adapter } = await createExecutionAdapter({
-        sessionId: sessionId,
-        eventBus: config.eventBus,
-        type: 'remote',
-        logger: config.logger,
-        projectsRoot: "/home/user/projects",
-        remote: {
-          sandboxId: remoteId,
+      if (config.environment.type === 'remote') {
+        // Remote execution requires a getRemoteId callback provided by the
+        // host application.  This is used to resolve the sandbox/container
+        // identifier where commands will be executed.
+        if (typeof config.getRemoteId !== 'function') {
+          throw new Error('Remote environment requires a getRemoteId callback.');
+        }
+
+        const remoteId = await config.getRemoteId(sessionId);
+
+        const { adapter } = await createExecutionAdapter({
+          sessionId,
+          eventBus: config.eventBus,
+          type: 'remote',
+          logger: config.logger,
           projectsRoot: "/home/user/projects",
-        },
-        autoFallback: false,
-      });
-      executionAdapter = adapter;
+          remote: {
+            sandboxId: remoteId,
+            projectsRoot: "/home/user/projects",
+          },
+          autoFallback: false,
+        });
+
+        executionAdapter = adapter;
+      } else {
+        // Local environment
+        const { adapter } = await createExecutionAdapter({
+          sessionId,
+          eventBus: config.eventBus,
+          type: config.environment.type,
+          logger: config.logger,
+          projectsRoot: process.cwd(),
+          autoFallback: true,
+        });
+
+        executionAdapter = adapter;
+      }
     }
     
     return createAgentRunner({
@@ -221,17 +244,13 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
 
 export const createSessionState = async (config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): Promise<SessionState> => {
  const sid = sessionId ?? uuidv4().toString();
- const remoteId = await config.getRemoteId!(sid);
+ const remoteId = config.environment.type === 'remote' ? await config.getRemoteId!(sid) : undefined;
  const { adapter } = await createExecutionAdapter({
   sessionId: sid,
-  type: 'remote',
+  type: config.environment.type,
   logger: config.logger,
   eventBus: config.eventBus,
-  projectsRoot: "/home/user/projects",
-  remote: {
-    sandboxId: remoteId,
-    projectsRoot: "/home/user/projects",
-  },
+  projectsRoot: config.environment.type === 'remote' ? "/home/user/projects" : process.cwd(),
   autoFallback: false,
  });
 

@@ -2,7 +2,7 @@
  * Type definitions for the evaluation system
  */
 
-import type { AnthropicConfig } from '../../types/anthropic.js';
+import type { LLMConfig } from '../../types/llm.js';
 
 /**
  * Represents a test case for evaluating the agent
@@ -30,7 +30,7 @@ export interface TestCase {
 /**
  * Represents a system prompt configuration for testing
  */
-export interface SystemPromptConfig extends AnthropicConfig {
+export interface SystemPromptConfig extends LLMConfig {
   /** Name of the prompt configuration */
   name: string;
   

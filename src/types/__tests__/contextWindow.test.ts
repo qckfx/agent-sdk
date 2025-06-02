@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ContextWindow } from '../contextWindow.js';
-import { Anthropic } from '@anthropic-ai/sdk';
+import type { LLM } from '../llm.js';
 
 describe('ContextWindow', () => {
   describe('rollbackToMessage', () => {
@@ -31,11 +31,11 @@ describe('ContextWindow', () => {
       
       // The first remaining message should be the third original message
       expect(remainingMessages[0].role).toBe('user');
-      expect((remainingMessages[0].content[0] as Anthropic.Messages.TextBlock).text).toBe('How are you?');
+      expect((remainingMessages[0].content[0] as LLM.Messages.TextBlock).text).toBe('How are you?');
       
       // The second remaining message should be the fourth original message
       expect(remainingMessages[1].role).toBe('assistant');
-      expect((remainingMessages[1].content[0] as Anthropic.Messages.TextBlock).text).toBe('I am doing well');
+      expect((remainingMessages[1].content[0] as LLM.Messages.TextBlock).text).toBe('I am doing well');
     });
     
     it('should return 0 if message ID is not found', () => {

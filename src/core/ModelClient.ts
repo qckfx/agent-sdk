@@ -3,7 +3,6 @@
  * @internal
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { 
   ModelClient, 
   ModelClientConfig, 
@@ -12,7 +11,7 @@ import {
   SessionState, 
   ToolCallResponse 
 } from '../types/model.js';
-import { isToolUseBlock } from '../types/anthropic.js';
+import { isToolUseBlock } from '../types/llm.js';
 // Import utils as needed
 import { ToolDescription } from '../types/registry.js';
 import { trackTokenUsage } from '../utils/TokenManager.js';
@@ -146,7 +145,7 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
 
         if (options?.signal) {
           // Wrap call so it races with abort signal
-          response = await new Promise<Anthropic.Messages.Message>((resolve, reject) => {
+          response = await new Promise<import('../types/llm.js').LLM.Messages.Message>((resolve, reject) => {
             const onAbort = () => {
               reject(new Error('AbortError'));
             };
@@ -184,12 +183,12 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       
       console.info('Response:', JSON.stringify(response, null, 2));
       // Check if Claude wants to use a tool - look for tool_use in the content
-      const hasTool = response.content && response.content.some(c => c.type === "tool_use");
+      const hasTool = Array.isArray(response.content) && response.content.some((c: any) => c.type === 'tool_use');
       
       if (hasTool && response.content) {
         console.info('hasTool:', hasTool);
         // Extract the tool use from the response and check its type
-        const toolUse = response.content.find(isToolUseBlock);
+        const toolUse = Array.isArray(response.content) ? response.content.find(isToolUseBlock) : undefined;
         
         if (toolUse) {
         // Add the assistant's tool use response to the conversation history only if not aborted
@@ -234,7 +233,7 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       toolDescriptions: ToolDescription[],
       sessionState: SessionState,
       options?: { tool_choice?: { type: string }; signal?: AbortSignal }
-    ): Promise<Anthropic.Messages.Message> {
+    ): Promise<import('../types/llm.js').LLM.Messages.Message> {
 
       // Early abort check
       if (options?.signal?.aborted) {
@@ -295,7 +294,7 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         }
       }
 
-      const response: Anthropic.Messages.Message = await (options?.signal ?
+      const response: import('../types/llm.js').LLM.Messages.Message = await (options?.signal ?
         new Promise((resolve, reject) => {
           const onAbort = () => reject(new Error('AbortError'));
           if (options.signal!.aborted) return onAbort();

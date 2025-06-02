@@ -14,19 +14,11 @@
 // actual client instance is no longer used for the `create` call – doing so
 // would require an Anthropic API key, which we no longer need once the request
 // is proxied to OpenAI.
-import Anthropic from '@anthropic-ai/sdk';
+import type { LLM, LLMConfig, LLMProvider, ContentBlockWithCache, ToolWithCache, SystemWithCache } from '../types/llm.js';
+import type { RemoteModelInfo, ModelInfo } from '../types/provider.js';
 // Official OpenAI SDK
 import OpenAI from 'openai';
-import type {
-  AnthropicConfig,
-  AnthropicProvider,
-  ModelProviderRequest,
-  ContentBlockWithCache,
-  ToolWithCache,
-  SystemWithCache,
-  RemoteModelInfo,
-  ModelInfo,
-} from '../types/index.js';
+import type { ModelProviderRequest } from '../types/model.js';
 import { LogCategory } from '../types/logger.js';
 import { Logger } from '../utils/logger.js';
 import { tokenManager as defaultTokenManager } from '../utils/TokenManager.js';
@@ -53,7 +45,7 @@ import type {
   ChatCompletionToolChoiceOption,
 } from 'openai/resources/chat/completions';
 
-function convertToolsToOpenAI(tools?: Anthropic.Tool[]): ChatCompletionTool[] | undefined {
+function convertToolsToOpenAI(tools?: LLM.Tool[]): ChatCompletionTool[] | undefined {
   if (!tools) return undefined;
   return tools.map((t) => ({
     type: 'function',
@@ -68,15 +60,15 @@ function convertToolsToOpenAI(tools?: Anthropic.Tool[]): ChatCompletionTool[] | 
 /**
  * Convert a single Anthropic message → OpenAI chat message object.
  */
-function convertMessageToOpenAI(msg: Anthropic.Messages.MessageParam): ChatCompletionMessageParam {
+function convertMessageToOpenAI(msg: LLM.Messages.MessageParam): ChatCompletionMessageParam {
   const role = msg.role;
 
   // Helper to collapse text blocks into a single string
-  const collapseText = (content: Anthropic.Messages.ContentBlock[] | string): string => {
+  const collapseText = (content: LLM.Messages.ContentBlock[] | string): string => {
     if (typeof content === 'string') return content;
 
     return content
-      .filter((c): c is Anthropic.TextBlock => (c as any).type === 'text')
+      .filter((c): c is LLM.Messages.TextBlock => (c as any).type === 'text')
       .map((c) => (c as any).text)
       .join('\n');
   };
@@ -145,7 +137,7 @@ function convertMessageToOpenAI(msg: Anthropic.Messages.MessageParam): ChatCompl
 /**
  * Convert Anthropic API params to an OpenAI chat/completions request body.
  */
-function convertAnthropicRequestToOpenAI(apiParams: Anthropic.Messages.MessageCreateParams): ChatCompletionCreateParams {
+function convertAnthropicRequestToOpenAI(apiParams: any): ChatCompletionCreateParams {
   const messages: ChatCompletionMessageParam[] = [];
 
   // Handle system prompt if provided
@@ -171,7 +163,7 @@ function convertAnthropicRequestToOpenAI(apiParams: Anthropic.Messages.MessageCr
     model: apiParams.model,
     temperature: apiParams.temperature ?? 0.7,
     messages,
-    tools: convertToolsToOpenAI(apiParams.tools as Anthropic.Tool[]),
+    tools: convertToolsToOpenAI(apiParams.tools as LLM.Tool[]),
     // The OpenAI type expects ChatCompletionToolChoiceOption or undefined.
     tool_choice: apiParams.tool_choice?.type as ChatCompletionToolChoiceOption | undefined,
   } satisfies ChatCompletionCreateParams;
@@ -225,7 +217,7 @@ async function callOpenAI(
  * Convert an OpenAI ChatCompletion response back into Anthropic's Message
  * shape so that the rest of the codebase remains unchanged.
  */
-function convertOpenAIResponseToAnthropic(openaiResp: ChatCompletion): Anthropic.Messages.Message {
+function convertOpenAIResponseToAnthropic(openaiResp: ChatCompletion): LLM.Messages.Message {
   const choice = openaiResp.choices?.[0];
   const msg = choice?.message ?? {};
 
@@ -255,13 +247,12 @@ function convertOpenAIResponseToAnthropic(openaiResp: ChatCompletion): Anthropic
     contentBlocks.push({
       type: 'text',
       text: msg.content,
-      citations: [],
     });
   }
 
   const usage = openaiResp.usage || {};
 
-  const anthropicMessage: Anthropic.Messages.Message = {
+  const anthropicMessage: LLM.Messages.Message = {
     id: openaiResp.id,
     role: 'assistant',
     content: contentBlocks,
@@ -276,7 +267,9 @@ function convertOpenAIResponseToAnthropic(openaiResp: ChatCompletion): Anthropic
   return anthropicMessage;
 }
 
-export { AnthropicProvider };
+// Re-export provider type for convenience so callers can still import from
+// this module (will be cleaned up in a later pass).
+export type { LLMProvider };
 
 /**
  * Creates a model list fetcher that provides methods to fetch and retrieve available models
@@ -556,7 +549,7 @@ async function withRetryAndBackoff<T>(
  * @param config - Configuration options
  * @returns The provider function
  */
-function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
+function createAnthropicProvider(config: LLMConfig): LLMProvider {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const baseURL = (process.env.LLM_BASE_URL || 'https://api.anthropic.com/v1').replace(/\/$/, '');
   
@@ -570,16 +563,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
   // By default, enable caching unless explicitly disabled
   const cachingEnabled = config.cachingEnabled !== undefined ? config.cachingEnabled : true;
   
-  // Create Anthropic client *only* when we have an API key.  When running in
-  // OpenAI proxy mode the client is not required, but we keep the variable
-  // around (typed as `any`) so that the remainder of the legacy code still
-  // type-checks.
-  const anthropic: any = apiKey
-    ? new Anthropic({
-        apiKey,
-        baseURL,
-      })
-    : null;
+  const anthropic: any = null;
     
   // Create the model list fetcher
   const modelFetcher = createModelListFetcher();
@@ -589,7 +573,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
    * @param prompt - The prompt object
    * @returns The API response
    */
-  const provider = async (prompt: ModelProviderRequest): Promise<Anthropic.Messages.Message> => {
+  const provider = async (prompt: ModelProviderRequest): Promise<LLM.Messages.Message> => {
     try {
       // Use the model from the prompt, which is now required
       const modelToUse = prompt.model!;
@@ -639,63 +623,8 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
       if (prompt.sessionState && conversationHistory.length > 2) {
         try {
           // Count tokens
-          const tokenCountParams: Anthropic.Messages.MessageCountTokensParams = {
-            model,
-            messages: conversationHistory as Anthropic.MessageParam[],
-            system: prompt.systemMessage
-          };
-          
-          // If caching is enabled, we need to handle system differently
-          if (shouldUseCache) {
-            // The count tokens endpoint doesn't support system as an array,
-            // so we'll just use the text content for token counting
-            tokenCountParams.system = typeof prompt.systemMessage === 'string' ? 
-              prompt.systemMessage : JSON.stringify(prompt.systemMessage);
-          }
-          
-          // Add tools if provided
-          if (prompt.tools) {
-            tokenCountParams.tools = prompt.tools as Anthropic.Tool[];
-          }
-          
-          let tokenCount: { input_tokens: number } | null = null;
-          if (anthropic && anthropic.messages && anthropic.messages.countTokens) {
-            tokenCount = await anthropic.messages.countTokens(tokenCountParams);
-          }
-
-          if (tokenCount) {
-            logger?.debug('Proactive token count check', LogCategory.MODEL, {
-              tokenCount: tokenCount.input_tokens,
-            });
-          }
-
-          // If over the limit, compress before sending
-          if (tokenCount && tokenCount.input_tokens > TARGET_TOKEN_LIMIT) {
-            logger?.warn(
-              `Token count (${tokenCount.input_tokens}) exceeds target limit (${TARGET_TOKEN_LIMIT}). Compressing conversation.`,
-              LogCategory.MODEL,
-              {
-                tokenCount: tokenCount.input_tokens,
-                targetLimit: TARGET_TOKEN_LIMIT,
-                maxLimit: MAX_TOKEN_LIMIT,
-                messageCount: conversationHistory.length,
-                systemMessageLength: prompt.systemMessage?.length || 0,
-                toolCount: prompt.tools?.length || 0
-              }
-            );
-            
-            // Ensure we pass the logger that matches the expected interface
-            tokenManager.manageConversationSize(
-              prompt.sessionState,
-              TARGET_TOKEN_LIMIT,
-              logger
-            );
-            
-            logger?.info(
-              `Compressed conversation history to ${prompt.sessionState.contextWindow.getLength()} messages before API call.`,
-              LogCategory.MODEL
-            );
-          }
+          // token counting temporarily disabled – will be reintroduced once we
+          // have a generic implementation not tied to the Anthropic SDK.
         } catch (error) {
           // If token counting fails, just log and continue
           logger?.warn('Token counting failed, continuing with uncompressed conversation', LogCategory.MODEL, error instanceof Error ? error : String(error));
@@ -710,7 +639,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
       let modifiedTools = prompt.tools;
       if (shouldUseCache && prompt.tools && prompt.tools.length > 0) {
         // Create a deep copy to avoid modifying the original tools
-        modifiedTools = JSON.parse(JSON.stringify(prompt.tools)) as Anthropic.Tool[];
+        modifiedTools = JSON.parse(JSON.stringify(prompt.tools)) as LLM.Tool[];
         const lastToolIndex = modifiedTools.length - 1;
         
         // Add cache_control to the last tool using our extended type
@@ -742,7 +671,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
           prompt.sessionState.contextWindow.getLength() > 0) {
         
         // Create a deep copy to avoid modifying the original conversation history
-        modifiedMessages = JSON.parse(JSON.stringify(modifiedMessages)) as Anthropic.MessageParam[];
+        modifiedMessages = JSON.parse(JSON.stringify(modifiedMessages)) as LLM.Messages.MessageParam[];
         
         // Find the last user message to add cache_control
         for (let i = modifiedMessages.length - 1; i >= 0; i--) {
@@ -773,7 +702,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
       }
       
       // Prepare API call parameters
-      const apiParams: Anthropic.Messages.MessageCreateParams = {
+      const apiParams: any = {
         model: modelToUse,
         max_tokens: maxTokens,
         // System will be set based on caching configuration
@@ -811,7 +740,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
             // We only want to add cache_control to the directory structure message (index 0 of the additional messages)
             const addCacheControlToThisMessage = shouldUseCache && index === 0;
             
-            const systemMsg: Anthropic.Messages.MessageParam = {
+            const systemMsg: LLM.Messages.MessageParam = {
               role: 'assistant', // Using 'assistant' role instead of 'system'
               content: addCacheControlToThisMessage ? [{
                 type: 'text',
@@ -835,12 +764,12 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
       
       // Add tools if provided (for tool use mode)
       if (modifiedTools) {
-        apiParams.tools = modifiedTools as Anthropic.Tool[];
+        apiParams.tools = modifiedTools as LLM.Tool[];
       }
       
       // Add tool_choice if provided
       if (prompt.tool_choice) {
-        apiParams.tool_choice = prompt.tool_choice as Anthropic.ToolChoice;
+        apiParams.tool_choice = prompt.tool_choice as LLM.ToolChoice;
       }
       
       try {
@@ -905,13 +834,15 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
         logger?.debug('Anthropic API response', LogCategory.MODEL, { 
           id: messageResponse.id,
           usage: messageResponse.usage,
-          contentTypes: messageResponse.content?.map((c: Anthropic.Messages.ContentBlock) => c.type)
+          contentTypes: Array.isArray(messageResponse.content)
+            ? messageResponse.content.map((c: LLM.Messages.ContentBlock) => c.type)
+            : []
         });
 
         // Handle empty content array by providing a fallback message
         if (!messageResponse.content || messageResponse.content.length === 0) {
           // Create a fallback content that matches Anthropic's expected format
-          const fallbackContent: Anthropic.TextBlock = {
+          const fallbackContent: LLM.Messages.TextBlock = {
             type: "text", 
             text: "I just wanted to check in that everything looks okay with you, please let me know if you'd like to me change anything or continue on.",
             citations: []
@@ -986,7 +917,7 @@ function createAnthropicProvider(config: AnthropicConfig): AnthropicProvider {
           
           // Handle empty content array
           if (!messageRetryResponse.content || messageRetryResponse.content.length === 0) {
-            const fallbackContent: Anthropic.TextBlock = {
+            const fallbackContent: LLM.Messages.TextBlock = {
               type: "text", 
               text: "I just wanted to check in that everything looks okay with you, please let me know if you'd like to me change anything or continue on.",
               citations: []

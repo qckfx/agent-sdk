@@ -17,5 +17,4 @@ export * from './logger.js';
 export * from './registry.js';
 export * from './permission.js';
 export * from './model.js';
-export * from './anthropic.js';
 export * from './main.js';

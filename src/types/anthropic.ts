@@ -2,10 +2,16 @@
  * Types and interfaces for Anthropic provider
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+// Deprecated – kept solely for transitional builds.  Do **not** import this
+// module going forward; switch to `types/llm.ts` instead.
 import { ModelProviderRequest, TokenManager } from './model.js';
 import { Logger } from '../utils/logger.js';
 import { ModelInfo } from './provider.js';
+import type { LLM } from './llm.js';
+
+// Map all legacy Anthropic.* symbol references to the new generic LLM types.
+// This keeps the public interface unchanged while removing the dependency on
+// the external SDK.
 
 /**
  * Cache control configuration for prompt caching
@@ -118,7 +124,7 @@ export interface AnthropicResponse {
 /**
  * Type for the Anthropic provider function
  */
-export type AnthropicProvider = (prompt: ModelProviderRequest) => Promise<Anthropic.Messages.Message>;
+export type AnthropicProvider = (prompt: ModelProviderRequest) => Promise<LLM.Messages.Message>;
 
 /**
  * Factory interface with methods to create providers and get available models

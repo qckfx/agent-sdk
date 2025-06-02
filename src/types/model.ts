@@ -2,7 +2,7 @@
  * Types and interfaces for model clients
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import type { LLM } from './llm.js';
 import { ToolDescription, ToolRegistry } from './registry.js';
 import { PromptManager } from '../core/PromptManager.js';
 import { Logger } from '../utils/logger.js';
@@ -19,7 +19,7 @@ export interface ToolCall {
 export interface ToolCallResponse {
   toolCall?: ToolCall;
   toolChosen: boolean;
-  response?: Anthropic.Messages.Message;
+  response?: LLM.Messages.Message;
   /** Whether the operation was aborted */
   aborted?: boolean;
 }
@@ -36,7 +36,7 @@ export type TokenUsage = {
 
 export interface ConversationMessage {
   role: 'user' | 'assistant';
-  content: Anthropic.Messages.ContentBlock[];
+  content: LLM.Messages.ContentBlock[];
 }
 
 /**
@@ -115,7 +115,7 @@ export interface ModelProviderRequest {
   model: string; // Required model parameter
 }
 
-export type ModelProvider = (request: ModelProviderRequest) => Promise<Anthropic.Messages.Message>;
+export type ModelProvider = (request: ModelProviderRequest) => Promise<LLM.Messages.Message>;
 
 export interface ModelClientConfig {
   modelProvider: ModelProvider;
@@ -138,7 +138,7 @@ export interface ModelClient {
     toolDescriptions: ToolDescription[], 
     sessionState?: SessionState, 
     options?: { tool_choice?: { type: string }; signal?: AbortSignal }
-  ): Promise<Anthropic.Messages.Message>;
+  ): Promise<LLM.Messages.Message>;
 }
 
 // TokenManager interface for conversation compression

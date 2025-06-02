@@ -18,7 +18,7 @@ function createToolRegistry(): ToolRegistry {
   // Index to look up tools by category
   const toolsByCategory = new Map<ToolCategory, Set<string>>();
   
-  const startCallbacks: Array<(executionId: string, toolId: string, startTime: number, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void> = [];
+  const startCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void> = [];
   const completeCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, result: unknown, startTime: number, executionTime: number) => void> = [];
   const errorCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, startTime: number, args: Record<string, unknown>, error: Error) => void> = [];
   
@@ -90,7 +90,7 @@ function createToolRegistry(): ToolRegistry {
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionStart(callback: (executionId: string, toolId: string, startTime: number, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void {
+    onToolExecutionStart(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void {
       startCallbacks.push(callback);
       
       // Return unsubscribe function
@@ -180,11 +180,19 @@ function createToolRegistry(): ToolRegistry {
       }
 
       // Notify start callbacks
-      startCallbacks.forEach(callback => callback(context.executionId, toolId, startTime, toolUseId, args, context));
-      
+      startCallbacks.forEach((callback) =>
+        callback(
+          context.executionId,
+          toolId,
+          toolUseId,
+          args,
+          context,
+        ),
+      );
+
+      console.info('Executing tool: ', JSON.stringify(tool, null, 2));
       const startTime = Date.now();
       try {
-        console.info('Executing tool: ', JSON.stringify(tool, null, 2));
         // Execute the tool
         const result = await tool.execute(args, context);
         console.info('Tool execution complete');

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createModelClient } from '../ModelClient.js';
 import { ModelProvider, SessionState } from '../../types/model.js';
 import { createContextWindow } from '../../types/contextWindow.js';
-import Anthropic from '@anthropic-ai/sdk';
+import type { LLM } from '../../types/llm.js';
 
 describe('Multi-model support', () => {
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe('Multi-model support', () => {
         role: 'assistant',
         model: request.model,
         content: [{ type: 'text', text: 'Mock response' }]
-      } as Anthropic.Messages.Message);
+      } as LLM.Messages.Message);
     });
 
     // Create a model client with our mock provider

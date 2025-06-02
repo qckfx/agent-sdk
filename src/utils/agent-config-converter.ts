@@ -38,12 +38,14 @@ export function convertToCoreAgentConfig(
   // 2. AgentRunner needs to both check and clear the status in the same critical section (try/finally)
   // 3. Clearing here would create a race condition if another abort comes in between clear and AgentRunner's check
 
-  const modelProvider = LLMFactory.createProvider({ model: jsonConfig.defaultModel, cachingEnabled: jsonConfig.cachingEnabled });
+  const modelProvider = LLMFactory.createProvider({ model: jsonConfig.defaultModel, cachingEnabled: true });
   
   // Create basic config with required properties
   const config: PartialAgentConfig = {
     modelProvider,
-    environment: jsonConfig.environment as RepositoryEnvironment,
+    environment: { type: jsonConfig.environment as RepositoryEnvironment['type'] } as RepositoryEnvironment,
+    cachingEnabled: true,
+    eventBus,
   };
   
   // Add optional properties if they exist
@@ -55,10 +57,6 @@ export function convertToCoreAgentConfig(
     config.systemPrompt = jsonConfig.systemPrompt;
   }
   
-  if (jsonConfig.cachingEnabled !== undefined) {
-    config.cachingEnabled = jsonConfig.cachingEnabled;
-  }
-  
   if (jsonConfig.tools !== undefined) {
     config.tools = jsonConfig.tools;
   }
@@ -66,8 +64,6 @@ export function convertToCoreAgentConfig(
   if (callbacks?.getRemoteId && typeof callbacks.getRemoteId === 'function') {
     config.getRemoteId = callbacks.getRemoteId;
   }
-
-  config.environment = { type: 'remote' };
 
   if (callbacks?.onPermissionRequested && typeof callbacks.onPermissionRequested === 'function') {
     config.permissionUIHandler = {
@@ -81,8 +77,5 @@ export function convertToCoreAgentConfig(
     };
   }
 
-  config.eventBus = eventBus;
-  
-  
   return config as CoreAgentConfig;
 }

@@ -2,7 +2,7 @@
  * ContextWindow - Manages conversation context and file access tracking
  */
 
-import { Anthropic } from '@anthropic-ai/sdk';
+import type { LLM } from './llm.js';
 import { nanoid } from 'nanoid';
 import { ConversationMessage } from './conversation.js';
 
@@ -128,7 +128,7 @@ export class ContextWindow {
     return id;
   }
 
-  public pushAssistant(blocks: Anthropic.Messages.ContentBlockParam[]): string {
+  public pushAssistant(blocks: LLM.Messages.ContentBlockParam[] | string): string {
     const id = this.push({ role: 'assistant', content: blocks });
     this.validate();
     return id;
@@ -241,7 +241,7 @@ export class ContextWindow {
   }
 }
 
-export type Message = Anthropic.Messages.MessageParam;
+export type Message = LLM.Messages.MessageParam;
 
 // Factory function for creating new context windows
 export function createContextWindow(messages?: Message[]): ContextWindow {
