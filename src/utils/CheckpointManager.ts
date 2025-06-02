@@ -215,8 +215,29 @@ export async function snapshot(
   // single-quoted shell argument.
   const escapedMsg = rawCommitMessage.replace(/'/g, `'"'"'`);
 
-  // Absolute path inside the container set by Dockerfile COPY
-  const scriptPath = '/usr/local/bin/snapshot.sh';
+  // Resolve path to the snapshot helper script.  In container based adapters
+  // the script is baked into the image at /usr/local/bin.  In contrast the
+  // LocalExecutionAdapter (used for purely host-side execution) needs the
+  // version that lives inside the repository itself (./scripts/snapshot.sh).
+
+  let scriptPath = '/usr/local/bin/snapshot.sh';
+
+  // Detect the LocalExecutionAdapter by inspection of the runtime type.  We
+  // intentionally avoid importing the concrete class here to keep this file
+  // free of circular dependencies.
+  const adapterName = (adapter as unknown as { constructor?: { name?: string } })?.constructor?.name;
+  if (adapterName === 'LocalExecutionAdapter') {
+    const candidate = path.join(repoRoot, 'scripts', 'snapshot.sh');
+    // Only switch when the helper exists – this guards against situations
+    // where the repository layout is incomplete (e.g. missing submodule).
+    try {
+      if (fs.existsSync(candidate)) {
+        scriptPath = candidate;
+      }
+    } catch {
+      /* ignore fs access errors – fall back to default path */
+    }
+  }
 
   const command = `${scriptPath} "${shadowDir}" "${repoRoot}" '${escapedMsg}' "${meta.toolExecutionId}"`;
 
