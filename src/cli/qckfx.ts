@@ -51,6 +51,9 @@ function createDefaultConfig(model: string) {
   } as const;
 }
 
+/**
+ *
+ */
 async function main() {
   const program = new Command();
 

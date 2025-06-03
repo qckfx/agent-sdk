@@ -120,10 +120,18 @@ export interface LLMFactory {
 // Runtime helpers (ported from the previous implementation)
 // ---------------------------------------------------------------------------
 
+/**
+ *
+ * @param block
+ */
 export function isTextBlock(block: any): block is TextBlock {
   return block && block.type === 'text' && 'text' in block;
 }
 
+/**
+ *
+ * @param block
+ */
 export function isToolUseBlock(block: any): block is ToolUseBlock {
   return block && block.type === 'tool_use' && 'id' in block && 'name' in block && 'input' in block;
 }

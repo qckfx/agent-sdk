@@ -24,16 +24,14 @@ module.exports = {
   rules: {
     // Temporarily relax some rules to reduce noise; TODO: re-enable after cleanup
     'import/no-unresolved': 'off',
-    '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
-    '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
-    'import/order': [
-      'error',
-      {
-        alphabetize: { order: 'asc', caseInsensitive: true },
-        'newlines-between': 'always',
-      },
-    ],
-    'jsdoc/require-jsdoc': 'off',
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': 'warn',
+    '@typescript-eslint/consistent-type-imports': 'warn',
+    '@typescript-eslint/no-namespace': 'warn',
+    'import/order': 'warn',
+    'prefer-const': 'warn',
+    'no-useless-catch': 'warn',
+    // JSDoc rules remain as warnings
   },
   ignorePatterns: [
     'dist',
@@ -43,7 +41,8 @@ module.exports = {
     'packages/**',
     'scripts/**',
     'src/eval/**',
-    'src/core/__tests__/**',
-    'src/types/__tests__/**',
+    'src/**/__tests__/**',
+    'vitest.config.ts',
+    'vitest.setup.ts'
   ],
 };

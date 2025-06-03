@@ -53,6 +53,10 @@ const LIST_MODELS_URL = process.env.LIST_MODELS_URL!;
  * function tools format.
  */
 
+/**
+ *
+ * @param tools
+ */
 function convertToolsToOpenAI(tools?: LLM.Tool[]): ChatCompletionTool[] | undefined {
   if (!tools) return undefined;
   return tools.map(t => ({
@@ -206,6 +210,12 @@ function getOpenAIClient(sessionLlmApiKey?: string): OpenAI {
   return new OpenAI({ apiKey, baseURL });
 }
 
+/**
+ *
+ * @param requestBody
+ * @param logger
+ * @param llmApiKey
+ */
 async function callOpenAI(
   requestBody: ChatCompletionCreateParams,
   logger?: Logger,

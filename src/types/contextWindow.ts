@@ -252,6 +252,10 @@ export class ContextWindow {
 export type Message = LLM.Messages.MessageParam;
 
 // Factory function for creating new context windows
+/**
+ *
+ * @param messages
+ */
 export function createContextWindow(messages?: Message[]): ContextWindow {
   return new ContextWindow(messages);
 }

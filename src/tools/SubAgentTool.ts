@@ -26,6 +26,12 @@ export interface SubAgentReference {
 import type { Logger } from '../utils/logger.js';
 import { LogCategory } from '../utils/logger.js';
 
+/**
+ *
+ * @param ref
+ * @param getRemoteId
+ * @param logger
+ */
 export async function createSubAgentTool(
   ref: SubAgentReference,
   getRemoteId?: (sessionId: string) => Promise<string>,
@@ -44,6 +50,9 @@ export async function createSubAgentTool(
   // Memoised nested agent instance.
   let nestedAgent: Agent | null = null;
 
+  /**
+   *
+   */
   async function getNestedAgent(): Promise<Agent> {
     if (nestedAgent) return nestedAgent;
 

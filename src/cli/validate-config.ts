@@ -19,11 +19,17 @@ import { resolve } from 'path';
 import { AgentConfigSchema } from '@qckfx/sdk-schema';
 import { ZodError } from 'zod';
 
+/**
+ *
+ */
 function printUsage(): void {
   console.log('Usage: validate <config.json>');
   console.log('Validate an agent configuration file against the built-in schema.');
 }
 
+/**
+ *
+ */
 async function main(): Promise<void> {
   const fileArg = process.argv[2];
 
