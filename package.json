@@ -26,7 +26,6 @@
   "files": [
     "bin",
     "dist",
-    "schemas/agent-config.schema.json",
     "docker",
     "scripts"
   ],

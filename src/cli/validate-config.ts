@@ -16,10 +16,8 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
-import {
-  validateAgentConfig,
-  ConfigValidationError,
-} from '../../schemas/agent-config.zod.js';
+import { AgentConfigSchema } from '@qckfx/sdk-schema';
+import { ZodError } from 'zod';
 
 function printUsage(): void {
   console.log('Usage: validate <config.json>');
@@ -39,12 +37,12 @@ async function main(): Promise<void> {
     const raw = readFileSync(filePath, 'utf8');
     const parsed = JSON.parse(raw);
 
-    validateAgentConfig(parsed);
+    AgentConfigSchema.parse(parsed);
 
     console.log('Configuration is valid ✅');
     process.exit(0);
   } catch (err: unknown) {
-    if (err instanceof ConfigValidationError) {
+    if (err instanceof ZodError) {
       console.error('Configuration is invalid ❌');
       console.error(err.message);
       process.exit(1);

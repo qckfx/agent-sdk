@@ -1,13 +1,24 @@
 model_list:
-  - model_name: claude-3-7-sonnet
+  - model_name: claude-sonnet-3-7
     litellm_params:
       model: anthropic/claude-3-7-sonnet-20250219
+      api_base: https://api.anthropic.com
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+      drop_params: true
+  - model_name: claude-sonnet-4-0
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
       api_base: https://api.anthropic.com
       api_key: "os.environ/ANTHROPIC_API_KEY"
       drop_params: true
   - model_name: o3
     litellm_params:
       model: openai/o3 
+      api_key: "os.environ/OPENAI_API_KEY"
+      drop_params: true
+  - model_name: gpt-o4-mini
+    litellm_params:
+      model: openai/o4-mini
       api_key: "os.environ/OPENAI_API_KEY"
       drop_params: true
   - model_name: gpt-4.1-nano
@@ -20,4 +31,8 @@ model_list:
       model: gemini/gemini-2.5-pro-preview-03-25
       api_key: "os.environ/GEMINI_API_KEY"
       drop_params: true
-  
+  - model_name: devstral-small
+    litellm_params:
+      model: mistral/devstral-small-2505
+      api_key: "os.environ/MISTRAL_API_KEY"
+      drop_params: true 

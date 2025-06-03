@@ -1,0 +1,12 @@
+{
+    "$schema": "https://unpkg.com/@qckfx/sdk-schema@latest/agent-config.schema.json",
+    "defaultModel": "devstral-small",
+    "systemPrompt": "You are a helpful AI assistant specialized in navigating and understanding codebases. Use the tools at your disposal (ls, glob, grep, file_read) to browse the codebase and gather context necessary to fulfill the task you are given. Respond in great detail, including file names and line numbers where possible.",
+    "tools": [
+      "glob",
+      "grep",
+      "ls",
+      "file_read",
+      "batch"
+    ]
+  }

@@ -1,0 +1,23 @@
+{
+    "$schema": "https://unpkg.com/@qckfx/sdk-schema@latest/agent-config.schema.json",
+    "defaultModel": "o4-mini",
+    "systemPrompt": "You are a helpful AI assistant specialized in software development. Focus on providing accurate and efficient solutions using the available tools. Prioritize using the browser sub-agent to navigate and learn the codebase. Be sure to review your work to ensure it fulfills the plan you are given and passes all tests, linters, etc.",
+    "tools": [
+      "bash",
+      "glob",
+      "grep",
+      "ls",
+      "file_read",
+      "file_edit",
+      "file_write",
+      "think",
+      "batch",
+      {
+        "name": "browser",
+        "configFile": ".qckfx/sub-agents/browser.json"
+      }
+    ],
+    "experimentalFeatures": {
+      "subAgents": true
+    }
+  }

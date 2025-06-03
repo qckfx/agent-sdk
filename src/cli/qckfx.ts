@@ -23,10 +23,8 @@ import { loadLastSession, saveSession } from './sessionStore.js';
 import { ContextWindow } from '../types/contextWindow.js';
 
 // Local schema validator (same helper used by validate-config.ts)
-import {
-  validateAgentConfig,
-  ConfigValidationError,
-} from '../../schemas/agent-config.zod.js';
+import { AgentConfigSchema } from '@qckfx/sdk-schema';
+import { ZodError } from 'zod';
 
 interface CliOptions {
   agent?: string;
@@ -94,11 +92,11 @@ async function main() {
       const raw = readFileSync(filePath, 'utf8');
       const parsed = JSON.parse(raw);
 
-      validateAgentConfig(parsed);
+      AgentConfigSchema.parse(parsed);
       console.log('Configuration is valid ✅');
       process.exit(0);
     } catch (err: unknown) {
-      if (err instanceof ConfigValidationError) {
+      if (err instanceof ZodError) {
         console.error('Configuration is invalid ❌');
         console.error(err.message);
         process.exit(1);
@@ -140,10 +138,10 @@ async function main() {
       const raw = readFileSync(filePath, 'utf8');
       const parsed = JSON.parse(raw);
       // Validate upfront for a nicer error message
-      validateAgentConfig(parsed);
+      AgentConfigSchema.parse(parsed);
       agentConfig = parsed;
     } catch (err: unknown) {
-      if (err instanceof ConfigValidationError) {
+      if (err instanceof ZodError) {
         console.error('Agent configuration invalid ❌');
         console.error(err.message);
         process.exit(1);
