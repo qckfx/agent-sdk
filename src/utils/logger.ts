@@ -30,17 +30,17 @@ export class Logger {
     this.formatOptions = {
       showTimestamp: options.formatOptions?.showTimestamp ?? false,
       showPrefix: options.formatOptions?.showPrefix ?? true,
-      colors: options.formatOptions?.colors ?? false
+      colors: options.formatOptions?.colors ?? false,
     };
     this.enabledCategories = options.enabledCategories;
   }
-  
+
   /**
    * Set context information for this logger
    * Useful for adding details like test ID, config name, etc.
    */
   setContext(context: Record<string, string>): void {
-    this.contextInfo = {...this.contextInfo, ...context};
+    this.contextInfo = { ...this.contextInfo, ...context };
   }
 
   /**
@@ -49,15 +49,16 @@ export class Logger {
   private format(level: string, message: string): string {
     const timestamp = this.formatOptions.showTimestamp ? `[${new Date().toISOString()}] ` : '';
     const prefix = this.formatOptions.showPrefix && this.prefix ? `${this.prefix} ` : '';
-    
+
     // Add context information if available
     let contextStr = '';
     if (Object.keys(this.contextInfo).length > 0) {
-      contextStr = Object.entries(this.contextInfo)
-        .map(([key, value]) => `[${key}:${value}]`)
-        .join(' ') + ' ';
+      contextStr =
+        Object.entries(this.contextInfo)
+          .map(([key, value]) => `[${key}:${value}]`)
+          .join(' ') + ' ';
     }
-    
+
     return `${timestamp}${prefix}${contextStr}[${level}] ${message}`;
   }
 
@@ -67,23 +68,23 @@ export class Logger {
   private shouldLog(messageLevel: LogLevel, category?: LogCategory): boolean {
     // Check if silent or level is SILENT
     if (this.silent || this.level === LogLevel.SILENT) return false;
-    
+
     // Check if category is enabled (if categories are specified)
     if (category && this.enabledCategories && this.enabledCategories.length > 0) {
       if (!this.enabledCategories.includes(category)) {
         return false;
       }
     }
-    
+
     // Convert string enum to numeric values for comparison
     const levels = {
       [LogLevel.SILENT]: 0,
       [LogLevel.ERROR]: 1,
       [LogLevel.WARN]: 2,
       [LogLevel.INFO]: 3,
-      [LogLevel.DEBUG]: 4
+      [LogLevel.DEBUG]: 4,
     };
-    
+
     // Only log if the message level is **less than or equal to** the configured level
     // (e.g. only ERROR messages when level is ERROR, ERROR + WARN when level is WARN, etc.)
     return levels[messageLevel] <= levels[this.level];
@@ -156,7 +157,10 @@ export class Logger {
     let data: unknown | undefined;
 
     if (errorOrCategory !== undefined) {
-      if (Object.values(LogCategory).includes(errorOrCategory as LogCategory) && categoryOrData === undefined) {
+      if (
+        Object.values(LogCategory).includes(errorOrCategory as LogCategory) &&
+        categoryOrData === undefined
+      ) {
         category = errorOrCategory as LogCategory;
       } else {
         error = errorOrCategory;
@@ -172,7 +176,9 @@ export class Logger {
 
     if (this.shouldLog(LogLevel.ERROR, category)) {
       const categoryPrefix = category ? `[${category}] ` : '';
-      console.error(this.format('ERROR', `${categoryPrefix}${message} ${data ? JSON.stringify(data) : ''}`));
+      console.error(
+        this.format('ERROR', `${categoryPrefix}${message} ${data ? JSON.stringify(data) : ''}`),
+      );
       if (error && this.level === LogLevel.DEBUG) {
         console.error(error);
       }

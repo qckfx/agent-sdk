@@ -12,35 +12,35 @@ describe('Multi-model support', () => {
   it('passes the model parameter to the provider', async () => {
     // Create a mock provider that tracks the model requested
     let lastRequestedModel = '';
-    const mockProvider: ModelProvider = vi.fn().mockImplementation((request) => {
+    const mockProvider: ModelProvider = vi.fn().mockImplementation(request => {
       // Store the model from the request
       lastRequestedModel = request.model;
-      
+
       // Return a mock response
       return Promise.resolve({
         id: 'msg_mock',
         role: 'assistant',
         model: request.model,
-        content: [{ type: 'text', text: 'Mock response' }]
+        content: [{ type: 'text', text: 'Mock response' }],
       } as LLM.Messages.Message);
     });
 
     // Create a model client with our mock provider
     const modelClient = createModelClient({
-      modelProvider: mockProvider
+      modelProvider: mockProvider,
     });
 
     // Create a session state with a context window
     const sessionState: SessionState = {
       id: 'test-session',
       contextWindow: createContextWindow(),
-      abortController: new AbortController()
+      abortController: new AbortController(),
     };
 
     // Test getToolCall with different models
     await modelClient.getToolCall('Hello', 'claude-3-7-sonnet-20250219', [], sessionState);
     expect(lastRequestedModel).toBe('claude-3-7-sonnet-20250219');
-    
+
     await modelClient.getToolCall('Hello again', 'claude-3-5-sonnet-20240620', [], sessionState);
     expect(lastRequestedModel).toBe('claude-3-5-sonnet-20240620');
 

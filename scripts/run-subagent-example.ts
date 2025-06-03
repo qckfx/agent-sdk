@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config()
+dotenv.config();
 
 // When running this script directly with a TS runner (e.g. `ts-node` or
 // `tsx`), we need to point the import at the raw TypeScript source.  The
@@ -29,15 +29,13 @@ const mainRaw = fs.readFileSync(mainCfgPath, 'utf8');
 const mainCfg = JSON.parse(mainRaw);
 
 const mainAgent = new Agent(mainCfg, {
-  onToolExecutionStarted: (obj) =>
-    console.info('tool started: ' + JSON.stringify(obj)),
-  onToolExecutionCompleted: (obj) =>
-    console.info('tool completed: ' + JSON.stringify(obj)),
+  onToolExecutionStarted: obj => console.info('tool started: ' + JSON.stringify(obj)),
+  onToolExecutionCompleted: obj => console.info('tool completed: ' + JSON.stringify(obj)),
 });
 
 (async () => {
   const result = await mainAgent.processQuery('Tell me a good joke');
 
-  console.log('messages: ', result.sessionState.contextWindow._messages)
+  console.log('messages: ', result.sessionState.contextWindow._messages);
   console.log('JokeAgent returned:', result);
 })();

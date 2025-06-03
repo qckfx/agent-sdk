@@ -16,18 +16,18 @@ export function extractExecutionHistory(
       runId?: string;
       testId?: string;
       testName?: string;
-    },
+    };
     configInfo?: {
       configId?: string;
       configName?: string;
       modelName?: string;
       promptName?: string;
-    }
-  }
+    };
+  },
 ): AgentExecutionHistory {
   // Extract tool calls from the result
   const toolCalls: ToolCallRecord[] = [];
-  
+
   if (result.result?.toolResults) {
     for (const toolResult of result.result.toolResults) {
       toolCalls.push({
@@ -35,25 +35,25 @@ export function extractExecutionHistory(
         args: toolResult.args,
         result: String(toolResult.result || ''),
         startTime: '', // These fields aren't available in the current structure
-        endTime: ''    // but are part of our schema for future use
+        endTime: '', // but are part of our schema for future use
       });
     }
   }
-  
+
   // Create metadata if task description is provided
   let metadata: ExecutionMetadata | undefined;
   if (taskDescription) {
     metadata = {
       task: taskDescription,
       runInfo: options?.runInfo,
-      configInfo: options?.configInfo
+      configInfo: options?.configInfo,
     };
   }
-  
+
   return {
     metadata,
     toolCalls,
-    response: result.response // Include the agent's final response
+    response: result.response, // Include the agent's final response
   };
 }
 
@@ -66,9 +66,7 @@ export function formatArgs(args: Record<string, unknown>): string {
       // Handle different value types
       if (typeof value === 'string') {
         // Truncate long string values
-        const displayValue = value.length > 100
-          ? value.substring(0, 100) + '...'
-          : value;
+        const displayValue = value.length > 100 ? value.substring(0, 100) + '...' : value;
         return `${key}: "${displayValue}"`;
       } else if (Array.isArray(value)) {
         return `${key}: [Array with ${value.length} items]`;
@@ -85,12 +83,12 @@ export function formatArgs(args: Record<string, unknown>): string {
  */
 export function formatExecutionHistoryForJudge(history: AgentExecutionHistory): string {
   let formattedHistory = '';
-  
+
   // Add task description if available
   if (history.metadata?.task) {
     formattedHistory += `### Task\n${history.metadata.task}\n\n`;
   }
-  
+
   // Add run info if available
   if (history.metadata?.runInfo) {
     const runInfo = history.metadata.runInfo;
@@ -100,7 +98,7 @@ export function formatExecutionHistoryForJudge(history: AgentExecutionHistory): 
     if (runInfo.testName) formattedHistory += `Test Name: ${runInfo.testName}\n`;
     formattedHistory += `\n`;
   }
-  
+
   // Add configuration info if available
   if (history.metadata?.configInfo) {
     const configInfo = history.metadata.configInfo;
@@ -111,15 +109,15 @@ export function formatExecutionHistoryForJudge(history: AgentExecutionHistory): 
     if (configInfo.promptName) formattedHistory += `Prompt: ${configInfo.promptName}\n`;
     formattedHistory += `\n`;
   }
-  
+
   // Add the agent's final response first if available (to emphasize its importance)
   if (history.response) {
     formattedHistory += `### Agent Final Response (PRIMARY OUTPUT TO EVALUATE)\n${history.response}\n\n`;
   }
-  
+
   // Add tool call sequence heading
   formattedHistory += `### Tool Call Sequence (Agent's Thinking Process)\n`;
-  
+
   if (history.toolCalls.length === 0) {
     formattedHistory += 'No tool calls were made during execution.\n\n';
   } else {
@@ -128,19 +126,24 @@ export function formatExecutionHistoryForJudge(history: AgentExecutionHistory): 
       formattedHistory += `\n#### Tool Call ${index + 1}: ${tc.tool}\n`;
       formattedHistory += `**Arguments:** ${formatArgs(tc.args)}\n`;
       formattedHistory += `**Result:** ${formatToolResult(tc.result)}\n`;
-      
+
       // Add timing information if available
       if (tc.startTime && tc.endTime) {
         formattedHistory += `**Execution Time:** ${formatTimeDifference(tc.startTime, tc.endTime)}\n`;
       }
-      
+
       // Add special highlight for code writing tools
-      if (tc.tool === 'Edit' || tc.tool === 'Replace' || tc.tool === 'FileEditTool' || tc.tool === 'FileWriteTool') {
+      if (
+        tc.tool === 'Edit' ||
+        tc.tool === 'Replace' ||
+        tc.tool === 'FileEditTool' ||
+        tc.tool === 'FileWriteTool'
+      ) {
         formattedHistory += `**NOTE: This is a CODE WRITING action (important for evaluation)**\n`;
       }
     });
   }
-  
+
   return formattedHistory;
 }
 
@@ -163,7 +166,7 @@ function formatTimeDifference(startTime: string, endTime: string): string {
     const start = new Date(startTime).getTime();
     const end = new Date(endTime).getTime();
     const diffMs = end - start;
-    
+
     if (diffMs < 1000) {
       return `${diffMs}ms`;
     } else {

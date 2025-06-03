@@ -7,12 +7,7 @@
  *   3. Registry so future versions can be plugged in easily.
  */
 
-
-import {
-  AgentConfigSchemaV1,
-  AgentConfigV1,
-  upgradeV1ToLatest,
-} from './v1/agent.js';
+import { AgentConfigSchemaV1, AgentConfigV1, upgradeV1ToLatest } from './v1/agent.js';
 
 /* -------------------------------------------------------------------------- */
 /* Registry                                                                   */
@@ -62,7 +57,10 @@ export function parseAgentConfig(input: string | Record<string, unknown>): Agent
   // Remove $schema so downstream .strict() schemas do not choke.
   delete obj.$schema;
 
-  const record = version && schemaRegistry[version] ? schemaRegistry[version] : schemaRegistry[SCHEMA_VERSION_LATEST];
+  const record =
+    version && schemaRegistry[version]
+      ? schemaRegistry[version]
+      : schemaRegistry[SCHEMA_VERSION_LATEST];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed: any = record.schema.parse(obj);

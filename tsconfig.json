@@ -13,16 +13,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": [
-    "index.ts",
-    "internals.ts",
-    "browser.ts",
-    "src/**/*",
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "src/eval/**/*"
-  ]
+  "include": ["index.ts", "internals.ts", "browser.ts", "src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/eval/**/*"]
 }

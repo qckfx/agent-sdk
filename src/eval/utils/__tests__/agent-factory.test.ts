@@ -13,13 +13,13 @@ vi.mock('../../../providers/index', () => ({
       model: 'mock-model',
       generateMessage: vi.fn(),
       getToolCall: vi.fn(),
-      generateResponse: vi.fn()
+      generateResponse: vi.fn(),
     })),
     getAvailableModels: vi.fn().mockResolvedValue([
       { model_name: 'mock-model-1', provider: 'mock-provider' },
-      { model_name: 'mock-model-2', provider: 'mock-provider' }
-    ])
-  }
+      { model_name: 'mock-model-2', provider: 'mock-provider' },
+    ]),
+  },
 }));
 
 vi.mock('../../../core/ModelClient', () => ({
@@ -28,8 +28,8 @@ vi.mock('../../../core/ModelClient', () => ({
     promptManager,
     toolRegistry,
     getToolCall: vi.fn(),
-    generateResponse: vi.fn()
-  }))
+    generateResponse: vi.fn(),
+  })),
 }));
 
 vi.mock('../../../core/PromptManager', () => ({
@@ -37,8 +37,8 @@ vi.mock('../../../core/PromptManager', () => ({
     systemPrompt,
     temperature,
     getSystemPrompt: vi.fn().mockReturnValue(systemPrompt),
-    getSystemPrompts: vi.fn().mockReturnValue([{ role: 'system', content: systemPrompt }])
-  }))
+    getSystemPrompts: vi.fn().mockReturnValue([{ role: 'system', content: systemPrompt }]),
+  })),
 }));
 
 vi.mock('../tools', () => ({
@@ -47,21 +47,21 @@ vi.mock('../tools', () => ({
     registerTool: vi.fn(),
     getTool: vi.fn(),
     getAllTools: vi.fn().mockReturnValue([]),
-    getToolDescriptions: vi.fn().mockReturnValue([])
-  }))
+    getToolDescriptions: vi.fn().mockReturnValue([]),
+  })),
 }));
 
-// Import the mocked modules 
+// Import the mocked modules
 import { LLMFactory } from '../../../providers/index';
 import { createModelClient } from '../../../core/ModelClient';
-import { createPromptManager } from '../../../core/PromptManager'; 
+import { createPromptManager } from '../../../core/PromptManager';
 import { createFilteredToolRegistry } from '../tools';
 
 describe('Agent Factory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  
+
   it('should create an agent from a configuration', async () => {
     // Arrange
     const config: AgentConfiguration = {
@@ -73,18 +73,18 @@ describe('Agent Factory', () => {
       tools: ['bash', 'file_read'],
       environmentType: 'local',
       maxTokens: 100000,
-      options: {}
+      options: {},
     };
-    
+
     // Act
     const agent = await createAgentFromConfig(config);
-    
+
     // Assert
     expect(LLMFactory.createProvider).toHaveBeenCalled();
     expect(createModelClient).toHaveBeenCalled();
     expect(createPromptManager).toHaveBeenCalledWith(
       'You are a helpful AI assistant',
-      expect.any(Number)
+      expect.any(Number),
     );
     expect(createFilteredToolRegistry).toHaveBeenCalled();
     expect(agent).toBeDefined();

@@ -38,20 +38,19 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
   if (!config.modelProvider) {
     throw new Error('Agent requires a modelProvider function');
   }
-  
+
   // Create core components
-  const logger = config.logger ?? createLogger({ level: config.logLevel ?? LogLevel.INFO, sessionId: sessionId });
-  
+  const logger =
+    config.logger ??
+    createLogger({ level: config.logLevel ?? LogLevel.INFO, sessionId: sessionId });
+
   // Create tool registry first (propagate logger)
   const toolRegistry = createToolRegistry(logger);
-  
-  const permissionManager = createPermissionManager(
-    toolRegistry,
-    {
-      uiHandler: config.permissionUIHandler
-    }
-  );
-  
+
+  const permissionManager = createPermissionManager(toolRegistry, {
+    uiHandler: config.permissionUIHandler,
+  });
+
   // ------------------------------------------------------------------------------------------------
   // Prompt manager selection
   // ------------------------------------------------------------------------------------------------
@@ -78,7 +77,7 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
     promptManager: promptManager,
     logger: logger,
   });
-  
+
   // -------------------------------------------------------------------
   // Register tools (built-ins and/or sub-agents) based on configuration
   // -------------------------------------------------------------------
@@ -115,14 +114,14 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
       } else {
         try {
           logger.debug('Creating sub-agent tool', LogCategory.TOOLS, entry);
-          const subAgentTool = await createSubAgentTool(
-            entry as any,
-            config.getRemoteId,
-            logger,
-          );
+          const subAgentTool = await createSubAgentTool(entry as any, config.getRemoteId, logger);
           toolRegistry.registerTool(subAgentTool);
         } catch (err) {
-          logger.error(`Failed to register sub-agent tool from '${(entry as any).configFile}'`, err as Error, LogCategory.TOOLS);
+          logger.error(
+            `Failed to register sub-agent tool from '${(entry as any).configFile}'`,
+            err as Error,
+            LogCategory.TOOLS,
+          );
         }
       }
     }
@@ -132,11 +131,11 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
   }
 
   logger.debug('Tool registry tools', LogCategory.TOOLS, toolRegistry.getAllTools());
-  
+
   // Create the agent runner (private implementation)
   const _agentRunner = async (sessionId: string, sessionExecutionAdapter?: ExecutionAdapter) => {
     let executionAdapter = sessionExecutionAdapter;
-    
+
     if (!executionAdapter) {
       if (config.environment.type === 'remote') {
         // Remote execution requires a getRemoteId callback provided by the
@@ -153,10 +152,10 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
           eventBus: config.eventBus,
           type: 'remote',
           logger: config.logger,
-          projectsRoot: "/home/user/projects",
+          projectsRoot: '/home/user/projects',
           remote: {
             sandboxId: remoteId,
-            projectsRoot: "/home/user/projects",
+            projectsRoot: '/home/user/projects',
           },
           autoFallback: false,
         });
@@ -176,7 +175,7 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
         executionAdapter = adapter;
       }
     }
-    
+
     return createAgentRunner({
       modelClient,
       toolRegistry,
@@ -184,10 +183,10 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
       logger,
       eventBus: config.eventBus,
       executionAdapter,
-      promptManager: config.promptManager || createDefaultPromptManager()
+      promptManager: config.promptManager || createDefaultPromptManager(),
     });
   };
-  
+
   // Return the complete agent interface
   return {
     // Core components
@@ -202,20 +201,23 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
       const runner = await _agentRunner(sessionState.id, sessionState.executionAdapter);
 
       // Generate directory structure and git state maps only if they haven't been generated for this session yet
-      const isDirectoryStructureGenerated = sessionState.multiRepoTracking?.directoryStructureGenerated ?? sessionState.directoryStructureGenerated ?? false;
-      
+      const isDirectoryStructureGenerated =
+        sessionState.multiRepoTracking?.directoryStructureGenerated ??
+        sessionState.directoryStructureGenerated ??
+        false;
+
       if (!isDirectoryStructureGenerated) {
         try {
           // Get directory structures for all repositories
           const directoryStructures = await runner.executionAdapter.getDirectoryStructures();
-          
+
           // Get git repository information for all repositories
           const gitRepos = await runner.executionAdapter.getGitRepositoryInfo();
-          
+
           // Set multi-repo directory structures and git states in the prompt manager
           runner.promptManager.setMultiRepoDirectoryStructures(directoryStructures);
           runner.promptManager.setMultiRepoGitStates(gitRepos);
-          
+
           // Initialize/update multi-repo tracking
           const repoPaths = Array.from(directoryStructures.keys());
           sessionState.multiRepoTracking = {
@@ -224,45 +226,52 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
             directoryStructureGenerated: true,
             lastCheckpointMetadata: sessionState.multiRepoTracking?.lastCheckpointMetadata,
           };
-          
+
           // Mark that we've generated directory structure for this session (backwards compatibility)
           sessionState.directoryStructureGenerated = true;
         } catch (error) {
-          console.warn(`AgentService: Failed to generate multi-repo structure and git state: ${(error as Error).message}`);
+          console.warn(
+            `AgentService: Failed to generate multi-repo structure and git state: ${(error as Error).message}`,
+          );
         }
       }
 
       return runner.processQuery(query, model, sessionState);
     },
-    
+
     registerTool(tool) {
       toolRegistry.registerTool(tool);
     },
   };
 };
 
-export const createSessionState = async (config: CoreAgentConfig, sessionId?: string, contextWindow?: ContextWindow): Promise<SessionState> => {
- const sid = sessionId ?? uuidv4().toString();
- const remoteId = config.environment.type === 'remote' ? await config.getRemoteId!(sid) : undefined;
- const { adapter } = await createExecutionAdapter({
-  sessionId: sid,
-  type: config.environment.type,
-  logger: config.logger,
-  eventBus: config.eventBus,
-  projectsRoot: config.environment.type === 'remote' ? "/home/user/projects" : process.cwd(),
-  autoFallback: false,
- });
+export const createSessionState = async (
+  config: CoreAgentConfig,
+  sessionId?: string,
+  contextWindow?: ContextWindow,
+): Promise<SessionState> => {
+  const sid = sessionId ?? uuidv4().toString();
+  const remoteId =
+    config.environment.type === 'remote' ? await config.getRemoteId!(sid) : undefined;
+  const { adapter } = await createExecutionAdapter({
+    sessionId: sid,
+    type: config.environment.type,
+    logger: config.logger,
+    eventBus: config.eventBus,
+    projectsRoot: config.environment.type === 'remote' ? '/home/user/projects' : process.cwd(),
+    autoFallback: false,
+  });
 
- return {
-   id: sid,
-   contextWindow: contextWindow ?? createContextWindow(), 
-   abortController: new AbortController(), 
-   agentServiceConfig: { 
-     defaultModel: config.defaultModel, 
-     cachingEnabled: config.cachingEnabled ?? true 
-   },
-   aborted: false,
-   remoteId: remoteId,
-   executionAdapter: adapter,
- };
+  return {
+    id: sid,
+    contextWindow: contextWindow ?? createContextWindow(),
+    abortController: new AbortController(),
+    agentServiceConfig: {
+      defaultModel: config.defaultModel,
+      cachingEnabled: config.cachingEnabled ?? true,
+    },
+    aborted: false,
+    remoteId: remoteId,
+    executionAdapter: adapter,
+  };
 };

@@ -1,6 +1,6 @@
 /**
  * checkpoint-events.ts
- * 
+ *
  * Event bus for checkpoint-related events.
  */
 

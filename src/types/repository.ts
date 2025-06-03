@@ -14,22 +14,22 @@ export interface CleanRepositoryStatus {
  */
 export interface DirtyRepositoryStatus {
   type: 'dirty';
-  
+
   /**
    * Modified files not yet staged
    */
   modifiedFiles: string[];
-  
+
   /**
    * Files staged for commit
    */
   stagedFiles: string[];
-  
+
   /**
    * Untracked files
    */
   untrackedFiles: string[];
-  
+
   /**
    * Deleted files
    */
@@ -49,32 +49,32 @@ export interface GitRepositoryInfo {
    * Repository root path
    */
   repoRoot: string;
-  
+
   /**
    * Whether the directory is a git repository
    */
   isGitRepository: boolean;
-  
+
   /**
    * Current branch name
    */
   currentBranch: string;
-  
+
   /**
    * Default branch name (typically 'main' or 'master')
    */
   defaultBranch: string;
-  
+
   /**
    * Repository status details
    */
   status: RepositoryStatus;
-  
+
   /**
    * Recent commits (hash and message)
    */
   recentCommits: string[];
-  
+
   /**
    * Current commit SHA
    */

@@ -1,7 +1,7 @@
 theme: jekyll-theme-minimal
 title: qckfx Agent SDK
 description: Documentation for the qckfx Agent SDK
-baseurl: "/agent"
-url: "https://qckfx.github.io"
+baseurl: '/agent'
+url: 'https://qckfx.github.io'
 repository: qckfx/agent
 markdown: kramdown

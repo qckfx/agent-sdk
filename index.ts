@@ -21,30 +21,21 @@ export { createTool } from './src/tools/createTool.js';
 // ---------------------------------------------------------------------------
 
 // Tooling
-export type {
-  Tool,
-  ToolContext,
-} from './src/types/tool.js';
+export type { Tool, ToolContext } from './src/types/tool.js';
 
 export { ToolRegistry } from './src/types/registry.js';
 
-export type {
-  ToolDescription,
-} from './src/types/registry.js';
+export type { ToolDescription } from './src/types/registry.js';
 
 export type {
   ToolExecutionState,
-  PermissionRequestState
+  PermissionRequestState,
 } from './src/types/tool-execution/index.js';
 
 export { ToolExecutionStatus } from './src/types/tool-execution/index.js';
 
 // Runtime results
-export type {
-  ProcessQueryResult,
-  ConversationResult,
-  ToolResultEntry,
-} from './src/types/agent.js';
+export type { ProcessQueryResult, ConversationResult, ToolResultEntry } from './src/types/agent.js';
 
 // Tool Results
 export type {
@@ -98,13 +89,9 @@ export { ToolCategory } from './src/types/tool.js';
 // Convenience export for common sub-types used in tool results
 export type { FileEntry } from './src/tools/LSTool.js';
 
-export {
-  ContextWindow,
-} from './src/types/contextWindow.js';
+export { ContextWindow } from './src/types/contextWindow.js';
 
-export type {
-  Message
-} from './src/types/contextWindow.js';
+export type { Message } from './src/types/contextWindow.js';
 
 export type {
   CheckpointData,

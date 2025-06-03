@@ -6,7 +6,5 @@
     "outDir": "./dist/cjs",
     "declarationDir": "./dist/cjs"
   },
-  "exclude": [
-    "src/scripts/**/*"
-  ]
+  "exclude": ["src/scripts/**/*"]
 }

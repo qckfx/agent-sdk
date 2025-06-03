@@ -24,16 +24,16 @@ export function fakeModelClient(opts: {
   return {
     formatToolsForClaude: () => [],
     async getToolCall(
-      query: string, 
-      toolDescriptions: any[], 
-      sessionState: any, 
-      options?: { signal?: AbortSignal, tool_choice?: any }
+      query: string,
+      toolDescriptions: any[],
+      sessionState: any,
+      options?: { signal?: AbortSignal; tool_choice?: any },
     ) {
       // Check if aborted
       if (options?.signal?.aborted) {
         throw new Error('AbortError');
       }
-      
+
       callCount++;
       if (callCount === 1 && opts.chooseTool) {
         return {
@@ -46,26 +46,26 @@ export function fakeModelClient(opts: {
           toolCall: { toolId: 'grep', toolUseId: 't2', args: { pattern: 'bar' } },
         };
       }
-      
-      return { 
-        toolChosen: false, 
+
+      return {
+        toolChosen: false,
         response: {
-          id: 'r1', 
+          id: 'r1',
           role: 'assistant',
-          content: [{ type: 'text', text: 'done' }]
-        }
+          content: [{ type: 'text', text: 'done' }],
+        },
       };
     },
     async generateResponse(
-      query: string, 
-      toolDescriptions: any[], 
+      query: string,
+      toolDescriptions: any[],
       sessionState: any,
-      options?: { signal?: AbortSignal, tool_choice?: any }
+      options?: { signal?: AbortSignal; tool_choice?: any },
     ) {
       return {
-        id: 'r2', 
+        id: 'r2',
         role: 'assistant',
-        content: [{ type: 'text', text: 'fallback' }]
+        content: [{ type: 'text', text: 'fallback' }],
       };
     },
   } as unknown as ModelClient;
@@ -79,43 +79,50 @@ export function stubToolRegistry(abortBehavior?: 'never-resolves'): {
   calls: { toolId: string; args: Record<string, unknown> }[];
 } {
   const calls: { toolId: string; args: Record<string, unknown> }[] = [];
-  
+
   // Create a fake registry
   const registry = {
-    getToolDescriptions: () => [{
-      id: 'grep',
-      name: 'grep',
-      description: 'grep tool for testing',
-      parameters: {}
-    }],
+    getToolDescriptions: () => [
+      {
+        id: 'grep',
+        name: 'grep',
+        description: 'grep tool for testing',
+        parameters: {},
+      },
+    ],
     getTool: () => ({
       id: 'grep',
       name: 'grep',
       description: 'grep tool for testing',
       requiresPermission: false,
       parameters: {},
-      category: 'readonly'
+      category: 'readonly',
     }),
     getAllTools: () => [],
-    executeToolWithCallbacks: async (toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => {
+    executeToolWithCallbacks: async (
+      toolId: string,
+      toolUseId: string,
+      args: Record<string, unknown>,
+      context: ToolContext,
+    ) => {
       calls.push({ toolId, args });
-      
+
       // Check for abort signal before proceeding
       if (context.abortSignal?.aborted) {
         throw new Error('AbortError');
       }
-      
+
       if (abortBehavior === 'never-resolves') {
         // Return a promise that never resolves, used for testing abort during tool execution
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           // This promise deliberately never resolves
         });
       }
-      
+
       return { ok: true };
-    }
+    },
   } as unknown as ToolRegistry;
-  
+
   return { registry, calls };
 }
 
@@ -135,13 +142,9 @@ export function stubLogger(): Logger {
     formatOptions: {
       showTimestamp: false,
       showPrefix: true,
-      colors: false
+      colors: false,
     },
-    enabledCategories: [
-      LogCategory.SYSTEM,
-      LogCategory.TOOLS,
-      LogCategory.MODEL
-    ]
+    enabledCategories: [LogCategory.SYSTEM, LogCategory.TOOLS, LogCategory.MODEL],
   } as unknown as Logger;
 }
 
@@ -156,7 +159,7 @@ export function stubPermissionManager() {
     shouldRequirePermission: () => false,
     enableDangerMode: () => {},
     disableDangerMode: () => {},
-    isDangerModeEnabled: () => false
+    isDangerModeEnabled: () => false,
   };
 }
 
@@ -171,8 +174,8 @@ export function stubExecutionAdapter(): ExecutionAdapter {
       data: {
         path: '/test/path',
         originalContent: 'original',
-        newContent: 'modified'
-      }
+        newContent: 'modified',
+      },
     }),
     glob: async () => [],
     readFile: async (): Promise<FileReadToolResult> => ({
@@ -181,8 +184,8 @@ export function stubExecutionAdapter(): ExecutionAdapter {
         path: '/test/path',
         content: '',
         size: 0,
-        encoding: 'utf-8'
-      }
+        encoding: 'utf-8',
+      },
     }),
     writeFile: async () => {},
     ls: async (): Promise<LSToolResult> => ({
@@ -190,11 +193,11 @@ export function stubExecutionAdapter(): ExecutionAdapter {
       data: {
         path: '/test/path',
         entries: [],
-        count: 0
-      }
+        count: 0,
+      },
     }),
     generateDirectoryMap: async () => '',
     getGitRepositoryInfo: async () => [],
-    getDirectoryStructures: async () => new Map()
+    getDirectoryStructures: async () => new Map(),
   } as ExecutionAdapter;
 }

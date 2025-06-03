@@ -31,7 +31,7 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
     executionAdapter,
     promptManager = createDefaultPromptManager(),
     eventBus,
-    logger 
+    logger,
   } = config;
 
   return {
@@ -47,7 +47,10 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
 
       // Guard against missing sessionId
       if (!sessionId) {
-        logger.error('Cannot process query: Missing sessionId in session state', LogCategory.SYSTEM);
+        logger.error(
+          'Cannot process query: Missing sessionId in session state',
+          LogCategory.SYSTEM,
+        );
         return {
           error: 'Missing sessionId in session state',
           contextWindow: sessionState.contextWindow,
@@ -70,7 +73,8 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
 
       if (
         sessionState.contextWindow.getLength() === 0 ||
-        sessionState.contextWindow.getMessages()[sessionState.contextWindow.getLength() - 1].role !== 'user'
+        sessionState.contextWindow.getMessages()[sessionState.contextWindow.getLength() - 1]
+          .role !== 'user'
       ) {
         sessionState.contextWindow.pushUser(query);
       }
@@ -84,11 +88,11 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
           logger,
         });
 
-        const { response: driverResponse, toolResults, aborted } = await driver.run(
-          query,
-          sessionState,
-          model,
-        );
+        const {
+          response: driverResponse,
+          toolResults,
+          aborted,
+        } = await driver.run(query, sessionState, model);
 
         let response: string | undefined = driverResponse;
 
@@ -98,7 +102,9 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
           const msgs = sessionState.contextWindow.getMessages();
           const last = msgs[msgs.length - 1];
           if (!skipAck && (!last || last.role !== 'assistant')) {
-            sessionState.contextWindow.pushAssistant([{ type: 'text', text: 'Operation aborted by user' }]);
+            sessionState.contextWindow.pushAssistant([
+              { type: 'text', text: 'Operation aborted by user' },
+            ]);
           }
 
           if (skipAck) {

@@ -22,31 +22,31 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
         path: 'mockFile.txt',
         content: 'Mock file content',
         size: 18,
-        encoding: 'utf8'
-      }
+        encoding: 'utf8',
+      },
     };
   }
 
   async writeFile(): Promise<void> {
     return Promise.resolve();
   }
-  
+
   async executeCommand() {
     return { stdout: 'Mock output', stderr: '', exitCode: 0 };
   }
-  
+
   async glob() {
     return ['mockFile1.txt', 'mockFile2.txt'];
   }
-  
+
   async editFile(): Promise<FileEditToolResult> {
     return {
       ok: true as const,
       data: {
         path: 'mockFile.txt',
         originalContent: 'Original content',
-        newContent: 'New content'
-      }
+        newContent: 'New content',
+      },
     };
   }
 
@@ -61,11 +61,11 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
             type: 'file',
             isDirectory: false,
             isFile: true,
-            isSymbolicLink: false
-          }
+            isSymbolicLink: false,
+          },
         ],
-        count: 1
-      }
+        count: 1,
+      },
     };
   }
 
@@ -78,37 +78,38 @@ export class E2BExecutionAdapter implements ExecutionAdapter {
   - mockFile2.txt
 </context>`;
   }
-  
+
   async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     // Mock git repository information with dirty status
-    return [{
-      repoRoot: '/home/user/projects/mock-repo',
-      isGitRepository: true,
-      currentBranch: 'feature/e2b-mock-branch',
-      defaultBranch: 'main',
-      status: {
-        type: 'dirty',
-        modifiedFiles: ['src/utils/mockFile.ts'],
-        stagedFiles: ['src/components/mockComponent.tsx'],
-        untrackedFiles: ['src/utils/newFile.ts'],
-        deletedFiles: []
+    return [
+      {
+        repoRoot: '/home/user/projects/mock-repo',
+        isGitRepository: true,
+        currentBranch: 'feature/e2b-mock-branch',
+        defaultBranch: 'main',
+        status: {
+          type: 'dirty',
+          modifiedFiles: ['src/utils/mockFile.ts'],
+          stagedFiles: ['src/components/mockComponent.tsx'],
+          untrackedFiles: ['src/utils/newFile.ts'],
+          deletedFiles: [],
+        },
+        recentCommits: ['abc1234 Mock commit 1', 'def5678 Mock commit 2', 'ghi9012 Mock commit 3'],
       },
-      recentCommits: [
-        'abc1234 Mock commit 1',
-        'def5678 Mock commit 2',
-        'ghi9012 Mock commit 3'
-      ]
-    }];
+    ];
   }
 
   async getDirectoryStructures(): Promise<Map<string, string>> {
     return new Map([
-      ['/home/user/projects/mock-repo', `- src/
+      [
+        '/home/user/projects/mock-repo',
+        `- src/
   - utils/
     - mockFile.ts
   - components/
     - mockComponent.tsx
-- package.json`]
+- package.json`,
+      ],
     ]);
   }
 }

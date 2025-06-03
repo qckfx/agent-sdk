@@ -34,7 +34,7 @@ const versionFolderToVersion = (folder: string): string => {
 async function generate(): Promise<void> {
   // 1. Find version directories (they start with 'v') in dist/
   const allEntries = await fs.readdir(distDir, { withFileTypes: true });
-  const versionDirs = allEntries.filter((e) => e.isDirectory() && /^v[0-9]+/.test(e.name));
+  const versionDirs = allEntries.filter(e => e.isDirectory() && /^v[0-9]+/.test(e.name));
 
   for (const dirEnt of versionDirs) {
     const versionFolder = dirEnt.name; // e.g., v1
@@ -68,11 +68,13 @@ async function generate(): Promise<void> {
     await fs.writeFile(rootPath, JSON.stringify(jsonSchema, null, 2));
 
     // eslint-disable-next-line no-console
-    console.log(`📄  Generated JSON Schema for ${versionFolder} -> ${path.relative(pkgRoot, outputPath)}`);
+    console.log(
+      `📄  Generated JSON Schema for ${versionFolder} -> ${path.relative(pkgRoot, outputPath)}`,
+    );
   }
 }
 
-generate().catch((err) => {
+generate().catch(err => {
   // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);

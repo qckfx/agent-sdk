@@ -27,5 +27,4 @@ services:
           cpus: '0.5'
           memory: 512M
     # Network isolation (can be changed to 'host' if network access is needed)
-    network_mode: "none"
-
+    network_mode: 'none'

@@ -7,7 +7,7 @@ import { createLogger, LogLevel } from '../../utils/logger.js';
 // Create a logger for storage operations
 const logger = createLogger({
   level: LogLevel.INFO,
-  prefix: 'EvalStorage'
+  prefix: 'EvalStorage',
 });
 
 /**
@@ -21,7 +21,7 @@ export interface IFileSystem {
   readFileSync(path: string, options: { encoding: BufferEncoding }): string;
   readdirSync(path: string): string[];
   statSync(path: string): { mtime: { getTime: () => number } };
-  rmSync(path: string, options: { recursive: boolean, force: boolean }): void;
+  rmSync(path: string, options: { recursive: boolean; force: boolean }): void;
 }
 
 /**
@@ -52,7 +52,7 @@ export class NodeFileSystem implements IFileSystem {
     return fs.statSync(path);
   }
 
-  rmSync(path: string, options: { recursive: boolean, force: boolean }): void {
+  rmSync(path: string, options: { recursive: boolean; force: boolean }): void {
     fs.rmSync(path, options);
   }
 }
@@ -66,7 +66,7 @@ export class StorageService {
 
   constructor(
     fileSystem: IFileSystem = new NodeFileSystem(),
-    baseDir: string = path.resolve(process.cwd(), '.eval-data')
+    baseDir: string = path.resolve(process.cwd(), '.eval-data'),
   ) {
     this.fileSystem = fileSystem;
     this.baseDir = baseDir;
@@ -103,21 +103,17 @@ export class StorageService {
       runId?: string;
       testName?: string;
       createIfNotExist?: boolean;
-    } = {}
+    } = {},
   ): string {
-    const { 
-      runId = this.formatDateForFilename(), 
-      testName, 
-      createIfNotExist = true 
-    } = options;
-    
+    const { runId = this.formatDateForFilename(), testName, createIfNotExist = true } = options;
+
     const baseDir = path.join(this.baseDir, runId);
     const storageDir = testName ? path.join(baseDir, testName) : baseDir;
-    
+
     if (createIfNotExist) {
       this.ensureDirectoryExists(storageDir);
     }
-    
+
     return storageDir;
   }
 
@@ -130,24 +126,22 @@ export class StorageService {
       runId?: string;
       testName?: string;
       executionId?: string;
-    } = {}
+    } = {},
   ): string {
     try {
       const { executionId = this.generateUniqueId() } = options;
       const storageDir = this.getEvaluationStorageDir(options);
-      
+
       // Create histories directory
       const historiesDir = path.join(storageDir, 'histories');
       this.ensureDirectoryExists(historiesDir);
-      
+
       // Write the execution history to a file
       const filePath = path.join(historiesDir, `history-${executionId}.json`);
-      this.fileSystem.writeFileSync(
-        filePath,
-        JSON.stringify(executionHistory, null, 2),
-        { encoding: 'utf8' }
-      );
-      
+      this.fileSystem.writeFileSync(filePath, JSON.stringify(executionHistory, null, 2), {
+        encoding: 'utf8',
+      });
+
       logger.debug(`Stored execution history to ${filePath}`);
       return executionId;
     } catch (error) {
@@ -164,21 +158,21 @@ export class StorageService {
     options: {
       runId?: string;
       testName?: string;
-    } = {}
+    } = {},
   ): AgentExecutionHistory | null {
     try {
       const storageDir = this.getEvaluationStorageDir({
         ...options,
         createIfNotExist: false,
       });
-      
+
       const filePath = path.join(storageDir, 'histories', `history-${executionId}.json`);
-      
+
       if (!this.fileSystem.existsSync(filePath)) {
         logger.warn(`Execution history not found: ${filePath}`);
         return null;
       }
-      
+
       const historyData = this.fileSystem.readFileSync(filePath, { encoding: 'utf8' });
       return JSON.parse(historyData) as AgentExecutionHistory;
     } catch (error) {
@@ -194,24 +188,25 @@ export class StorageService {
     options: {
       runId?: string;
       testName?: string;
-    } = {}
+    } = {},
   ): { id: string; path: string }[] {
     try {
       const storageDir = this.getEvaluationStorageDir({
         ...options,
         createIfNotExist: false,
       });
-      
+
       const historiesDir = path.join(storageDir, 'histories');
-      
+
       if (!this.fileSystem.existsSync(historiesDir)) {
         return [];
       }
-      
+
       // Get all history files
-      const files = this.fileSystem.readdirSync(historiesDir)
+      const files = this.fileSystem
+        .readdirSync(historiesDir)
         .filter(file => file.startsWith('history-') && file.endsWith('.json'));
-      
+
       // Extract IDs from filenames
       return files.map(file => {
         const id = file.replace('history-', '').replace('.json', '');
@@ -236,28 +231,23 @@ export class StorageService {
       runId?: string;
       testName?: string;
       judgmentId?: string;
-    } = {}
+    } = {},
   ): string {
     try {
       const { judgmentId = this.generateUniqueId() } = options;
       const storageDir = this.getEvaluationStorageDir(options);
-      
+
       // Create judgments directory
       const judgmentsDir = path.join(storageDir, 'judgments');
       this.ensureDirectoryExists(judgmentsDir);
-      
+
       // Write the judgment result to a file
-      const filePath = path.join(
-        judgmentsDir,
-        `judgment-${executionId}-${judgmentId}.json`
-      );
-      
-      this.fileSystem.writeFileSync(
-        filePath,
-        JSON.stringify(judgmentResult, null, 2),
-        { encoding: 'utf8' }
-      );
-      
+      const filePath = path.join(judgmentsDir, `judgment-${executionId}-${judgmentId}.json`);
+
+      this.fileSystem.writeFileSync(filePath, JSON.stringify(judgmentResult, null, 2), {
+        encoding: 'utf8',
+      });
+
       logger.debug(`Stored judgment result to ${filePath}`);
       return judgmentId;
     } catch (error) {
@@ -275,25 +265,25 @@ export class StorageService {
     options: {
       runId?: string;
       testName?: string;
-    } = {}
+    } = {},
   ): JudgmentResult | null {
     try {
       const storageDir = this.getEvaluationStorageDir({
         ...options,
         createIfNotExist: false,
       });
-      
+
       const filePath = path.join(
         storageDir,
         'judgments',
-        `judgment-${executionId}-${judgmentId}.json`
+        `judgment-${executionId}-${judgmentId}.json`,
       );
-      
+
       if (!this.fileSystem.existsSync(filePath)) {
         logger.warn(`Judgment result not found: ${filePath}`);
         return null;
       }
-      
+
       const judgmentData = this.fileSystem.readFileSync(filePath, { encoding: 'utf8' });
       return JSON.parse(judgmentData) as JudgmentResult;
     } catch (error) {
@@ -310,7 +300,7 @@ export class StorageService {
       runId?: string;
       testName?: string;
       executionId?: string;
-    } = {}
+    } = {},
   ): { judgmentId: string; executionId: string; path: string }[] {
     try {
       const { executionId } = options;
@@ -318,43 +308,44 @@ export class StorageService {
         ...options,
         createIfNotExist: false,
       });
-      
+
       const judgmentsDir = path.join(storageDir, 'judgments');
-      
+
       if (!this.fileSystem.existsSync(judgmentsDir)) {
         return [];
       }
-      
+
       // Get all judgment files
-      let files = this.fileSystem.readdirSync(judgmentsDir)
+      let files = this.fileSystem
+        .readdirSync(judgmentsDir)
         .filter(file => file.startsWith('judgment-') && file.endsWith('.json'));
-      
+
       // Filter by executionId if provided
       if (executionId) {
         files = files.filter(file => file.includes(`-${executionId}-`));
       }
-      
+
       // Extract IDs from filenames
       return files.map(file => {
         // Expected format: judgment-exec1-judge1.json
         // Remove 'judgment-' prefix and '.json' suffix
         const idPart = file.replace(/^judgment-/, '').replace(/\.json$/, '');
-        
+
         // Find the position of the first hyphen after the execution ID
         const firstHyphenPos = idPart.indexOf('-');
-        
+
         if (firstHyphenPos === -1) {
           // Malformed filename
           return {
             executionId: idPart,
             judgmentId: 'unknown',
-            path: path.join(judgmentsDir, file)
+            path: path.join(judgmentsDir, file),
           };
         }
-        
+
         const currentExecutionId = idPart.substring(0, firstHyphenPos);
         const judgmentId = idPart.substring(firstHyphenPos + 1);
-        
+
         return {
           judgmentId,
           executionId: currentExecutionId,
@@ -378,24 +369,24 @@ export class StorageService {
       runId?: string;
       testName?: string;
       comparisonId?: string;
-    } = {}
+    } = {},
   ): string {
     try {
       const { comparisonId = this.generateUniqueId() } = options;
       const storageDir = this.getEvaluationStorageDir(options);
-      
+
       // Create comparisons directory
       const comparisonsDir = path.join(storageDir, 'comparisons');
       this.ensureDirectoryExists(comparisonsDir);
-      
+
       // Write the comparison result to a file
       const filePath = path.join(
         comparisonsDir,
-        `comparison-${executionIdA}-${executionIdB}-${comparisonId}.md`
+        `comparison-${executionIdA}-${executionIdB}-${comparisonId}.md`,
       );
-      
+
       this.fileSystem.writeFileSync(filePath, comparisonText, { encoding: 'utf8' });
-      
+
       logger.debug(`Stored comparison result to ${filePath}`);
       return comparisonId;
     } catch (error) {
@@ -411,30 +402,30 @@ export class StorageService {
     options: {
       maxAgeDays?: number;
       preserveRuns?: string[];
-    } = {}
+    } = {},
   ): void {
     try {
       const { maxAgeDays = 7, preserveRuns = [] } = options;
-      
+
       if (!this.fileSystem.existsSync(this.baseDir)) {
         return;
       }
-      
+
       const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
       const now = Date.now();
-      
+
       // Get all run directories
       const runDirs = this.fileSystem.readdirSync(this.baseDir);
-      
+
       for (const runDir of runDirs) {
         // Skip directories that should be preserved
         if (preserveRuns.includes(runDir)) {
           continue;
         }
-        
+
         const runPath = path.join(this.baseDir, runDir);
         const stats = this.fileSystem.statSync(runPath);
-        
+
         // Check if the directory is older than maxAgeDays
         if (now - stats.mtime.getTime() > maxAgeMs) {
           // Remove the directory and all its contents
@@ -454,21 +445,19 @@ export class StorageService {
     config: AgentConfiguration,
     options: {
       runId?: string;
-    } = {}
+    } = {},
   ): void {
     try {
       const runId = options.runId || this.formatDateForFilename();
       const evalDir = this.getEvaluationStorageDir({ runId });
       const configsDir = path.join(evalDir, 'configurations');
       this.ensureDirectoryExists(configsDir);
-      
+
       const filePath = path.join(configsDir, `config-${config.id}.json`);
-      this.fileSystem.writeFileSync(
-        filePath, 
-        JSON.stringify(config, null, 2), 
-        { encoding: 'utf8' }
-      );
-      
+      this.fileSystem.writeFileSync(filePath, JSON.stringify(config, null, 2), {
+        encoding: 'utf8',
+      });
+
       logger.debug(`Stored configuration to ${filePath}`);
     } catch (error) {
       logger.error('Failed to store configuration', error);
@@ -485,7 +474,7 @@ export class StorageService {
     options: {
       runId?: string;
       comparisonId?: string;
-    } = {}
+    } = {},
   ): string {
     try {
       const { comparisonId = this.generateUniqueId() } = options;
@@ -493,18 +482,16 @@ export class StorageService {
       const evalDir = this.getEvaluationStorageDir({ runId });
       const comparisonsDir = path.join(evalDir, 'config-comparisons');
       this.ensureDirectoryExists(comparisonsDir);
-      
+
       const filePath = path.join(
-        comparisonsDir, 
-        `config-comparison-${configAId}-${configBId}-${comparisonId}.json`
+        comparisonsDir,
+        `config-comparison-${configAId}-${configBId}-${comparisonId}.json`,
       );
-      
-      this.fileSystem.writeFileSync(
-        filePath, 
-        JSON.stringify(comparison, null, 2), 
-        { encoding: 'utf8' }
-      );
-      
+
+      this.fileSystem.writeFileSync(filePath, JSON.stringify(comparison, null, 2), {
+        encoding: 'utf8',
+      });
+
       logger.debug(`Stored configuration comparison to ${filePath}`);
       return comparisonId;
     } catch (error) {

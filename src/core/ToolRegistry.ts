@@ -18,11 +18,38 @@ function createToolRegistry(logger: Logger): ToolRegistry {
   const tools = new Map<string, Tool>();
   // Index to look up tools by category
   const toolsByCategory = new Map<ToolCategory, Set<string>>();
-  
-  const startCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void> = [];
-  const completeCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, result: unknown, startTime: number, executionTime: number) => void> = [];
-  const errorCallbacks: Array<(executionId: string, toolId: string, toolUseId: string, startTime: number, args: Record<string, unknown>, error: Error) => void> = [];
-  
+
+  const startCallbacks: Array<
+    (
+      executionId: string,
+      toolId: string,
+      toolUseId: string,
+      args: Record<string, unknown>,
+      context: ToolContext,
+    ) => void
+  > = [];
+  const completeCallbacks: Array<
+    (
+      executionId: string,
+      toolId: string,
+      toolUseId: string,
+      args: Record<string, unknown>,
+      result: unknown,
+      startTime: number,
+      executionTime: number,
+    ) => void
+  > = [];
+  const errorCallbacks: Array<
+    (
+      executionId: string,
+      toolId: string,
+      toolUseId: string,
+      startTime: number,
+      args: Record<string, unknown>,
+      error: Error,
+    ) => void
+  > = [];
+
   return {
     /**
      * Register a tool with the registry
@@ -34,24 +61,24 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         logger.error('Invalid tool', undefined, LogCategory.TOOLS);
         throw new Error('Invalid tool: Tool must have an id');
       }
-      
+
       tools.set(tool.id, tool);
-      
+
       // If the tool has category information, add it to the category index
       if (tool.category) {
         // Handle both single category and arrays of categories
         const categories = Array.isArray(tool.category) ? tool.category : [tool.category];
-        
+
         for (const category of categories) {
           if (!toolsByCategory.has(category)) {
             toolsByCategory.set(category, new Set());
           }
-          
+
           toolsByCategory.get(category)?.add(tool.id);
         }
       }
     },
-    
+
     /**
      * Get a tool by its ID
      * @param toolId - The ID of the tool to retrieve
@@ -60,7 +87,7 @@ function createToolRegistry(logger: Logger): ToolRegistry {
     getTool(toolId: string): Tool | undefined {
       return tools.get(toolId);
     },
-    
+
     /**
      * Get all registered tools
      * @returns Array of all registered tools
@@ -68,7 +95,7 @@ function createToolRegistry(logger: Logger): ToolRegistry {
     getAllTools(): Tool[] {
       return Array.from(tools.values());
     },
-    
+
     /**
      * Get descriptions of all tools for the model
      * @returns Array of tool descriptions
@@ -82,18 +109,26 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         requiredParameters: tool.requiredParameters,
         requiresPermission: tool.requiresPermission,
         category: tool.category,
-        alwaysRequirePermission: tool.alwaysRequirePermission
+        alwaysRequirePermission: tool.alwaysRequirePermission,
       }));
     },
-    
+
     /**
      * Register a callback to be called when a tool execution starts
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionStart(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext) => void): () => void {
+    onToolExecutionStart(
+      callback: (
+        executionId: string,
+        toolId: string,
+        toolUseId: string,
+        args: Record<string, unknown>,
+        context: ToolContext,
+      ) => void,
+    ): () => void {
       startCallbacks.push(callback);
-      
+
       // Return unsubscribe function
       return () => {
         const index = startCallbacks.indexOf(callback);
@@ -102,15 +137,25 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         }
       };
     },
-    
+
     /**
      * Register a callback to be called when a tool execution completes successfully
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionComplete(callback: (executionId: string, toolId: string, toolUseId: string, args: Record<string, unknown>, result: unknown, startTime: number, executionTime: number) => void): () => void {
+    onToolExecutionComplete(
+      callback: (
+        executionId: string,
+        toolId: string,
+        toolUseId: string,
+        args: Record<string, unknown>,
+        result: unknown,
+        startTime: number,
+        executionTime: number,
+      ) => void,
+    ): () => void {
       completeCallbacks.push(callback);
-      
+
       // Return unsubscribe function
       return () => {
         const index = completeCallbacks.indexOf(callback);
@@ -119,15 +164,24 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         }
       };
     },
-    
+
     /**
      * Register a callback to be called when a tool execution encounters an error
      * @param callback - The callback function to register
      * @returns A function to unregister the callback
      */
-    onToolExecutionError(callback: (executionId: string, toolId: string, toolUseId: string, startTime: number, args: Record<string, unknown>, error: Error) => void): () => void {
+    onToolExecutionError(
+      callback: (
+        executionId: string,
+        toolId: string,
+        toolUseId: string,
+        startTime: number,
+        args: Record<string, unknown>,
+        error: Error,
+      ) => void,
+    ): () => void {
       errorCallbacks.push(callback);
-      
+
       // Return unsubscribe function
       return () => {
         const index = errorCallbacks.indexOf(callback);
@@ -136,7 +190,7 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         }
       };
     },
-    
+
     /**
      * Get all tools in a specific category
      * @param category - The category to query
@@ -148,7 +202,7 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         .map(id => tools.get(id))
         .filter(Boolean) as Tool[];
     },
-    
+
     /**
      * Check if a tool belongs to a specific category
      * @param toolId - The ID of the tool to check
@@ -158,12 +212,12 @@ function createToolRegistry(logger: Logger): ToolRegistry {
     isToolInCategory(toolId: string, category: ToolCategory): boolean {
       const tool = tools.get(toolId);
       if (!tool || !tool.category) return false;
-      
+
       // Check if the tool belongs to the specified category
       const categories = Array.isArray(tool.category) ? tool.category : [tool.category];
       return categories.includes(category);
     },
-    
+
     /**
      * Execute a tool with callback notifications
      * @param toolId - The ID of the tool to execute
@@ -172,8 +226,18 @@ function createToolRegistry(logger: Logger): ToolRegistry {
      * @param context - The execution context
      * @returns The result of the tool execution
      */
-    async executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
-      logger.debug('Executing tool with callbacks', LogCategory.TOOLS, JSON.stringify(tools), toolId);
+    async executeToolWithCallbacks(
+      toolId: string,
+      toolUseId: string,
+      args: Record<string, unknown>,
+      context: ToolContext,
+    ): Promise<ToolResult> {
+      logger.debug(
+        'Executing tool with callbacks',
+        LogCategory.TOOLS,
+        JSON.stringify(tools),
+        toolId,
+      );
       const tool = tools.get(toolId);
       if (!tool) {
         logger.error('Tool not found', undefined, LogCategory.TOOLS);
@@ -181,14 +245,8 @@ function createToolRegistry(logger: Logger): ToolRegistry {
       }
 
       // Notify start callbacks
-      startCallbacks.forEach((callback) =>
-        callback(
-          context.executionId,
-          toolId,
-          toolUseId,
-          args,
-          context,
-        ),
+      startCallbacks.forEach(callback =>
+        callback(context.executionId, toolId, toolUseId, args, context),
       );
 
       logger.debug('Executing tool', LogCategory.TOOLS, JSON.stringify(tool, null, 2));
@@ -197,27 +255,34 @@ function createToolRegistry(logger: Logger): ToolRegistry {
         // Execute the tool
         const result = await tool.execute(args, context);
         logger.info('Tool execution complete', LogCategory.TOOLS);
-        
+
         // Calculate execution time
         const executionTime = Date.now() - startTime;
-       
+
         // Notify complete callbacks
-        completeCallbacks.forEach(callback => 
-          callback(context.executionId, toolId, toolUseId, args, result, startTime, executionTime)
+        completeCallbacks.forEach(callback =>
+          callback(context.executionId, toolId, toolUseId, args, result, startTime, executionTime),
         );
-        
+
         return result;
       } catch (error) {
         logger.error('Tool execution error', error as Error, LogCategory.TOOLS);
         // Notify error callbacks
-        errorCallbacks.forEach(callback => 
-          callback(context.executionId, toolId, toolUseId, startTime, args, error instanceof Error ? error : new Error(String(error)))
+        errorCallbacks.forEach(callback =>
+          callback(
+            context.executionId,
+            toolId,
+            toolUseId,
+            startTime,
+            args,
+            error instanceof Error ? error : new Error(String(error)),
+          ),
         );
-        
+
         // Re-throw the error
         throw error;
       }
-    }
+    },
   };
 }
 

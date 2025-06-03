@@ -17,15 +17,15 @@ export class ContextWindow {
    * safe to roll back to.
    */
   private _lastCheckpointId?: string;
-  
+
   // Private file tracking
   private _filesRead: Set<string>;
-  
+
   constructor(messages?: Message[]) {
     // If we were given raw Anthropic messages, wrap them so we maintain a
     // consistent internal shape.  This scenario happens mainly in tests.
     if (messages) {
-      this._messages = messages.map((m) => ({
+      this._messages = messages.map(m => ({
         id: nanoid(),
         anthropic: m,
         createdAt: Date.now(),
@@ -52,28 +52,28 @@ export class ContextWindow {
   public setLastCheckpointId(id?: string): void {
     this._lastCheckpointId = id;
   }
-  
+
   /**
    * Record a file being read in the current context
    */
   public recordFileRead(filePath: string): void {
     this._filesRead.add(filePath);
   }
-  
+
   /**
    * Check if a file has been read in the current context
    */
   public hasReadFile(filePath: string): boolean {
     return this._filesRead.has(filePath);
   }
-  
+
   /**
    * Clear all file tracking data when context is refreshed
    */
   public clearFileTracking(): void {
     this._filesRead.clear();
   }
-  
+
   /**
    * Get list of all files read in current context (for debugging)
    */
@@ -87,7 +87,7 @@ export class ContextWindow {
    * the wrapper objects instead when you need metadata.
    */
   public getMessages(): Message[] {
-    return this._messages.map((m) => m.anthropic);
+    return this._messages.map(m => m.anthropic);
   }
 
   /**
@@ -96,7 +96,7 @@ export class ContextWindow {
   public getConversationMessages(): ConversationMessage[] {
     return this._messages;
   }
-  
+
   /**
    * Returns the last message in the conversation, or undefined if there are no messages.
    */
@@ -134,7 +134,11 @@ export class ContextWindow {
     return id;
   }
 
-  public pushToolUse(toolUse: { id: string; name: string; input: Record<string, unknown> }): string {
+  public pushToolUse(toolUse: {
+    id: string;
+    name: string;
+    input: Record<string, unknown>;
+  }): string {
     const id = this.push({
       role: 'assistant',
       content: [
@@ -200,24 +204,24 @@ export class ContextWindow {
       }
     }
   }
-  
+
   public clear(): void {
     this._messages = [];
   }
-  
+
   public getLength(): number {
     return this._messages.length;
   }
-  
+
   public setMessages(messages: Message[]): void {
-    this._messages = messages.map((m) => ({
+    this._messages = messages.map(m => ({
       id: nanoid(),
       anthropic: m,
       createdAt: Date.now(),
       lastCheckpointId: this._lastCheckpointId,
     }));
   }
-  
+
   /**
    * Removes messages from the context window up to and including the message with the given ID.
    * @param messageId The ID of the message to roll back to (inclusive)
@@ -228,7 +232,7 @@ export class ContextWindow {
     if (index === -1) {
       return 0;
     }
-    
+
     // Remove all messages up to and including the specified message
     const removed = this._messages.splice(0, index + 1);
 

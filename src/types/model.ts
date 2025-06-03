@@ -40,7 +40,7 @@ export interface ConversationMessage {
 }
 
 /**
- * Cache metrics for tracking prompt caching efficiency 
+ * Cache metrics for tracking prompt caching efficiency
  */
 export interface CacheMetricsTracking {
   totalCacheWrites: number;
@@ -60,7 +60,7 @@ export interface SessionState {
   aborted: boolean;
 
   skipAbortAck?: boolean;
-  
+
   lastToolError?: LastToolError;
   tokenUsage?: TokenUsage;
   /** Shared AbortController for the session - always present */
@@ -131,22 +131,18 @@ export interface ModelClient {
     model: string,
     toolDescriptions: ToolDescription[],
     sessionState?: SessionState,
-    options?: { signal?: AbortSignal }
+    options?: { signal?: AbortSignal },
   ): Promise<ToolCallResponse>;
   generateResponse(
     query: string,
     model: string,
-    toolDescriptions: ToolDescription[], 
-    sessionState?: SessionState, 
-    options?: { tool_choice?: { type: string }; signal?: AbortSignal }
+    toolDescriptions: ToolDescription[],
+    sessionState?: SessionState,
+    options?: { tool_choice?: { type: string }; signal?: AbortSignal },
   ): Promise<LLM.Messages.Message>;
 }
 
 // TokenManager interface for conversation compression
 export interface TokenManager {
-  manageConversationSize: (
-    sessionState: SessionState, 
-    maxTokens: number,
-    logger?: Logger
-  ) => void;
+  manageConversationSize: (sessionState: SessionState, maxTokens: number, logger?: Logger) => void;
 }

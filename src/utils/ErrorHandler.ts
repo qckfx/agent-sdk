@@ -2,12 +2,12 @@
  * ErrorHandler - Provides consistent error handling functionality
  */
 
-import { 
-  ErrorType, 
-  CustomError, 
-  ErrorResponse, 
-  ErrorHandlerConfig, 
-  ErrorHandler 
+import {
+  ErrorType,
+  CustomError,
+  ErrorResponse,
+  ErrorHandlerConfig,
+  ErrorHandler,
 } from '../types/error.js';
 
 /**
@@ -18,9 +18,9 @@ import {
  * @returns The custom error
  */
 export const createError = (
-  message: string, 
-  type: ErrorType = ErrorType.UNKNOWN, 
-  details: Record<string, unknown> = {}
+  message: string,
+  type: ErrorType = ErrorType.UNKNOWN,
+  details: Record<string, unknown> = {},
 ): CustomError => {
   const error = new Error(message) as CustomError;
   error.type = type;
@@ -35,7 +35,7 @@ export const createError = (
  */
 export const createErrorHandler = (config: ErrorHandlerConfig = {}): ErrorHandler => {
   const logger = config.logger || console;
-  
+
   return {
     /**
      * Handle an error
@@ -46,11 +46,11 @@ export const createErrorHandler = (config: ErrorHandlerConfig = {}): ErrorHandle
     handleError(error: Error | CustomError, context: string = ''): ErrorResponse {
       // Log the error
       logger.error(`Error in ${context}: ${error.message}`, error as Error | unknown);
-      
+
       // Determine error type
       const customError = error as CustomError;
       const errorType = customError.type || ErrorType.UNKNOWN;
-      
+
       // Create standardized response
       return {
         success: false,
@@ -58,11 +58,11 @@ export const createErrorHandler = (config: ErrorHandlerConfig = {}): ErrorHandle
           message: error.message,
           type: errorType,
           context,
-          details: customError.details || {}
-        }
+          details: customError.details || {},
+        },
       };
     },
-    
+
     /**
      * Create and handle an error in one step
      * @param message - Error message
@@ -72,15 +72,15 @@ export const createErrorHandler = (config: ErrorHandlerConfig = {}): ErrorHandle
      * @returns Standardized error response
      */
     error(
-      message: string, 
-      type: ErrorType = ErrorType.UNKNOWN, 
-      details: Record<string, unknown> = {}, 
-      context: string = ''
+      message: string,
+      type: ErrorType = ErrorType.UNKNOWN,
+      details: Record<string, unknown> = {},
+      context: string = '',
     ): ErrorResponse {
       const error = createError(message, type, details);
       return this.handleError(error, context);
     },
-    
+
     /**
      * Create a validation error
      * @param message - Error message
@@ -90,7 +90,7 @@ export const createErrorHandler = (config: ErrorHandlerConfig = {}): ErrorHandle
     validationError(message: string, details: Record<string, unknown> = {}): CustomError {
       return createError(message, ErrorType.VALIDATION, details);
     },
-    
+
     /**
      * Create a permission error
      * @param message - Error message
@@ -100,18 +100,14 @@ export const createErrorHandler = (config: ErrorHandlerConfig = {}): ErrorHandle
     permissionError(message: string, details: Record<string, unknown> = {}): CustomError {
       return createError(message, ErrorType.PERMISSION, details);
     },
-    
+
     /**
      * Create a tool not found error
      * @param toolId - ID of the tool that wasn't found
      * @returns Tool not found error
      */
     toolNotFoundError(toolId: string): CustomError {
-      return createError(
-        `Tool not found: ${toolId}`,
-        ErrorType.TOOL_NOT_FOUND,
-        { toolId }
-      );
-    }
+      return createError(`Tool not found: ${toolId}`, ErrorType.TOOL_NOT_FOUND, { toolId });
+    },
   };
 };

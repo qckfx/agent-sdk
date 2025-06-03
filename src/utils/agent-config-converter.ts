@@ -1,6 +1,6 @@
 /**
  * Converter for AgentConfigJSON to AgentConfig
- * 
+ *
  * This provides conversion functions between the Zod-validated JSON config
  * and the internal AgentConfig type expected by the Agent implementation.
  */
@@ -21,7 +21,7 @@ type PartialAgentConfig = Partial<CoreAgentConfig>;
 
 /**
  * Convert a Zod-validated AgentConfigJSON to the internal AgentConfig type.
- * 
+ *
  * @param jsonConfig The validated JSON configuration
  * @param modelProvider The model provider to use
  * @returns A proper AgentConfig object
@@ -29,31 +29,34 @@ type PartialAgentConfig = Partial<CoreAgentConfig>;
 export function convertToCoreAgentConfig(
   jsonConfig: AgentConfig,
   eventBus: TypedEventEmitter<BusEvents>,
-  callbacks?: AgentCallbacks
+  callbacks?: AgentCallbacks,
 ): CoreAgentConfig {
-
-  
   // Do NOT clearSessionAborted() here - that will be done in AgentRunner after abort is handled
   // Why? Because:
   // 1. If we clear here, we'd lose the abort status that AgentRunner uses to detect aborts
   // 2. AgentRunner needs to both check and clear the status in the same critical section (try/finally)
   // 3. Clearing here would create a race condition if another abort comes in between clear and AgentRunner's check
 
-  const modelProvider = LLMFactory.createProvider({ model: jsonConfig.defaultModel, cachingEnabled: true });
-  
+  const modelProvider = LLMFactory.createProvider({
+    model: jsonConfig.defaultModel,
+    cachingEnabled: true,
+  });
+
   // Create basic config with required properties
   const config: PartialAgentConfig = {
     modelProvider,
-    environment: { type: jsonConfig.environment as RepositoryEnvironment['type'] } as RepositoryEnvironment,
+    environment: {
+      type: jsonConfig.environment as RepositoryEnvironment['type'],
+    } as RepositoryEnvironment,
     cachingEnabled: true,
     eventBus,
   };
-  
+
   // Add optional properties if they exist
   if (jsonConfig.defaultModel !== undefined) {
     config.defaultModel = jsonConfig.defaultModel;
   }
-  
+
   if (jsonConfig.systemPrompt !== undefined) {
     config.systemPrompt = jsonConfig.systemPrompt;
   }
@@ -62,7 +65,7 @@ export function convertToCoreAgentConfig(
     // jsonConfig.logLevel is validated by the schema; cast to LogLevel for internal use
     config.logLevel = jsonConfig.logLevel as unknown as LogLevel;
   }
-  
+
   if (jsonConfig.tools !== undefined) {
     config.tools = jsonConfig.tools;
   }
@@ -73,7 +76,11 @@ export function convertToCoreAgentConfig(
 
   if (callbacks?.onPermissionRequested && typeof callbacks.onPermissionRequested === 'function') {
     config.permissionUIHandler = {
-      requestPermission: async (sessionId: string, toolId: string, args: Record<string, unknown>) => {
+      requestPermission: async (
+        sessionId: string,
+        toolId: string,
+        args: Record<string, unknown>,
+      ) => {
         return await callbacks.onPermissionRequested!({
           sessionId,
           toolId,

@@ -34,7 +34,7 @@ interface CliOptions {
   validate?: string;
   /** Commander stores this as a property literally named 'continue'.
    *  We use string-literal property name to avoid TS keyword issues. */
-  'continue'?: boolean;
+  continue?: boolean;
 }
 
 /** Build a minimal default AgentConfig that allows all built-in tools. */
@@ -117,7 +117,7 @@ async function main() {
       type: 'text',
       name: 'prompt',
       message: 'Enter prompt',
-      validate: (val) => (val && val.trim().length > 0 ? true : 'Prompt cannot be empty'),
+      validate: val => (val && val.trim().length > 0 ? true : 'Prompt cannot be empty'),
     });
 
     if (typeof res.prompt !== 'string') {
@@ -176,11 +176,7 @@ async function main() {
 
     const modelToUse = opts.model ?? agentConfig.defaultModel ?? 'gemini-2.5-pro';
 
-    const result = await agent.processQuery(
-      promptText,
-      modelToUse,
-      initialContextWindow,
-    );
+    const result = await agent.processQuery(promptText, modelToUse, initialContextWindow);
 
     spinner.stop();
 

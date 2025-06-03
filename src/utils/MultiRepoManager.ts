@@ -1,6 +1,6 @@
 /**
  * MultiRepoManager.ts
- * 
+ *
  * Manages multiple git repositories in a projects directory.
  * Scans for repositories, maps files to repositories, and provides
  * utilities for multi-repo operations.
@@ -24,12 +24,12 @@ export class MultiRepoManager {
   async scanForRepos(adapter: ExecutionAdapter): Promise<string[]> {
     // Return cached results if still valid
     const now = Date.now();
-    if (this.repoCache && (now - this.cacheTimestamp) < this.cacheExpiryMs) {
+    if (this.repoCache && now - this.cacheTimestamp < this.cacheExpiryMs) {
       return this.repoCache;
     }
 
     const executionId = 'scan-repos';
-    
+
     // First check if projectsRoot itself is a git repository
     if (await this.isGitRepo(this.projectsRoot, adapter)) {
       // Single repo mode - projectsRoot is the repository
@@ -37,13 +37,13 @@ export class MultiRepoManager {
       this.cacheTimestamp = now;
       return this.repoCache;
     }
-    
+
     // Multi-repo mode - scan for child repositories
     const lsResult = await adapter.executeCommand(
       executionId,
-      `find "${this.projectsRoot}" -maxdepth 1 -type d 2>/dev/null || true`
+      `find "${this.projectsRoot}" -maxdepth 1 -type d 2>/dev/null || true`,
     );
-    
+
     if (lsResult.exitCode !== 0) {
       console.warn(`Failed to list directories in ${this.projectsRoot}: ${lsResult.stderr}`);
       return [];
@@ -56,7 +56,7 @@ export class MultiRepoManager {
 
     // Check which directories are git repositories
     const repos: string[] = [];
-    
+
     for (const dir of directories) {
       if (await this.isGitRepo(dir, adapter)) {
         repos.push(dir);
@@ -141,7 +141,10 @@ export class MultiRepoManager {
       } catch (error) {
         console.warn(`Failed to generate directory structure for ${repoPath}:`, error);
         // Set empty structure as fallback
-        directoryMap.set(repoPath, `<directory_structure repo="${this.getRepoName(repoPath)}">\nError generating directory structure\n</directory_structure>`);
+        directoryMap.set(
+          repoPath,
+          `<directory_structure repo="${this.getRepoName(repoPath)}">\nError generating directory structure\n</directory_structure>`,
+        );
       }
     }
 
@@ -156,13 +159,10 @@ export class MultiRepoManager {
    */
   private async isGitRepo(dirPath: string, adapter: ExecutionAdapter): Promise<boolean> {
     const executionId = 'check-git-repo';
-    
+
     try {
       // Check if .git directory exists
-      const gitCheckResult = await adapter.executeCommand(
-        executionId,
-        `test -d "${dirPath}/.git"`
-      );
+      const gitCheckResult = await adapter.executeCommand(executionId, `test -d "${dirPath}/.git"`);
       return gitCheckResult.exitCode === 0;
     } catch (error: any) {
       // If the error is from a non-zero exit code, that means the test returned false

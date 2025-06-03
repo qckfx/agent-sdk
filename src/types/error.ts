@@ -8,7 +8,7 @@ export enum ErrorType {
   EXECUTION = 'execution_error',
   TOOL_NOT_FOUND = 'tool_not_found',
   MODEL = 'model_error',
-  UNKNOWN = 'unknown_error'
+  UNKNOWN = 'unknown_error',
 }
 
 export interface CustomError extends Error {
@@ -34,7 +34,12 @@ export interface ErrorHandlerConfig {
 
 export interface ErrorHandler {
   handleError(error: Error | CustomError, context?: string): ErrorResponse;
-  error(message: string, type?: ErrorType, details?: Record<string, unknown>, context?: string): ErrorResponse;
+  error(
+    message: string,
+    type?: ErrorType,
+    details?: Record<string, unknown>,
+    context?: string,
+  ): ErrorResponse;
   validationError(message: string, details?: Record<string, unknown>): CustomError;
   permissionError(message: string, details?: Record<string, unknown>): CustomError;
   toolNotFoundError(toolId: string): CustomError;

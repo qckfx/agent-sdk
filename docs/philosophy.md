@@ -18,9 +18,9 @@ export interface ModelProvider {
 export function createAnthropicProvider(options: AnthropicProviderOptions): ModelProvider {
   // Implementation details...
   return {
-    generateResponse: async (request) => {
+    generateResponse: async request => {
       // Anthropic-specific implementation
-    }
+    },
   };
 }
 ```
@@ -40,10 +40,10 @@ import { ToolRegistry } from '@qckfx/agent';
 const myCustomTool = createTool({
   name: 'myTool',
   description: 'Does something useful',
-  execute: async (params) => {
+  execute: async params => {
     // Implementation
     return { result: 'success' };
-  }
+  },
 });
 
 // Register tools selectively
@@ -87,7 +87,7 @@ export const AgentEvents = new EventEmitter();
 export enum AgentEventType {
   ABORT_SESSION = 'abort_session',
   ENVIRONMENT_STATUS_CHANGED = 'environment_status_changed',
-  PROCESSING_COMPLETED = 'processing_completed'
+  PROCESSING_COMPLETED = 'processing_completed',
 }
 
 // Tool execution events are defined separately in types/tool-execution/index.ts
@@ -99,11 +99,11 @@ export enum ToolExecutionEvent {
   ABORTED = 'tool_execution:aborted',
   PERMISSION_REQUESTED = 'tool_execution:permission_requested',
   PERMISSION_RESOLVED = 'tool_execution:permission_resolved',
-  PREVIEW_GENERATED = 'tool_execution:preview_generated'
+  PREVIEW_GENERATED = 'tool_execution:preview_generated',
 }
 
 // Usage: Subscribe only to the events you care about
-AgentEvents.on(AgentEventType.PROCESSING_COMPLETED, (data) => {
+AgentEvents.on(AgentEventType.PROCESSING_COMPLETED, data => {
   console.log(`Processing completed for session: ${data.sessionId}`);
 });
 ```
@@ -123,16 +123,17 @@ const permissionManager = createPermissionManager(toolRegistry, {
       // Custom permission UI logic here
       console.log(`Tool ${toolId} requesting permission with args:`, args);
       return await askUserForPermission(toolId, args);
-    }
+    },
   },
   initialFastEditMode: false, // Default: require permission for file operations
-  DANGER_MODE: false // Default: safer mode that requires permissions
+  DANGER_MODE: false, // Default: safer mode that requires permissions
 });
 ```
 
 The permission system implements a clear hierarchy of permission requirements:
 
 #### Tier 1: No Permission Required
+
 Tools that don't need permission will execute automatically:
 
 ```typescript
@@ -141,14 +142,15 @@ const ReadOnlyTool = createTool({
   name: 'Info',
   description: 'Get information without modifying anything',
   requiresPermission: false, // Key setting: no permission needed
-  execute: async (args) => {
+  execute: async args => {
     // Implementation that doesn't need permission
     return { result: 'Read-only information' };
-  }
+  },
 });
 ```
 
 #### Tier 2: Standard Permission
+
 Tools that require permission but can be auto-approved in Fast Edit Mode:
 
 ```typescript
@@ -158,9 +160,9 @@ const FileEditTool = createTool({
   description: 'Edits a file',
   requiresPermission: true, // Requires permission by default
   category: ToolCategory.FILE_OPERATION, // Important for Fast Edit Mode
-  execute: async (args) => {
+  execute: async args => {
     // Implementation
-  }
+  },
 });
 
 // Toggle Fast Edit Mode to auto-approve file operations
@@ -168,6 +170,7 @@ permissionManager.setFastEditMode(true); // Now file operations won't prompt for
 ```
 
 #### Tier 3: Always Require Permission
+
 Tools that always require permission, regardless of Fast Edit Mode:
 
 ```typescript
@@ -177,13 +180,14 @@ const BashTool = createTool({
   description: 'Executes bash commands',
   requiresPermission: true,
   alwaysRequirePermission: true, // Key setting: always prompt regardless of Fast Edit Mode
-  execute: async (args) => {
+  execute: async args => {
     // Implementation
-  }
+  },
 });
 ```
 
 #### DANGER_MODE Override
+
 For secure sandbox environments, DANGER_MODE can bypass all permission checks:
 
 ```typescript
@@ -205,7 +209,8 @@ Our prompt system provides utilities but doesn't enforce a specific format:
 import { createPromptManager } from '@qckfx/agent';
 
 // Create a prompt manager with a fully custom system prompt
-const promptManager = createPromptManager(`
+const promptManager = createPromptManager(
+  `
 You are an AI assistant with the following custom behavior:
 - Focus on specific tasks related to ${yourDomain}
 - Present information in ${yourPreferredFormat}
@@ -213,7 +218,9 @@ You are an AI assistant with the following custom behavior:
 
 When solving problems, follow these steps:
 ${yourCustomProblemSolvingApproach}
-`, 0.3); // Optional temperature parameter
+`,
+  0.3,
+); // Optional temperature parameter
 
 // Add context-specific prompt components
 promptManager.setDirectoryStructurePrompt(directoryStructureContext);

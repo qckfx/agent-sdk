@@ -19,16 +19,16 @@ Each preview has both a brief summary and (optionally) detailed content, allowin
 
 The SDK supports multiple preview content types through the `PreviewContentType` enum:
 
-| Type | Description | Use Cases |
-|------|-------------|-----------|
-| `TEXT` | Plain text content | Command outputs, log files, simple text |
-| `CODE` | Syntax-highlighted code | Source code files, configuration files |
-| `DIFF` | File differences | File edits, changes between versions |
-| `DIRECTORY` | Directory listings | File browser, navigation |
-| `JSON` | Structured data | API responses, configuration data |
-| `IMAGE` | Image data | Screenshots, diagrams, visual output |
-| `BINARY` | Binary file preview | Non-text files, executables |
-| `ERROR` | Error information | Tool execution failures, exceptions |
+| Type        | Description             | Use Cases                               |
+| ----------- | ----------------------- | --------------------------------------- |
+| `TEXT`      | Plain text content      | Command outputs, log files, simple text |
+| `CODE`      | Syntax-highlighted code | Source code files, configuration files  |
+| `DIFF`      | File differences        | File edits, changes between versions    |
+| `DIRECTORY` | Directory listings      | File browser, navigation                |
+| `JSON`      | Structured data         | API responses, configuration data       |
+| `IMAGE`     | Image data              | Screenshots, diagrams, visual output    |
+| `BINARY`    | Binary file preview     | Non-text files, executables             |
+| `ERROR`     | Error information       | Tool execution failures, exceptions     |
 
 ## Preview Lifecycle
 
@@ -56,17 +56,17 @@ import { createAgent, ToolExecutionEvent } from '@qckfx/agent';
 
 const agent = createAgent({
   modelProvider,
-  environment: { type: 'local' }
+  environment: { type: 'local' },
 });
 
 // Listen for preview events
-agent.on(ToolExecutionEvent.PREVIEW_GENERATED, (data) => {
+agent.on(ToolExecutionEvent.PREVIEW_GENERATED, data => {
   const { execution, preview } = data;
-  
+
   console.log(`Preview generated for ${execution.toolName}:`);
   console.log(`Content type: ${preview.contentType}`);
   console.log(`Brief summary: ${preview.briefContent}`);
-  
+
   if (preview.fullContent) {
     console.log(`Full content available (${preview.fullContent.length} characters)`);
   }

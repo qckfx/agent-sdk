@@ -9,12 +9,12 @@ import { createLogger, LogLevel } from '../../utils/logger.js';
 // Create a logger for comparison operations
 const logger = createLogger({
   level: LogLevel.INFO,
-  prefix: 'ConfigCompare'
+  prefix: 'ConfigCompare',
 });
 
 /**
  * Compare two configurations based on their average judgment scores
- * 
+ *
  * @param configA First configuration to compare
  * @param configB Second configuration to compare
  * @param scoresA Average judgment scores for configuration A
@@ -27,42 +27,50 @@ export async function compareConfigurations(
   configB: AgentConfiguration,
   scoresA: Record<string, number>,
   scoresB: Record<string, number>,
-  modelProvider: ModelProvider
+  modelProvider: ModelProvider,
 ): Promise<ConfigurationComparison | null> {
   try {
     logger.info(`Comparing configurations: ${configA.name} vs ${configB.name}`);
-    
+
     // Create a tool difference description if tool sets differ
     let toolDifference = '';
     let hasToolDifferences = false;
-    
+
     if (configA.availableTools || configB.availableTools) {
-      const toolsA = configA.availableTools ? 
-        (Array.isArray(configA.availableTools) ? configA.availableTools.join(', ') : String(configA.availableTools)) : 
-        'all tools';
-      
-      const toolsB = configB.availableTools ? 
-        (Array.isArray(configB.availableTools) ? configB.availableTools.join(', ') : String(configB.availableTools)) : 
-        'all tools';
-      
+      const toolsA = configA.availableTools
+        ? Array.isArray(configA.availableTools)
+          ? configA.availableTools.join(', ')
+          : String(configA.availableTools)
+        : 'all tools';
+
+      const toolsB = configB.availableTools
+        ? Array.isArray(configB.availableTools)
+          ? configB.availableTools.join(', ')
+          : String(configB.availableTools)
+        : 'all tools';
+
       // Check if tool sets are different
       if (toolsA !== toolsB) {
         hasToolDifferences = true;
-        
+
         toolDifference = `
 ## Tool Availability
 Configuration A tools: ${toolsA}
 Configuration B tools: ${toolsB}
 `;
-        
+
         // Identify specific tool differences if arrays are provided
         if (Array.isArray(configA.availableTools) && Array.isArray(configB.availableTools)) {
-          const uniqueToB = configB.availableTools.filter(tool => !configA.availableTools!.includes(tool));
+          const uniqueToB = configB.availableTools.filter(
+            tool => !configA.availableTools!.includes(tool),
+          );
           if (uniqueToB.length > 0) {
             toolDifference += `\nTools unique to Configuration B: ${uniqueToB.join(', ')}`;
           }
-          
-          const uniqueToA = configA.availableTools.filter(tool => !configB.availableTools!.includes(tool));
+
+          const uniqueToA = configA.availableTools.filter(
+            tool => !configB.availableTools!.includes(tool),
+          );
           if (uniqueToA.length > 0) {
             toolDifference += `\nTools unique to Configuration A: ${uniqueToA.join(', ')}`;
           }
@@ -115,20 +123,20 @@ Format your response as a JSON object with the following structure:
 }
 \`\`\`
 `;
-    
+
     // Run the comparison
     const result = await modelProvider.processQuery(comparisonPrompt, {
       temperature: 0.2,
-      maxTokens: 2000
+      maxTokens: 2000,
     });
-    
+
     // Parse the result
     if (result.response) {
       try {
         // Extract JSON from the response
-        const jsonMatch = result.response.match(/```json\n([\s\S]*?)\n```/) || 
-                          result.response.match(/{[\s\S]*}/);
-        
+        const jsonMatch =
+          result.response.match(/```json\n([\s\S]*?)\n```/) || result.response.match(/{[\s\S]*}/);
+
         if (jsonMatch) {
           const jsonContent = jsonMatch[1] || jsonMatch[0];
           return JSON.parse(jsonContent.trim());
@@ -137,27 +145,27 @@ Format your response as a JSON object with the following structure:
         logger.error('Failed to parse configuration comparison result', parseError);
       }
     }
-    
+
     // Manual comparison if automated comparison fails
     const scoreDifferences: Record<string, number> = {};
     let overallDifference = 0;
-    
+
     // Calculate differences for each dimension
     const dimensions = Array.from(new Set([...Object.keys(scoresA), ...Object.keys(scoresB)]));
     for (const dimension of dimensions) {
       if (dimension === 'overall') continue;
-      
+
       const scoreA = scoresA[dimension] || 0;
       const scoreB = scoresB[dimension] || 0;
       scoreDifferences[dimension] = scoreB - scoreA;
       overallDifference += scoreB - scoreA;
     }
-    
+
     // Determine winner
     const dimensionCount = dimensions.filter(d => d !== 'overall').length;
     const avgDifference = dimensionCount > 0 ? overallDifference / dimensionCount : 0;
-    const winner = avgDifference > 0.1 ? 'B' : (avgDifference < -0.1 ? 'A' : 'tie');
-    
+    const winner = avgDifference > 0.1 ? 'B' : avgDifference < -0.1 ? 'A' : 'tie';
+
     // Calculate overall improvement percentage
     const overallImprovement = scoresA.overall ? (avgDifference / scoresA.overall) * 100 : 0;
 
@@ -171,13 +179,13 @@ Format your response as a JSON object with the following structure:
       })
       .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))
       .slice(0, 3); // Top 3 most significant differences
-    
+
     return {
       winner,
       analysis: `Configuration ${winner === 'tie' ? 'A and B performed similarly' : winner + ' performed better overall'}. Average score difference: ${avgDifference.toFixed(2)}.`,
       scoreDifferences,
       overallImprovement,
-      significantDimensions
+      significantDimensions,
     };
   } catch (error) {
     logger.error('Error comparing configurations', error);

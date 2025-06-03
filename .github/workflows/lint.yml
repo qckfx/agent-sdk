@@ -1,0 +1,1 @@
+name: Lint & Format\n\non:\n  push:\n    branches: [main, master]\n  pull_request:\n\njobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 18\n          cache: 'npm'\n      - run: npm ci --ignore-scripts\n      - run: npm run lint\n      - run: npm run format\n

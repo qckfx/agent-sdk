@@ -1,6 +1,6 @@
 /**
  * qckfx Agent Evaluation Tool
- * 
+ *
  * A streamlined evaluation framework for comparing agent configurations.
  */
 

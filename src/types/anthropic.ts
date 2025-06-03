@@ -17,7 +17,7 @@ import type { LLM } from './llm.js';
  * Cache control configuration for prompt caching
  */
 export interface CacheControl {
-  type: "ephemeral";
+  type: 'ephemeral';
 }
 
 /**
@@ -134,7 +134,7 @@ export interface LLMFactory {
    * Creates a provider instance
    */
   createProvider(config: AnthropicConfig): AnthropicProvider;
-  
+
   /**
    * Returns a list of available models with their providers
    */

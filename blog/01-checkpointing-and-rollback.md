@@ -1,6 +1,6 @@
 # Safe Autonomous AI Agents: Why We Built Invisible Checkpointing
 
-*How we enable human oversight of asynchronous AI agents without polluting git history*
+_How we enable human oversight of asynchronous AI agents without polluting git history_
 
 ---
 
@@ -15,7 +15,7 @@ The naive approach would be to commit every agent action to git, but this create
 ```bash
 # What you DON'T want to see in your git history
 commit abc123 - "Agent: Added logging to user service"
-commit def456 - "Agent: Fixed typo in comment" 
+commit def456 - "Agent: Fixed typo in comment"
 commit ghi789 - "Agent: Reverted previous change"
 commit jkl012 - "Agent: Tried different approach"
 commit mno345 - "Agent: Debugging failed test"
@@ -34,7 +34,7 @@ For every repository in your project, we create a session-scoped shadow reposito
 
 ```
 your-repo/
-├── .git/                    # Your normal git repository  
+├── .git/                    # Your normal git repository
 ├── .agent-shadow/           # Shadow repository directory (invisible)
 │   └── session-abc123/      # Session-scoped shadow git database
 ├── src/                     # Your source code (shared between both)
@@ -60,13 +60,14 @@ const ensureShadowDirIgnored = (repoRoot: string): void => {
   const excludePath = path.join(repoRoot, '.git/info/exclude');
   const entry = '.agent-shadow/';
   const comment = '# added by qckfx agent – ignore session shadow repository';
-  
+
   // Add to .git/info/exclude (never committed, only local)
   fs.appendFileSync(excludePath, `\n${comment}\n${entry}\n`);
-}
+};
 ```
 
 This is superior to modifying `.gitignore` because:
+
 - It doesn't change any files under version control
 - Developers never see it in `git status` or `git diff`
 - Each developer can have agents running without affecting others
@@ -77,7 +78,7 @@ This is superior to modifying `.gitignore` because:
 Only three operations trigger automatic checkpoints:
 
 1. **`writeFile`** - Creating or overwriting files
-2. **`editFile`** - Modifying existing files  
+2. **`editFile`** - Modifying existing files
 3. **`executeCommand`** - Running shell commands (bash)
 
 Read-only operations like `readFile`, `glob`, and `ls` don't create checkpoints since they don't change state. This prevents checkpoint spam while ensuring every meaningful change is captured.
@@ -125,16 +126,16 @@ Here's how the asynchronous review workflow works:
 ```
 Message 1: "I'll implement user authentication"
   ↳ Checkpoint: chkpt/exec-100 (agent reads existing code)
-  
-Message 2: "Created user model with validation"  
+
+Message 2: "Created user model with validation"
   ↳ Checkpoint: chkpt/exec-101 (agent wrote src/models/user.ts)
-  
+
 Message 3: "Added authentication middleware"
   ↳ Checkpoint: chkpt/exec-102 (agent wrote src/middleware/auth.ts)
-  
+
 Message 4: "Updated API routes to use auth"
   ↳ Checkpoint: chkpt/exec-103 (agent edited src/routes/api.ts)
-  
+
 Message 5: "Fixed type errors and ran tests"
   ↳ Checkpoint: chkpt/exec-104 (agent edited multiple files)
 ```
@@ -147,7 +148,7 @@ interface ConversationMessage {
   id: string;
   anthropic: Anthropic.Messages.MessageParam; // Actual message content
   createdAt: number;
-  lastCheckpointId?: string;  // "exec-103" 
+  lastCheckpointId?: string; // "exec-103"
 }
 ```
 
@@ -190,7 +191,7 @@ The human can now guide the agent in a different direction:
 ```
 Message 3: "Added authentication middleware" (preserved)
   ↳ Checkpoint: chkpt/exec-102
-  
+
 Message 6: "Actually, update the frontend login form instead" (new direction)
   ↳ Checkpoint: chkpt/exec-105 (new checkpoint branch)
 ```
@@ -210,7 +211,7 @@ Modified files:
 
 $ git log --oneline -5
 a1b2c3d Your previous commit before agent started
-e4f5g6h Some other team member's work  
+e4f5g6h Some other team member's work
 h7i8j9k Previous feature implementation
 ...
 
@@ -305,18 +306,18 @@ This checkpointing approach is specifically designed for:
 ✅ **Asynchronous AI agents** that work autonomously and get reviewed later  
 ✅ **Experimental workflows** where agents try multiple approaches  
 ✅ **Code modification tasks** where wrong turns need surgical correction  
-✅ **Multi-step processes** where humans want granular rollback control  
+✅ **Multi-step processes** where humans want granular rollback control
 
 ## Conclusion
 
 Building trustworthy autonomous AI agents requires solving the human oversight problem. Our invisible checkpointing system enables the best of both worlds:
 
 - **Agents can work freely** without worrying about making mistakes
-- **Humans maintain full control** with granular rollback capabilities  
+- **Humans maintain full control** with granular rollback capabilities
 - **Developer experience stays clean** with no git history pollution
 
 The key insight is that managing agent state requires infrastructure that's invisible to normal development workflows but powerful enough to handle complex rollback scenarios. Shadow repositories with `.git/info/exclude` provide exactly that capability.
 
 ---
 
-*Next: How we extended this architecture to handle multiple repositories simultaneously - enabling agents to work across complex microservice environments while maintaining atomic rollback guarantees.*
+_Next: How we extended this architecture to handle multiple repositories simultaneously - enabling agents to work across complex microservice environments while maintaining atomic rollback guarantees._

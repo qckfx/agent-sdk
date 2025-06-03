@@ -1,6 +1,6 @@
 # Multi-Repository AI Agents: Atomic Rollback Across Codebases
 
-*Extending invisible checkpointing to handle complex development environments with multiple interconnected repositories*
+_Extending invisible checkpointing to handle complex development environments with multiple interconnected repositories_
 
 ---
 
@@ -11,15 +11,16 @@ Consider a typical microservices development environment where an AI agent needs
 ```
 /home/user/projects/
 ├── frontend/              # React application
-├── backend-api/           # Node.js API server  
+├── backend-api/           # Node.js API server
 ├── shared-components/     # Shared component library
 ├── deployment-config/     # Kubernetes configurations
 └── documentation/         # API documentation
 ```
 
 When the agent implements a new feature, it might:
+
 1. Add a new API endpoint in `backend-api/`
-2. Create a new shared component in `shared-components/` 
+2. Create a new shared component in `shared-components/`
 3. Use that component in `frontend/`
 4. Update deployment configs in `deployment-config/`
 5. Document the feature in `documentation/`
@@ -41,20 +42,20 @@ class MultiRepoManager {
     if (await this.isGitRepo(this.projectsRoot, adapter)) {
       return [this.projectsRoot];
     }
-    
+
     // Multi-repo mode: scan child directories for git repositories
     const lsResult = await adapter.executeCommand(
       'scan-repos',
-      `find "${this.projectsRoot}" -maxdepth 1 -type d 2>/dev/null || true`
+      `find "${this.projectsRoot}" -maxdepth 1 -type d 2>/dev/null || true`,
     );
-    
+
     const repos: string[] = [];
     for (const dir of lsResult.stdout.split('\n').filter(Boolean)) {
       if (await this.isGitRepo(dir, adapter)) {
         repos.push(dir);
       }
     }
-    
+
     return repos;
   }
 
@@ -62,7 +63,7 @@ class MultiRepoManager {
     try {
       const result = await adapter.executeCommand(
         'check-git',
-        `test -d "${dirPath}/.git" && echo "true" || echo "false"`
+        `test -d "${dirPath}/.git" && echo "true" || echo "false"`,
       );
       return result.stdout.trim() === 'true' && result.exitCode === 0;
     } catch (error) {
@@ -86,7 +87,7 @@ async scanForRepos(adapter: ExecutionAdapter): Promise<string[]> {
   if (this.repoCache && (now - this.cacheTimestamp) < this.cacheExpiryMs) {
     return this.repoCache;
   }
-  
+
   // Scan and update cache...
 }
 ```
@@ -103,7 +104,7 @@ For each repository detected, we create the same shadow repository structure as 
 │   │   └── session-abc123/       # Frontend's shadow git
 │   └── src/
 ├── backend-api/
-│   ├── .git/                     # Backend's normal git  
+│   ├── .git/                     # Backend's normal git
 │   ├── .agent-shadow/
 │   │   └── session-abc123/       # Backend's shadow git
 │   └── src/
@@ -131,7 +132,7 @@ Our checkpoint metadata was designed from the start to support multiple reposito
 interface SnapshotMeta {
   sessionId: string;
   toolExecutionId: string;
-  hostCommits: Map<string, string>;  // repo path -> current commit SHA
+  hostCommits: Map<string, string>; // repo path -> current commit SHA
   reason: 'writeFile' | 'editFile' | 'bash' | string;
   timestamp: string; // ISO-8601
 }
@@ -166,20 +167,19 @@ export async function snapshotMultiRepo(
     try {
       // Get the host commit for this repository
       const hostCommit = meta.hostCommits.get(repoPath) || 'HEAD';
-      
+
       // Create single-repo snapshot metadata for this repository
       const singleRepoMeta: SnapshotMeta = {
         sessionId: meta.sessionId,
         toolExecutionId: meta.toolExecutionId,
         hostCommits: new Map([[repoPath, hostCommit]]),
         reason: meta.reason,
-        timestamp: meta.timestamp
+        timestamp: meta.timestamp,
       };
-      
+
       // Create snapshot for this repository using existing single-repo logic
       const result = await snapshot(singleRepoMeta, adapter, repoPath);
       repoSnapshots.set(repoPath, result);
-      
     } catch (error) {
       const errorMsg = `Failed to create snapshot for ${repoPath}: ${error.message}`;
       errors.push(errorMsg);
@@ -195,7 +195,9 @@ export async function snapshotMultiRepo(
 
   // Log warnings for partial failures
   if (errors.length > 0) {
-    console.warn(`Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`);
+    console.warn(
+      `Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`,
+    );
   }
 
   return {
@@ -203,8 +205,8 @@ export async function snapshotMultiRepo(
     aggregateSnapshot: {
       toolExecutionId: meta.toolExecutionId,
       timestamp: meta.timestamp,
-      repoCount: repoSnapshots.size
-    }
+      repoCount: repoSnapshots.size,
+    },
   };
 }
 ```
@@ -234,18 +236,18 @@ async rollback(targetMessageId: string): Promise<void> {
 
   // 3. Get all repositories and restore each one
   const repos = await this.multiRepoManager.scanForRepos(this.adapter);
-  
+
   // Restore each repo in parallel
-  await Promise.all(repos.map(repoPath => 
+  await Promise.all(repos.map(repoPath =>
     CheckpointManager.restore(
       this.sessionId,
-      this.adapter, 
+      this.adapter,
       repoPath,
       targetMessage.lastCheckpointId!
     )
   ));
 
-  // 4. Trim conversation context  
+  // 4. Trim conversation context
   this.contextWindow.rollbackToMessage(targetMessageId);
 
   // 5. Emit completion event
@@ -274,9 +276,9 @@ Our initial implementation processed repositories sequentially, which was unacce
 ```typescript
 // Process all repositories in parallel
 const repoInfos = await Promise.all(
-  repos.map(async (repoPath) => {
+  repos.map(async repoPath => {
     try {
-      return await this.gitInfoHelper.getGitRepositoryInfo(async (command) => {
+      return await this.gitInfoHelper.getGitRepositoryInfo(async command => {
         // Change to specific repository directory before running git commands
         const repoCommand = `cd "${repoPath}" && ${command}`;
         const result = await this.sandbox.commands.run(repoCommand);
@@ -286,7 +288,7 @@ const repoInfos = await Promise.all(
       this.logger?.warn(`Error getting git info for ${repoPath}:`, error);
       return null;
     }
-  })
+  }),
 );
 
 // Filter out failed repositories
@@ -303,7 +305,7 @@ Multi-repository support required updating all execution adapters to be reposito
 interface ExecutionAdapter {
   // Changed from single object to array
   getGitRepositoryInfo(): Promise<GitRepositoryInfo[]>;
-  
+
   // New method for multi-repo directory structures
   getDirectoryStructures(): Promise<Map<string, string>>;
 }
@@ -318,7 +320,7 @@ async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
   try {
     // Scan for repositories in the remote environment
     const repos = await this.multiRepoManager.scanForRepos(this);
-    
+
     // Get git info for each repository in parallel
     const repoInfos = await Promise.all(
       repos.map(async (repoPath) => {
@@ -335,7 +337,7 @@ async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
         }
       })
     );
-    
+
     // Filter out any null results and return
     return repoInfos.filter((info): info is GitRepositoryInfo => info !== null);
   } catch (error) {
@@ -359,30 +361,30 @@ async buildMultiRepoContext(repos: GitRepositoryInfo[]): Promise<string> {
     // Single repo mode - use existing detailed format
     return this.buildSingleRepoContext(repos[0]);
   }
-  
+
   // Multi-repo mode - summarized format
   let context = `=== Working Directory: ${this.projectsRoot} ===\n\n`;
-  
+
   for (const [index, repo] of repos.entries()) {
     const repoName = repo.repoRoot.split('/').pop() || repo.repoRoot;
-    
+
     context += `=== Repository ${index + 1}: ${repoName} ===\n`;
     context += `Path: ${repo.repoRoot}\n`;
     context += `Branch: ${repo.currentBranch}\n`;
     context += `Status: ${repo.status.type}\n`;
-    
+
     if (repo.status.type === 'dirty') {
       context += `Modified: ${repo.status.modifiedFiles.length} files\n`;
     }
-    
+
     context += '\n';
   }
-  
-  // Limit detail for performance  
+
+  // Limit detail for performance
   if (repos.length > 3) {
     context += `[${repos.length - 3} additional repositories in ${this.projectsRoot}]\n`;
   }
-  
+
   return context;
 }
 ```
@@ -399,11 +401,11 @@ Here's how the complete workflow works with multiple repositories:
 Message 1: "I'll add user profile features"
   ↳ Checkpoint: exec-100 (before starting, all 5 repos at initial state)
 
-Message 2: "Added User model to backend API"  
+Message 2: "Added User model to backend API"
   ↳ Checkpoint: exec-101 (before next operation, includes backend changes)
 
 Message 3: "Created ProfileCard component"
-  ↳ Checkpoint: exec-102 (before next operation, includes component creation) 
+  ↳ Checkpoint: exec-102 (before next operation, includes component creation)
 
 Message 4: "Integrated ProfileCard in frontend"
   ↳ Checkpoint: exec-103 (before next operation, includes frontend integration)
@@ -424,8 +426,9 @@ await rollbackManager.rollback('message-2-id');
 ```
 
 This atomically restores ALL repositories to their state when checkpoint exec-101 was taken (right before Message 3's operation):
+
 - `backend-api/` includes the User model from Message 2
-- `shared-components/` has no ProfileCard (it hadn't been created yet)  
+- `shared-components/` has no ProfileCard (it hadn't been created yet)
 - `frontend/` has no ProfileCard integration (it hadn't been done yet)
 - `deployment-config/` has no new endpoints (they hadn't been added yet)
 - `documentation/` is at its original state
@@ -440,7 +443,7 @@ Message 2: "Added User model to backend API" (preserved at exec-101 checkpoint)
 Message 6: "Let's create a simpler UserInfo component instead"
   ↳ Checkpoint: exec-105 (before operation, includes new component approach)
 
-Message 7: "Integrated UserInfo in frontend dashboard"  
+Message 7: "Integrated UserInfo in frontend dashboard"
   ↳ Checkpoint: exec-106 (before next operation, includes frontend integration)
 ```
 
@@ -453,7 +456,7 @@ Message 7: "Integrated UserInfo in frontend dashboard"
 ```bash
 /home/user/projects/
 ├── frontend/           # Git repository ✓
-├── backend-api/        # Git repository ✓  
+├── backend-api/        # Git repository ✓
 ├── temp-files/         # Regular directory ✗
 ├── node_modules/       # Regular directory ✗
 └── shared-components/  # Git repository ✓
@@ -480,7 +483,9 @@ In production, individual repositories sometimes fail to checkpoint (disk space,
 ```typescript
 // Log warnings but don't fail the operation
 if (errors.length > 0) {
-  console.warn(`Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`);
+  console.warn(
+    `Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`,
+  );
 }
 ```
 
@@ -534,7 +539,7 @@ The system handles anywhere from 1 to N repositories with the same architecture.
 Multi-repository checkpointing required extending our single-repository architecture around three key principles:
 
 1. **Atomic consistency is non-negotiable** - partial rollbacks create more problems than they solve
-2. **Graceful degradation beats strict consistency** - better to have most repositories working than none  
+2. **Graceful degradation beats strict consistency** - better to have most repositories working than none
 3. **Repository independence with session coordination** - each repo has its own shadow git but shares session lifecycle
 
 The ephemeral nature of sandboxes makes git bundles even more critical in multi-repository environments. When an agent works across 5 repositories and the sandbox gets destroyed, we need to reliably restore all 5 shadow repositories in a fresh environment to enable human review and rollback.
@@ -545,4 +550,4 @@ For AI agents working on real-world codebases, multi-repository support isn't op
 
 ---
 
-*The invisible checkpointing system now handles both single and multi-repository environments transparently, enabling AI agents to work across any development setup while preserving the clean git workflow developers expect.*
+_The invisible checkpointing system now handles both single and multi-repository environments transparently, enabling AI agents to work across any development setup while preserving the clean git workflow developers expect._

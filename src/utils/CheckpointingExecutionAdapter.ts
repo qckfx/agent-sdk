@@ -1,6 +1,6 @@
 /**
  * CheckpointingExecutionAdapter.ts
- * 
+ *
  * Wraps an existing ExecutionAdapter to add checkpointing functionality.
  * Creates checkpoints before state-changing operations (writeFile, editFile, bash).
  */
@@ -11,21 +11,24 @@ import { FileEditToolResult } from '../tools/FileEditTool.js';
 import { FileReadToolResult } from '../tools/FileReadTool.js';
 import { LSToolResult } from '../tools/LSTool.js';
 import * as CheckpointManager from './CheckpointManager.js';
-import { CheckpointEvents, CHECKPOINT_READY_EVENT, CheckpointPayload } from '../events/checkpoint-events.js';
+import {
+  CheckpointEvents,
+  CHECKPOINT_READY_EVENT,
+  CheckpointPayload,
+} from '../events/checkpoint-events.js';
 
 /**
  * A wrapper around an ExecutionAdapter that adds multi-repo checkpointing functionality
  */
 export class CheckpointingExecutionAdapter implements ExecutionAdapter {
-
   private _checkpointingEnabled: boolean = true;
 
   constructor(
     private inner: ExecutionAdapter,
     private sessionId: string,
   ) {
-    // Kick-off initialization **asynchronously** using the inner adapter's 
-    // multi-repo capabilities. This initializes checkpointing for all 
+    // Kick-off initialization **asynchronously** using the inner adapter's
+    // multi-repo capabilities. This initializes checkpointing for all
     // repositories found by the inner adapter's MultiRepoManager.
     this._initPromise = this.initializeRepositories();
   }
@@ -36,7 +39,7 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
    * repos exist before we attempt to commit into them.
    */
   private _initPromise: Promise<void>;
-  
+
   /**
    * Initialize checkpointing for all repositories using inner adapter's capabilities
    */
@@ -45,7 +48,7 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
       // Get all repositories from the inner adapter
       const directoryStructures = await this.inner.getDirectoryStructures();
       const repoPaths = Array.from(directoryStructures.keys());
-      
+
       // Initialize checkpointing for each repository
       await CheckpointManager.initMultiRepo(repoPaths, this.sessionId, this.inner);
     } catch (error) {
@@ -60,7 +63,6 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
    * @returns True if checkpoint was created, false if skipped
    */
   private async cp(executionId: string, reason: string): Promise<boolean> {
-
     // Ensure all shadow repositories have finished initializing.  If
     // initialization failed we'll surface the error here.
     await this._initPromise;
@@ -69,34 +71,34 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     const directoryStructures = await this.inner.getDirectoryStructures();
     const repoPaths = Array.from(directoryStructures.keys());
     const gitRepos = await this.inner.getGitRepositoryInfo();
-    
+
     // Build host commits map
     const hostCommits = new Map<string, string>();
     for (const repo of gitRepos) {
       hostCommits.set(repo.repoRoot, repo.commitSha ?? 'unknown');
     }
-    
+
     // Prepare metadata
     const meta: CheckpointManager.SnapshotMeta = {
       sessionId: this.sessionId,
       toolExecutionId: executionId,
       hostCommits,
       reason,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
+
     // Create the multi-repo snapshot
     const result = await CheckpointManager.snapshotMultiRepo(meta, this.inner, repoPaths);
-    
+
     // Build shadow commits and bundles maps for the event
     const shadowCommits = new Map<string, string>();
     const bundles = new Map<string, Uint8Array>();
-    
+
     for (const [repoPath, snapshot] of result.repoSnapshots) {
       shadowCommits.set(repoPath, snapshot.sha);
       bundles.set(repoPath, snapshot.bundle);
     }
-    
+
     // Emit the checkpoint event
     CheckpointEvents.emit(CHECKPOINT_READY_EVENT, {
       sessionId: meta.sessionId,
@@ -105,9 +107,9 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
       shadowCommits,
       bundles,
       repoCount: result.aggregateSnapshot.repoCount,
-      timestamp: meta.timestamp
+      timestamp: meta.timestamp,
     } as CheckpointPayload);
-    
+
     return true;
   }
 
@@ -124,8 +126,14 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
   }
 
   // State-changing operations that trigger checkpoints
-  
-  async writeFile(executionId: string, filepath: string, content: string, encoding?: string, checkpoint: boolean = true): Promise<void> {
+
+  async writeFile(
+    executionId: string,
+    filepath: string,
+    content: string,
+    encoding?: string,
+    checkpoint: boolean = true,
+  ): Promise<void> {
     if (checkpoint && this._checkpointingEnabled) {
       // First take a checkpoint
       await this.cp(executionId, 'writeFile');
@@ -133,8 +141,15 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     // Then execute the operation
     return await this.inner.writeFile(executionId, filepath, content, encoding);
   }
-  
-  async editFile(executionId: string, filepath: string, searchCode: string, replaceCode: string, encoding?: string, checkpoint: boolean = true): Promise<FileEditToolResult> {
+
+  async editFile(
+    executionId: string,
+    filepath: string,
+    searchCode: string,
+    replaceCode: string,
+    encoding?: string,
+    checkpoint: boolean = true,
+  ): Promise<FileEditToolResult> {
     if (checkpoint && this._checkpointingEnabled) {
       // First take a checkpoint
       await this.cp(executionId, 'editFile');
@@ -142,8 +157,13 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     // Then execute the operation
     return await this.inner.editFile(executionId, filepath, searchCode, replaceCode, encoding);
   }
-  
-  async executeCommand(executionId: string, command: string, workingDir?: string, checkpoint: boolean = true) {
+
+  async executeCommand(
+    executionId: string,
+    command: string,
+    workingDir?: string,
+    checkpoint: boolean = true,
+  ) {
     if (checkpoint && this._checkpointingEnabled) {
       // First take a checkpoint
       await this.cp(executionId, 'bash');
@@ -151,29 +171,41 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
     // Then execute the operation
     return await this.inner.executeCommand(executionId, command, workingDir);
   }
-  
+
   // Read-only operations - direct delegation without checkpointing
-  
+
   async getGitRepositoryInfo(): Promise<GitRepositoryInfo[]> {
     return this.inner.getGitRepositoryInfo();
   }
-  
+
   async getDirectoryStructures(): Promise<Map<string, string>> {
     return this.inner.getDirectoryStructures();
   }
-  
+
   async glob(executionId: string, pattern: string, options?: any): Promise<string[]> {
     return this.inner.glob(executionId, pattern, options);
   }
-  
-  async readFile(executionId: string, filepath: string, maxSize?: number, lineOffset?: number, lineCount?: number, encoding?: string): Promise<FileReadToolResult> {
+
+  async readFile(
+    executionId: string,
+    filepath: string,
+    maxSize?: number,
+    lineOffset?: number,
+    lineCount?: number,
+    encoding?: string,
+  ): Promise<FileReadToolResult> {
     return this.inner.readFile(executionId, filepath, maxSize, lineOffset, lineCount, encoding);
   }
-  
-  async ls(executionId: string, dirPath: string, showHidden?: boolean, details?: boolean): Promise<LSToolResult> {
+
+  async ls(
+    executionId: string,
+    dirPath: string,
+    showHidden?: boolean,
+    details?: boolean,
+  ): Promise<LSToolResult> {
     return this.inner.ls(executionId, dirPath, showHidden, details);
   }
-  
+
   async generateDirectoryMap(rootPath: string, maxDepth?: number): Promise<string> {
     return this.inner.generateDirectoryMap(rootPath, maxDepth);
   }

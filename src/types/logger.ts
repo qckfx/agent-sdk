@@ -10,7 +10,7 @@ export enum LogLevel {
   ERROR = 'error',
   WARN = 'warn',
   INFO = 'info',
-  DEBUG = 'debug'
+  DEBUG = 'debug',
 }
 
 /**
@@ -25,7 +25,7 @@ export enum LogCategory {
   UI = 'ui',
   STATIC = 'static',
   SESSION = 'session',
-  AGENT = 'agent'
+  AGENT = 'agent',
 }
 
 /**

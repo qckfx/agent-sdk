@@ -1,6 +1,6 @@
 /**
  * Types and interfaces for the main module
- * 
+ *
  * This module re-exports the main public interfaces and types used by the agent.
  */
 
@@ -19,10 +19,7 @@ import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 export { ToolExecutionEvent, ToolExecutionStatus };
 
 // Define repository environment types
-export type RepositoryEnvironment =
-  | { type: 'local' }
-  | { type: 'docker' }
-  | { type: 'remote' };
+export type RepositoryEnvironment = { type: 'local' } | { type: 'docker' } | { type: 'remote' };
 
 /**
  * Configuration options for creating a new agent
@@ -105,7 +102,11 @@ export interface CoreAgentConfig {
    * ```
    */
   permissionUIHandler?: {
-    requestPermission: (sessionId: string, toolId: string, args: Record<string, unknown>) => Promise<boolean>;
+    requestPermission: (
+      sessionId: string,
+      toolId: string,
+      args: Record<string, unknown>,
+    ) => Promise<boolean>;
   };
 
   /**
@@ -187,8 +188,12 @@ export interface Agent {
    * @param sessionState Optional session state (creates new session if not provided)
    * @returns A Promise resolving to the query result
    */
-  processQuery(query: string, model: string, sessionState?: SessionState): Promise<ProcessQueryResult>;
-  
+  processQuery(
+    query: string,
+    model: string,
+    sessionState?: SessionState,
+  ): Promise<ProcessQueryResult>;
+
   /**
    * Register a new tool with the agent
    * @param tool The tool to register

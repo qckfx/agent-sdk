@@ -18,11 +18,13 @@ export async function withToolCall(
   exec: (ctx: ToolContext) => Promise<ToolResult>,
   context: ToolContext,
 ): Promise<unknown> {
-  context.logger?.debug(`[withToolCall] Executing tool ${toolCall.toolId}, abortSignal=${context.abortSignal?.aborted}`, LogCategory.TOOLS);
+  context.logger?.debug(
+    `[withToolCall] Executing tool ${toolCall.toolId}, abortSignal=${context.abortSignal?.aborted}`,
+    LogCategory.TOOLS,
+  );
   let result: unknown;
   let aborted = false;
 
-  
   try {
     try {
       const execPromise = exec(context);
@@ -35,12 +37,18 @@ export async function withToolCall(
           execPromise,
           new Promise<unknown>((_, reject) => {
             const onAbort = () => {
-              context.logger?.debug(`[withToolCall] AbortSignal 'abort' event received`, LogCategory.TOOLS);
+              context.logger?.debug(
+                `[withToolCall] AbortSignal 'abort' event received`,
+                LogCategory.TOOLS,
+              );
               context.abortSignal!.removeEventListener('abort', onAbort);
               reject(new Error('AbortError'));
             };
             if (context.abortSignal!.aborted) {
-              context.logger?.debug(`[withToolCall] AbortSignal was already aborted when Promise.race started`, LogCategory.TOOLS);
+              context.logger?.debug(
+                `[withToolCall] AbortSignal was already aborted when Promise.race started`,
+                LogCategory.TOOLS,
+              );
               return onAbort();
             }
             context.abortSignal!.addEventListener('abort', onAbort);
@@ -51,7 +59,10 @@ export async function withToolCall(
       }
     } catch (err) {
       if ((err as Error).message === 'AbortError') {
-        context.logger?.debug(`[withToolCall] Caught AbortError, marking result as aborted`, LogCategory.TOOLS);
+        context.logger?.debug(
+          `[withToolCall] Caught AbortError, marking result as aborted`,
+          LogCategory.TOOLS,
+        );
         aborted = true;
         // Surface a simple aborted marker so tests (and callers) can detect it
         result = { aborted: true };

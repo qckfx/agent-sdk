@@ -8,12 +8,13 @@ runtime SDK.
 ## Versioning strategy
 
 1.  **One folder per major schema version** (`src/v<major>.<minor>`).
-    *Version 1.0* lives in `src/v1/`.
+    _Version 1.0_ lives in `src/v1/`.
 
 2.  Each folder exposes:
-    * `agent.ts` – Zod schema (strict **+** `.strip()` to silently discard
+
+    - `agent.ts` – Zod schema (strict **+** `.strip()` to silently discard
       unknown keys like `$schema`). Exported as `AgentConfigSchemaV1`.
-    * `migrate.ts` *(optional)* – functions that upgrade that version to the
+    - `migrate.ts` _(optional)_ – functions that upgrade that version to the
       latest representation.
 
 3.  `src/index.ts` keeps a **registry**
@@ -26,9 +27,9 @@ runtime SDK.
     ```
 
 4.  The helper `parseAgentConfig()`
-    * reads the `$schema` value (if any) and extracts the version,
-    * picks the matching entry from the registry (falls back to latest),
-    * removes the `$schema` key, validates via Zod, then applies the upgrade
+    - reads the `$schema` value (if any) and extracts the version,
+    - picks the matching entry from the registry (falls back to latest),
+    - removes the `$schema` key, validates via Zod, then applies the upgrade
       function so callers always receive the **latest** type (`AgentConfig`).
 
 ## Adding a new version (check-list)

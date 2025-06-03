@@ -1,7 +1,11 @@
 import { createContextWindow } from '../../types/contextWindow.js';
 import { SessionState } from '../../types/model.js';
 import { ModelClientConfig } from '../../types/model.js';
-import { setSessionAborted, isSessionAborted, clearSessionAborted } from '../../utils/sessionUtils.js';
+import {
+  setSessionAborted,
+  isSessionAborted,
+  clearSessionAborted,
+} from '../../utils/sessionUtils.js';
 import { createAgentRunner } from '../AgentRunner.js';
 import { createModelClient } from '../ModelClient.js';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -24,20 +28,20 @@ vi.mock('../FsmDriver.js', () => {
             return Promise.resolve({
               response: 'Operation aborted by user',
               aborted: true,
-              toolResults: []
+              toolResults: [],
             });
           }
-          
+
           // Otherwise, simulate a normal execution
           return Promise.resolve({
             response: 'Normal response',
             aborted: false,
-            toolResults: []
+            toolResults: [],
           });
         }),
-        iterations: 1
+        iterations: 1,
       };
-    })
+    }),
   };
 });
 
@@ -53,9 +57,10 @@ describe('AbortSignal propagation', () => {
   });
 
   it('abort signal rejects generateResponse with AbortError', async () => {
-    const delayedProvider = () => new Promise<any>((resolve) => {
-      setTimeout(() => resolve(fakeMessage), 300);
-    });
+    const delayedProvider = () =>
+      new Promise<any>(resolve => {
+        setTimeout(() => resolve(fakeMessage), 300);
+      });
 
     const config: ModelClientConfig = {
       // casting to any because we don't implement full provider type in test
@@ -67,15 +72,15 @@ describe('AbortSignal propagation', () => {
     const sessionState: SessionState = {
       id: 'session-1',
       contextWindow: createContextWindow(),
-      abortController: new AbortController()
+      abortController: new AbortController(),
     };
 
     const promise = client.generateResponse(
       'hi',
       'claude-3-7-sonnet-20250219', // Add the required model parameter
-      [], 
-      sessionState, 
-      sessionState.abortController ? { signal: sessionState.abortController.signal } : undefined
+      [],
+      sessionState,
+      sessionState.abortController ? { signal: sessionState.abortController.signal } : undefined,
     );
 
     setTimeout(() => {
@@ -90,12 +95,12 @@ describe('AbortSignal propagation', () => {
   it('aborting before first tool call stops FSM execution', async () => {
     // Create a real FSM driver instance
     const driver = new FsmDriver({} as any);
-    
+
     // Create session state with abort controller
     const sessionState: SessionState = {
       id: 'session-2',
       contextWindow: createContextWindow(),
-      abortController: new AbortController()
+      abortController: new AbortController(),
     };
 
     // Mark session as aborted before running FSM
@@ -115,7 +120,7 @@ describe('AbortSignal propagation', () => {
   it('subsequent user message after abortion is processed normally', async () => {
     // Create a real FSM driver instance
     const driver = new FsmDriver({} as any);
-    
+
     // Setup: Verify abort status is set
     setSessionAborted('session-2');
     expect(isSessionAborted('session-2')).toBe(true);
@@ -125,16 +130,16 @@ describe('AbortSignal propagation', () => {
       modelClient: {} as any,
       toolRegistry: {} as any,
       permissionManager: {} as any,
-      executionAdapter: {} as any
+      executionAdapter: {} as any,
     });
 
     // Create session state with a fresh abort controller
     const sessionState: SessionState = {
       id: 'session-2',
       contextWindow: createContextWindow(),
-      abortController: new AbortController()
+      abortController: new AbortController(),
     };
-    
+
     // Process a query through AgentRunner - this should detect the abort,
     // return early, and clean up the abort status automatically
     await agentRunner.processQuery('test query', 'claude-3-7-sonnet-20250219', sessionState);

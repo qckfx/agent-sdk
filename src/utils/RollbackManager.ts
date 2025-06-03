@@ -49,9 +49,7 @@ export async function rollbackSession(
   const ctx = sessionState.contextWindow;
   let checkpointId: string | undefined;
 
-  const targetMsg = ctx
-    ?.getConversationMessages()
-    .find((m) => m.id === messageId);
+  const targetMsg = ctx?.getConversationMessages().find(m => m.id === messageId);
 
   checkpointId = targetMsg?.lastCheckpointId;
 
@@ -65,7 +63,7 @@ export async function rollbackSession(
     // Get all repositories from the execution adapter
     const directoryStructures = await sessionState.executionAdapter.getDirectoryStructures();
     const repoPaths = Array.from(directoryStructures.keys());
-    
+
     // Restore all repositories to the checkpoint
     restoredCommits = await CheckpointManager.restoreMultiRepo(
       sessionState.id,
@@ -94,7 +92,7 @@ export async function rollbackSession(
     for (const [repoPath, commitSha] of restoredCommits) {
       hostCommitsRecord[repoPath] = commitSha;
     }
-    
+
     if (sessionState.multiRepoTracking) {
       sessionState.multiRepoTracking.lastCheckpointMetadata = {
         toolExecutionId: checkpointId,
@@ -107,7 +105,7 @@ export async function rollbackSession(
 
   // For backwards compatibility, emit the first repo's commit SHA
   const firstCommitSha = restoredCommits.values().next().value || '';
-  
+
   eventBus.emit(BusEvent.ROLLBACK_COMPLETED, {
     sessionId: sessionState.id,
     commitSha: firstCommitSha,

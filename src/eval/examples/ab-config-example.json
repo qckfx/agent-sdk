@@ -24,7 +24,16 @@
       "topP": 1,
       "maxTokens": 4096
     },
-    "availableTools": ["think", "bash", "glob", "grep", "ls", "file_read", "file_write", "file_edit"],
+    "availableTools": [
+      "think",
+      "bash",
+      "glob",
+      "grep",
+      "ls",
+      "file_read",
+      "file_write",
+      "file_edit"
+    ],
     "metadata": {
       "description": "Configuration with ThinkTool enabled"
     }

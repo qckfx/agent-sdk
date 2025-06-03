@@ -59,7 +59,11 @@ export interface ConversationResult {
 export interface AgentRunner {
   executionAdapter: ExecutionAdapter;
   promptManager: PromptManager;
-  processQuery(query: string, model: string, sessionState?: Record<string, unknown>): Promise<ProcessQueryResult>;
+  processQuery(
+    query: string,
+    model: string,
+    sessionState?: Record<string, unknown>,
+  ): Promise<ProcessQueryResult>;
 }
 
 // Legacy interfaces from the original agent.ts file

@@ -16,10 +16,10 @@
  * closure.
  */
 
-import { 
-  CheckpointEvents, 
+import {
+  CheckpointEvents,
   CHECKPOINT_READY_EVENT,
-  CheckpointPayload
+  CheckpointPayload,
 } from '../events/checkpoint-events.js';
 import type { SessionState } from '../types/model.js';
 
@@ -36,24 +36,25 @@ export function attachCheckpointSync(sessionState: SessionState): void {
   const listener = (payload: CheckpointPayload): void => {
     if (payload.sessionId !== sessionState.id) return;
     sessionState.contextWindow.setLastCheckpointId(payload.toolExecutionId);
-    
+
     // Update multi-repo tracking metadata
     if (payload.repoCount > 0) {
       const hostCommitsRecord: Record<string, string> = {};
       for (const [repoPath, commitSha] of payload.hostCommits) {
         hostCommitsRecord[repoPath] = commitSha;
       }
-      
+
       sessionState.multiRepoTracking = {
         repoCount: payload.repoCount,
         repoPaths: Array.from(payload.hostCommits.keys()),
-        directoryStructureGenerated: sessionState.multiRepoTracking?.directoryStructureGenerated ?? false,
+        directoryStructureGenerated:
+          sessionState.multiRepoTracking?.directoryStructureGenerated ?? false,
         lastCheckpointMetadata: {
           toolExecutionId: payload.toolExecutionId,
           timestamp: payload.timestamp,
           repoCount: payload.repoCount,
           hostCommits: hostCommitsRecord,
-        }
+        },
       };
     }
   };
@@ -74,9 +75,7 @@ export function attachCheckpointSync(sessionState: SessionState): void {
 
   // Initialise with current checkpoint (if any) so the next message inherits
   // the correct value.
-  sessionState.contextWindow.setLastCheckpointId(
-    sessionState.contextWindow.getLastCheckpointId(),
-  );
+  sessionState.contextWindow.setLastCheckpointId(sessionState.contextWindow.getLastCheckpointId());
 }
 
 /**

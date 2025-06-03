@@ -5,11 +5,7 @@ export * from './tool-result.js';
 export * from './provider.js';
 
 // Export from config with explicit re-exports to avoid naming conflicts
-export { 
-  type LoggerConfig,
-  type PermissionConfig,
-  type AgentConfig
-} from './config.js';
+export { type LoggerConfig, type PermissionConfig, type AgentConfig } from './config.js';
 
 export * from './error.js';
 export * from './logger.js';

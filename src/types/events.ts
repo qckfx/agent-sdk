@@ -12,7 +12,7 @@ export const ProcessingEvents = {
   STARTED: 'processing:started',
   COMPLETED: 'processing:completed',
   ERROR: 'processing:error',
-  ABORTED: 'processing:aborted'
+  ABORTED: 'processing:aborted',
 } as const;
 
 /**
@@ -21,35 +21,35 @@ export const ProcessingEvents = {
 export const ToolExecutionEvents = {
   STARTED: 'tool:execution:started',
   COMPLETED: 'tool:execution:completed',
-  ERROR: 'tool:execution:error'
+  ERROR: 'tool:execution:error',
 } as const;
 
 /**
  * Constants for environment events
  */
 export const EnvironmentEvents = {
-  STATUS_CHANGED: 'environment:status_changed'
+  STATUS_CHANGED: 'environment:status_changed',
 } as const;
 
 /**
  * Constants for checkpoint events
  */
 export const CheckpointEvents = {
-  READY: 'checkpoint:ready'
+  READY: 'checkpoint:ready',
 } as const;
 
 /**
  * Constants for rollback events
  */
 export const RollbackEvents = {
-  COMPLETED: 'rollback:completed'
+  COMPLETED: 'rollback:completed',
 } as const;
 
 /**
  * Constants for permission events
  */
 export const PermissionEvents = {
-  REQUESTED: 'permission:requested'
+  REQUESTED: 'permission:requested',
 } as const;
 
 /**
@@ -58,17 +58,17 @@ export const PermissionEvents = {
  */
 export type AgentEvent =
   // Processing lifecycle events
-  | typeof ProcessingEvents[keyof typeof ProcessingEvents]
+  | (typeof ProcessingEvents)[keyof typeof ProcessingEvents]
   // Tool execution events
-  | typeof ToolExecutionEvents[keyof typeof ToolExecutionEvents]
+  | (typeof ToolExecutionEvents)[keyof typeof ToolExecutionEvents]
   // Environment events
-  | typeof EnvironmentEvents[keyof typeof EnvironmentEvents]
+  | (typeof EnvironmentEvents)[keyof typeof EnvironmentEvents]
   // Checkpoint events
-  | typeof CheckpointEvents[keyof typeof CheckpointEvents]
+  | (typeof CheckpointEvents)[keyof typeof CheckpointEvents]
   // Rollback events
-  | typeof RollbackEvents[keyof typeof RollbackEvents]
+  | (typeof RollbackEvents)[keyof typeof RollbackEvents]
   // Permission events
-  | typeof PermissionEvents[keyof typeof PermissionEvents];
+  | (typeof PermissionEvents)[keyof typeof PermissionEvents];
 
 /**
  * Event data for processing started event
@@ -150,7 +150,7 @@ export interface AgentEventMap {
   [ProcessingEvents.STARTED]: ProcessingStartedData;
   [ProcessingEvents.COMPLETED]: ProcessingCompletedData;
   [ProcessingEvents.ERROR]: ProcessingErrorData;
-  [ProcessingEvents.ABORTED]: { sessionId: string; };
+  [ProcessingEvents.ABORTED]: { sessionId: string };
   [ToolExecutionEvents.STARTED]: ToolExecutionState;
   [ToolExecutionEvents.COMPLETED]: ToolExecutionState;
   [ToolExecutionEvents.ERROR]: ToolExecutionState;

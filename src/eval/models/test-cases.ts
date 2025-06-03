@@ -13,38 +13,41 @@ export const testCases: TestCase[] = [
     id: 'explore-1',
     name: 'Find Permission Manager',
     instructions: 'Find the implementation of the permission manager system in this codebase',
-    type: 'exploration'
+    type: 'exploration',
   },
   {
     id: 'explore-2',
     name: 'Find Tool Registry',
     instructions: 'How does the tool registry work in this project?',
-    type: 'exploration'
+    type: 'exploration',
   },
-  
+
   // Debugging test cases
   {
     id: 'debug-1',
     name: 'Debug File Read Error',
-    instructions: 'When I try to read a file with the FileReadTool, I get an error saying "path must be absolute". How do I fix this?',
-    type: 'debugging'
+    instructions:
+      'When I try to read a file with the FileReadTool, I get an error saying "path must be absolute". How do I fix this?',
+    type: 'debugging',
   },
-  
+
   // Implementation test cases
   {
     id: 'implement-1',
     name: 'Add Simple Logger',
-    instructions: 'Add a simple logging function that tracks which tools are being used and how often',
-    type: 'implementation'
+    instructions:
+      'Add a simple logging function that tracks which tools are being used and how often',
+    type: 'implementation',
   },
-  
+
   // Analysis test cases
   {
     id: 'analyze-1',
     name: 'Explain Agent Architecture',
-    instructions: 'Explain the overall architecture of this agent system and how the components interact',
-    type: 'analysis'
-  }
+    instructions:
+      'Explain the overall architecture of this agent system and how the components interact',
+    type: 'analysis',
+  },
 ];
 
 /**
@@ -66,7 +69,7 @@ export function getTestCasesByType(type: TestCase['type']): TestCase[] {
  */
 export function getQuickTestCases(): TestCase[] {
   const types = new Set(testCases.map(tc => tc.type));
-  return Array.from(types).map(type => 
-    testCases.find(tc => tc.type === type)
-  ).filter(Boolean) as TestCase[];
+  return Array.from(types)
+    .map(type => testCases.find(tc => tc.type === type))
+    .filter(Boolean) as TestCase[];
 }

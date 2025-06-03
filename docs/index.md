@@ -50,15 +50,15 @@ import { createAnthropicProvider } from '@qckfx/agent';
 
 // Create model provider
 const modelProvider = createAnthropicProvider({
-  model: 'claude-3-7-sonnet-20250219'
+  model: 'claude-3-7-sonnet-20250219',
 });
 
 // Create the agent
 const agent = createAgent({
   modelProvider,
-  environment: { 
-    type: 'local' // or 'docker', 'e2b'
-  }
+  environment: {
+    type: 'local', // or 'docker', 'e2b'
+  },
 });
 ```
 

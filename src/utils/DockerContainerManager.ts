@@ -20,7 +20,7 @@ let esmDirname: string;
 // Check if we're in CommonJS (where __dirname is available)
 if (typeof __dirname !== 'undefined') {
   esmDirname = __dirname;
-} 
+}
 // We're in ESM - this branch is only used in ESM builds
 else {
   // This branch runs **only** in ESM builds.  TypeScript (when transpiling for
@@ -99,7 +99,6 @@ export class DockerContainerManager {
    * Create a Docker container manager using docker-compose
    */
   constructor(options: DockerManagerOptions) {
-
     // -------------------------------------------------------------------
     // 1)  Use the *project root* provided by the caller.  We no longer try to
     //     second‑guess the correct path in here – the surrounding application
@@ -132,7 +131,7 @@ export class DockerContainerManager {
     // We intentionally do NOT mutate process.env directly to avoid leaking
     // variables globally when the library is used as a dependency.
     this.composeEnv = {
-      HOST_PROJECT_ROOT: this.projectRoot
+      HOST_PROJECT_ROOT: this.projectRoot,
     };
 
     // -------------------------------------------------------------------
@@ -173,7 +172,9 @@ export class DockerContainerManager {
     // Detect whether the system uses `docker compose` (v2) or `docker-compose` (v1).
     // We run this detection lazily below in a best‑effort manner; if detection
     // fails we keep the default.
-    this.detectComposeCommand().catch(() => {/* ignore, will fall back to default */});
+    this.detectComposeCommand().catch(() => {
+      /* ignore, will fall back to default */
+    });
   }
 
   /**
@@ -186,25 +187,29 @@ export class DockerContainerManager {
       // Ensure compose command detection has finished
       await this.detectComposeCommand();
 
-      const composeVersionCmd = this.composeCmd === 'docker-compose'
-        ? 'docker-compose --version'
-        : 'docker compose version';
+      const composeVersionCmd =
+        this.composeCmd === 'docker-compose'
+          ? 'docker-compose --version'
+          : 'docker compose version';
       const { stdout: composeVersion } = await execAsync(composeVersionCmd);
-      
+
       this.logger?.info(`Docker available: ${dockerVersion.trim()}`, 'system');
       this.logger?.info(`Docker Compose available: ${composeVersion.trim()}`, 'system');
-      
+
       return true;
     } catch (error) {
       // Provide more detailed error messages based on error type
-      if ((error as {code?: string}).code === 'ENOENT') {
+      if ((error as { code?: string }).code === 'ENOENT') {
         this.logger?.error('Docker not found on system PATH', 'system');
-      } else if ((error as {code?: string}).code === 'EACCES') {
+      } else if ((error as { code?: string }).code === 'EACCES') {
         this.logger?.error('Permission denied when checking Docker availability', 'system');
       } else {
         this.logger?.error(`Docker not available: ${(error as Error).message}`, 'system');
-        if ((error as {stderr?: string}).stderr) {
-          this.logger?.error(`Docker error details: ${(error as {stderr: string}).stderr}`, 'system');
+        if ((error as { stderr?: string }).stderr) {
+          this.logger?.error(
+            `Docker error details: ${(error as { stderr: string }).stderr}`,
+            'system',
+          );
         }
       }
       return false;
@@ -232,7 +237,7 @@ export class DockerContainerManager {
     try {
       // Ask Docker for the mount information and parse the JSON output.
       const { stdout } = await execAsync(
-        `docker inspect --format '{{ json .Mounts }}' ${containerId}`
+        `docker inspect --format '{{ json .Mounts }}' ${containerId}`,
       );
 
       type MountInfo = { Source: string; Destination: string };
@@ -245,7 +250,7 @@ export class DockerContainerManager {
 
       // Normalise both paths for a fair comparison.
       const expected = path.resolve(this.projectRoot);
-      const actual   = path.resolve(workspaceMount.Source);
+      const actual = path.resolve(workspaceMount.Source);
 
       return expected === actual;
     } catch {
@@ -282,14 +287,14 @@ export class DockerContainerManager {
     ) {
       return this.containerInfoCache;
     }
-    
+
     try {
       // Get container ID using docker-compose
       const { stdout: idOutput } = await execAsync(
         `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} ps -q ${this.serviceName}`,
-        { env: { ...process.env, ...this.composeEnv } }
+        { env: { ...process.env, ...this.composeEnv } },
       );
-      
+
       const containerId = idOutput.trim();
       if (!containerId) {
         // Update cache with null result
@@ -297,29 +302,33 @@ export class DockerContainerManager {
         this.containerInfoCacheTimestamp = now;
         return null;
       }
-      
+
       // Check if container is running
-      const { stdout: statusOutput } = await execAsync(`docker inspect -f '{{.State.Running}}' ${containerId}`);
+      const { stdout: statusOutput } = await execAsync(
+        `docker inspect -f '{{.State.Running}}' ${containerId}`,
+      );
       const isRunning = statusOutput.trim() === 'true';
-      
+
       // Get container name
-      const { stdout: nameOutput } = await execAsync(`docker inspect -f '{{.Name}}' ${containerId}`);
+      const { stdout: nameOutput } = await execAsync(
+        `docker inspect -f '{{.Name}}' ${containerId}`,
+      );
       const containerName = nameOutput.trim().replace(/^\//, '');
-      
+
       // Use the project root that was detected in the constructor. This path
       // corresponds to the directory that is mounted into the container at
       // /workspace.
       const projectPath = this.projectRoot;
-      
+
       // Create and cache the result
       const result: ContainerInfo = {
         id: containerId,
         name: containerName,
         status: isRunning ? 'running' : 'stopped',
         projectPath,
-        workspacePath: '/workspace'
+        workspacePath: '/workspace',
       };
-      
+
       this.containerInfoCache = result;
       this.containerInfoCacheTimestamp = now;
       return result;
@@ -342,34 +351,34 @@ export class DockerContainerManager {
         this.logger?.info(`Container ${existingContainer.name} is already running`, 'system');
         return existingContainer;
       }
-      
+
       // Make sure docker directory exists
       const dockerDir = path.dirname(this.composeFilePath);
       if (!fs.existsSync(dockerDir)) {
         this.logger?.error(`Docker directory not found: ${dockerDir}`, 'system');
         return null;
       }
-      
+
       // Make sure docker-compose file exists
       if (!fs.existsSync(this.composeFilePath)) {
         this.logger?.error(`Docker Compose file not found: ${this.composeFilePath}`, 'system');
         return null;
       }
-      
+
       // Start container using docker-compose
       this.logger?.info(`Starting container using docker-compose: ${this.serviceName}`, 'system');
       await execAsync(
         `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} up -d ${this.serviceName}`,
-        { env: { ...process.env, ...this.composeEnv } }
+        { env: { ...process.env, ...this.composeEnv } },
       );
-      
+
       // Get container info after starting
       const containerInfo = await this.getContainerInfo();
       if (!containerInfo) {
         this.logger?.error('Failed to get container info after starting', 'system');
         return null;
       }
-      
+
       this.logger?.info(`Container started: ${containerInfo.name}`, 'system');
       return containerInfo;
     } catch (error) {
@@ -387,11 +396,11 @@ export class DockerContainerManager {
       if (!containerInfo) {
         return false;
       }
-      
+
       this.logger?.info(`Stopping container: ${containerInfo.name}`, 'system');
       await execAsync(
         `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} stop ${this.serviceName}`,
-        { env: { ...process.env, ...this.composeEnv } }
+        { env: { ...process.env, ...this.composeEnv } },
       );
       return true;
     } catch (error) {
@@ -409,11 +418,11 @@ export class DockerContainerManager {
       if (!containerInfo) {
         return false;
       }
-      
+
       this.logger?.info(`Removing container: ${containerInfo.name}`, 'system');
       await execAsync(
         `${this.composeCmd} -f "${this.composeFilePath}" -p ${this.projectName} down`,
-        { env: { ...process.env, ...this.composeEnv } }
+        { env: { ...process.env, ...this.composeEnv } },
       );
       return true;
     } catch (error) {
@@ -425,7 +434,10 @@ export class DockerContainerManager {
   /**
    * Execute a command in the container
    */
-  public async executeCommand(command: string, workingDir?: string): Promise<{
+  public async executeCommand(
+    command: string,
+    workingDir?: string,
+  ): Promise<{
     stdout: string;
     stderr: string;
     exitCode: number;
@@ -435,10 +447,10 @@ export class DockerContainerManager {
       if (!containerInfo || containerInfo.status !== 'running') {
         throw new Error('Container is not running');
       }
-      
+
       // Set working directory option if provided
       const workdirOption = workingDir ? `-w "${workingDir}"` : '';
-      
+
       // Execute command in container
       //
       // NOTE: We explicitly raise the `maxBuffer` limit for `child_process.exec`.
@@ -458,18 +470,18 @@ export class DockerContainerManager {
         `docker exec ${workdirOption} ${containerInfo.id} bash -c "${command.replace(/"/g, '\\"')}"`,
         { maxBuffer: 100 * 1024 * 1024 }, // 100 MiB
       );
-      
+
       return {
         stdout,
         stderr,
-        exitCode: 0
+        exitCode: 0,
       };
     } catch (error) {
       const err = error as Error & { code?: number; stderr?: string; stdout?: string };
       return {
         stdout: err.stdout || '',
         stderr: err.stderr || err.message,
-        exitCode: err.code || 1
+        exitCode: err.code || 1,
       };
     }
   }
@@ -485,7 +497,7 @@ export class DockerContainerManager {
         this.logger?.warn('Docker is not available on this system', 'system');
         return null;
       }
-      
+
       // Start container if needed
       try {
         // Check if a container already exists
@@ -493,33 +505,36 @@ export class DockerContainerManager {
         if (existingContainer && existingContainer.status === 'running') {
           // Verify the workspace mount is correct
           const isMountCorrect = await this.isWorkspaceMountCorrect(existingContainer.id);
-          
+
           if (!isMountCorrect) {
-            this.logger?.warn('Container workspace mount is incorrect, recreating container', 'system');
-            
+            this.logger?.warn(
+              'Container workspace mount is incorrect, recreating container',
+              'system',
+            );
+
             // Stop and remove the container with incorrect mount
             await this.removeContainer();
-            
+
             // Create a new container
             return await this.startContainer();
           }
-          
+
           // Container exists and mount is correct, return it
           return existingContainer;
         }
-        
+
         // Start a new container
         const containerInfo = await this.startContainer();
         if (!containerInfo) {
           this.logger?.error('Failed to start Docker container', 'system');
           return null;
         }
-        
+
         // Check if container is healthy with timeout
         let attempts = 0;
         const maxAttempts = 3;
         let containerReady = false;
-        
+
         while (attempts < maxAttempts && !containerReady) {
           try {
             attempts++;
@@ -528,29 +543,36 @@ export class DockerContainerManager {
               containerReady = true;
               break;
             }
-            
+
             // Wait before retry (reduced from 1000ms for faster initialization)
             await new Promise(resolve => setTimeout(resolve, 100));
           } catch (healthError) {
-            this.logger?.warn(`Health check attempt ${attempts} failed: ${(healthError as Error).message}`, 'system');
-            
+            this.logger?.warn(
+              `Health check attempt ${attempts} failed: ${(healthError as Error).message}`,
+              'system',
+            );
+
             if (attempts >= maxAttempts) {
               throw healthError;
             }
-            
+
             // Wait before retry (reduced from 1000ms for faster initialization)
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         }
-        
+
         if (!containerReady) {
           this.logger?.error('Container health check failed after multiple attempts', 'system');
           return null;
         }
-        
+
         return containerInfo;
       } catch (startError) {
-        this.logger?.error(`Error starting container: ${(startError as Error).message}`, startError, 'system');
+        this.logger?.error(
+          `Error starting container: ${(startError as Error).message}`,
+          startError,
+          'system',
+        );
         return null;
       }
     } catch (error) {

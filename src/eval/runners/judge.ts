@@ -13,8 +13,8 @@ const logger = createLogger({
   formatOptions: {
     showTimestamp: true,
     showPrefix: true,
-    colors: true
-  }
+    colors: true,
+  },
 });
 
 /**
@@ -22,8 +22,8 @@ const logger = createLogger({
  */
 export interface ModelProvider {
   processQuery: (
-    prompt: string, 
-    options: ProcessQueryOptions
+    prompt: string,
+    options: ProcessQueryOptions,
   ) => Promise<{ response: string | null }>;
 }
 
@@ -64,13 +64,12 @@ export interface ComparisonResult {
  */
 export function extractJsonFromString(output: string): string | null {
   // Look for JSON block in the output using regex
-  const jsonMatch = output.match(/```json\n([\s\S]*?)\n```/) || 
-                    output.match(/{[\s\S]*}/);
-  
+  const jsonMatch = output.match(/```json\n([\s\S]*?)\n```/) || output.match(/{[\s\S]*}/);
+
   if (!jsonMatch) {
     return null;
   }
-  
+
   // Extract the JSON content
   return (jsonMatch[1] || jsonMatch[0]).trim();
 }
@@ -88,7 +87,7 @@ export function isValidJudgmentResult(result: Record<string, unknown>): boolean 
   if (!result.overall || typeof result.overall !== 'string') return false;
   if (!Array.isArray(result.strengths)) return false;
   if (!Array.isArray(result.weaknesses)) return false;
-  
+
   return true;
 }
 
@@ -101,21 +100,21 @@ export function isValidJudgmentResult(result: Record<string, unknown>): boolean 
 export function parseJudgmentOutput(output: string): JudgmentResult | null {
   try {
     const jsonContent = extractJsonFromString(output);
-    
+
     if (!jsonContent) {
       logger.error('Failed to find JSON in judge output');
       return null;
     }
-    
+
     // Parse the JSON content
     const result = JSON.parse(jsonContent);
-    
+
     // Validate the structure
     if (!isValidJudgmentResult(result)) {
       logger.error('Invalid judgment result structure', result);
       return null;
     }
-    
+
     return result as JudgmentResult;
   } catch (error) {
     logger.error('Failed to parse judgment output', error);
@@ -133,7 +132,7 @@ export function parseJudgmentOutput(output: string): JudgmentResult | null {
 export function createJudgePrompt(
   task: string,
   executionHistory: AgentExecutionHistory,
-  options: JudgeOptions = {}
+  options: JudgeOptions = {},
 ): string {
   return createJudgingPrompt({
     task,
@@ -153,14 +152,14 @@ export function processJudgeResponse(modelResponse: string | null): JudgmentResu
     logger.error('No response from judge model');
     return null;
   }
-  
+
   const judgmentResult = parseJudgmentOutput(modelResponse);
-  
+
   if (!judgmentResult) {
     logger.error('Failed to parse judgment result');
     return null;
   }
-  
+
   return judgmentResult;
 }
 
@@ -176,19 +175,19 @@ export async function runJudge(
   executionHistory: AgentExecutionHistory,
   task: string,
   modelProvider: ModelProvider,
-  options: JudgeOptions = {}
+  options: JudgeOptions = {},
 ): Promise<JudgmentResult | null> {
   try {
     // Create the judging prompt
     const prompt = createJudgePrompt(task, executionHistory, options);
-    
+
     // Run the judge model
     logger.info('Running AI judge evaluation');
     const result = await modelProvider.processQuery(prompt, {
-      temperature: 0.2,  // Low temperature for more consistent judgments
-      maxTokens: 4000,   // Ensure enough tokens for detailed analysis
+      temperature: 0.2, // Low temperature for more consistent judgments
+      maxTokens: 4000, // Ensure enough tokens for detailed analysis
     });
-    
+
     // Process the response
     return processJudgeResponse(result.response);
   } catch (error) {
@@ -205,7 +204,7 @@ export async function runJudge(
  */
 export function createComparisonPrompt(
   judgmentA: JudgmentResult,
-  judgmentB: JudgmentResult
+  judgmentB: JudgmentResult,
 ): string {
   return `
 I need you to compare two different AI agent executions that have been judged.
@@ -236,11 +235,11 @@ export async function compareWithJudge(
   executionA: { history: AgentExecutionHistory; task: string; judgment?: JudgmentResult },
   executionB: { history: AgentExecutionHistory; task: string; judgment?: JudgmentResult },
   modelProvider: ModelProvider,
-  options: JudgeOptions = {}
+  options: JudgeOptions = {},
 ): Promise<ComparisonResult> {
   let judgmentA: JudgmentResult | null;
   let judgmentB: JudgmentResult | null;
-  
+
   // Use existing judgments if provided, otherwise run the judge
   if (executionA.judgment) {
     logger.info('Using existing judgment for execution A');
@@ -248,28 +247,18 @@ export async function compareWithJudge(
   } else {
     // Run the judge on execution A
     logger.info('Running AI judge evaluation for execution A');
-    judgmentA = await runJudge(
-      executionA.history, 
-      executionA.task, 
-      modelProvider,
-      options
-    );
+    judgmentA = await runJudge(executionA.history, executionA.task, modelProvider, options);
   }
-  
+
   if (executionB.judgment) {
     logger.info('Using existing judgment for execution B');
     judgmentB = executionB.judgment;
   } else {
     // Run the judge on execution B
     logger.info('Running AI judge evaluation for execution B');
-    judgmentB = await runJudge(
-      executionB.history, 
-      executionB.task, 
-      modelProvider,
-      options
-    );
+    judgmentB = await runJudge(executionB.history, executionB.task, modelProvider, options);
   }
-  
+
   // If either judgment failed, return what we have
   if (!judgmentA || !judgmentB) {
     return {
@@ -278,17 +267,17 @@ export async function compareWithJudge(
       comparison: null,
     };
   }
-  
+
   // Create and run the comparison
   try {
     logger.info('Running judgment comparison');
     const comparisonPrompt = createComparisonPrompt(judgmentA, judgmentB);
-    
+
     const comparisonResult = await modelProvider.processQuery(comparisonPrompt, {
       temperature: 0.2,
       maxTokens: 2000,
     });
-    
+
     return {
       judgmentA,
       judgmentB,

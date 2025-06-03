@@ -18,7 +18,7 @@ import { createLogger, LogLevel } from '../../utils/logger.js';
 // Create a logger for tool operations
 const logger = createLogger({
   level: LogLevel.INFO,
-  prefix: 'Tools'
+  prefix: 'Tools',
 });
 
 /**
@@ -34,7 +34,7 @@ export function createAllTools(): Tool[] {
     createGlobTool(),
     createGrepTool(),
     createLSTool(),
-    createThinkTool()
+    createThinkTool(),
   ];
 }
 
@@ -42,14 +42,14 @@ export function createAllTools(): Tool[] {
  * Map of tool IDs to their friendly names for reporting
  */
 export const TOOL_NAMES: Record<string, string> = {
-  'bash': 'Bash',
-  'file_edit': 'File Edit',
-  'file_read': 'File Read',
-  'file_write': 'File Write',
-  'glob': 'Glob',
-  'grep': 'Grep',
-  'ls': 'LS',
-  'think': 'Think'
+  bash: 'Bash',
+  file_edit: 'File Edit',
+  file_read: 'File Read',
+  file_write: 'File Write',
+  glob: 'Glob',
+  grep: 'Grep',
+  ls: 'LS',
+  think: 'Think',
 };
 
 /**
@@ -63,18 +63,18 @@ export function getToolFriendlyName(toolId: string): string {
 
 /**
  * Creates a tool registry with filtered tools based on available tool IDs
- * 
+ *
  * @param availableTools Optional array of tool IDs to include (undefined for all, empty array for none)
  * @param configName Optional name to use in logging
  * @returns A tool registry with the specified tools registered
  */
 export function createFilteredToolRegistry(
   availableTools?: string[],
-  configName: string = 'Configuration'
+  configName: string = 'Configuration',
 ): ToolRegistry {
   const toolRegistry = createToolRegistry();
   const allTools = createAllTools();
-  
+
   if (availableTools === undefined) {
     // Register all tools when not specified
     allTools.forEach(tool => toolRegistry.registerTool(tool));
@@ -83,11 +83,13 @@ export function createFilteredToolRegistry(
     // Register only specified tools
     const filteredTools = allTools.filter(tool => availableTools.includes(tool.id));
     filteredTools.forEach(tool => toolRegistry.registerTool(tool));
-    logger.info(`Using ${filteredTools.length} tools for ${configName} (filtered from ${allTools.length} total tools)`);
+    logger.info(
+      `Using ${filteredTools.length} tools for ${configName} (filtered from ${allTools.length} total tools)`,
+    );
   } else {
     // Empty array means no tools
     logger.info(`Using no tools for ${configName}`);
   }
-  
+
   return toolRegistry;
 }

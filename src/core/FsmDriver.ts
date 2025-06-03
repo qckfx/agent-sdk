@@ -5,12 +5,7 @@
  * @internal
  */
 
-import {
-  AgentState,
-  AgentEvent,
-  transition,
-  isTerminal,
-} from './AgentFSM.js';
+import { AgentState, AgentEvent, transition, isTerminal } from './AgentFSM.js';
 
 import { ToolRegistry } from '../types/registry.js';
 import { ModelClient, SessionState, ToolCall } from '../types/model.js';
@@ -38,7 +33,7 @@ export class FsmDriver {
   private _iterations: number = 0;
 
   constructor(private readonly deps: DriverDeps) {}
-  
+
   /**
    * The number of iterations through the FSM loop
    */
@@ -58,8 +53,12 @@ export class FsmDriver {
    * @param model The model to use for this query
    * @returns A response object containing the assistant's text, tool results, and abort status
    */
-  public async run(query: string, sessionState: SessionState, model: string): Promise<{ 
-    response: string; 
+  public async run(
+    query: string,
+    sessionState: SessionState,
+    model: string,
+  ): Promise<{
+    response: string;
     aborted: boolean;
     toolResults: ToolResultEntry[];
   }> {
@@ -67,19 +66,13 @@ export class FsmDriver {
     const toolResults: ToolResultEntry[] = [];
     let finalAssistant: LLM.Messages.Message | undefined;
     let currentToolCall: ToolCall | undefined;
-    
+
     // Get quick references to dependencies and contextWindow
-    const {
-      modelClient,
-      toolRegistry,
-      permissionManager,
-      executionAdapter,
-      logger
-    } = this.deps;
+    const { modelClient, toolRegistry, permissionManager, executionAdapter, logger } = this.deps;
     const cw = sessionState.contextWindow;
     const abortSignal = sessionState.abortController?.signal;
     logger.debug(`Running with abortSignal, initial aborted=${abortSignal?.aborted}`);
-    
+
     // If the signal is already aborted, log a warning
     if (abortSignal?.aborted) {
       logger.warn('Starting run with already aborted signal!', LogCategory.SYSTEM);
@@ -92,9 +85,10 @@ export class FsmDriver {
     // a duplicate.
     const currentMessages = cw.getMessages();
     const lastMsg = currentMessages[currentMessages.length - 1];
-    const lastText = Array.isArray(lastMsg?.content) && lastMsg.content[0]?.type === 'text'
-      ? (lastMsg.content[0] as TextBlock).text
-      : undefined;
+    const lastText =
+      Array.isArray(lastMsg?.content) && lastMsg.content[0]?.type === 'text'
+        ? (lastMsg.content[0] as TextBlock).text
+        : undefined;
 
     if (!(lastMsg?.role === 'user' && lastText === query)) {
       cw.pushUser(query);
@@ -105,15 +99,18 @@ export class FsmDriver {
 
     // Reset iterations counter for this run
     this._iterations = 0;
-    
+
     // FSM loop - continue until we reach a terminal state
     while (!isTerminal(this.state)) {
       // Increment iterations counter
       this._iterations++;
-      
+
       // Check for abortion at the beginning of each loop
       if (abortSignal?.aborted) {
-        logger.debug(`Detected aborted signal in iteration ${this._iterations}`, LogCategory.SYSTEM);
+        logger.debug(
+          `Detected aborted signal in iteration ${this._iterations}`,
+          LogCategory.SYSTEM,
+        );
         // If we have an outstanding tool_use without a matching tool_result,
         // append an aborted tool_result so the conversation remains valid.
         if (
@@ -154,12 +151,12 @@ export class FsmDriver {
             model,
             toolRegistry.getToolDescriptions(),
             sessionState,
-            abortSignal ? { signal: abortSignal } : undefined
+            abortSignal ? { signal: abortSignal } : undefined,
           );
 
           // Check for abort after model call
           if (abortSignal?.aborted) {
-                logger.debug('Detected abort after model call, requesting abort', LogCategory.SYSTEM);
+            logger.debug('Detected abort after model call, requesting abort', LogCategory.SYSTEM);
             this.dispatch({ type: 'ABORT_REQUESTED' });
             break;
           }
@@ -167,31 +164,30 @@ export class FsmDriver {
           if (toolCallChat.toolChosen && toolCallChat.toolCall) {
             // MODEL_TOOL_CALL path
             currentToolCall = toolCallChat.toolCall;
-            
+
             // Add tool_use to conversation history and capture the wrapper id
             cw.pushToolUse({
               id: currentToolCall.toolUseId,
               name: currentToolCall.toolId,
-              input: currentToolCall.args as Record<string, unknown>
+              input: currentToolCall.args as Record<string, unknown>,
             });
 
-            
             // Move to waiting for tool result
             this.dispatch({
               type: 'MODEL_TOOL_CALL',
-              toolUseId: currentToolCall.toolUseId
+              toolUseId: currentToolCall.toolUseId,
             });
           } else {
             // MODEL_FINAL path - store the response for later return
             if (toolCallChat.response) {
               finalAssistant = toolCallChat.response;
-              
+
               // Add assistant's response to conversation history
               if (finalAssistant.content && finalAssistant.content.length > 0) {
                 cw.pushAssistant(finalAssistant.content);
               }
             }
-            
+
             // Move to complete state
             this.dispatch({ type: 'MODEL_FINAL' });
           }
@@ -201,7 +197,10 @@ export class FsmDriver {
         case 'WAITING_FOR_TOOL_RESULT': {
           // If the operation was aborted before the tool starts, short‑circuit
           if (abortSignal?.aborted) {
-            logger.debug('Detected abort before tool execution starts, short-circuiting', LogCategory.SYSTEM);
+            logger.debug(
+              'Detected abort before tool execution starts, short-circuiting',
+              LogCategory.SYSTEM,
+            );
             // This block will be handled at the top‑level abort check in the
             // next loop iteration, so just continue.
             break;
@@ -216,12 +215,13 @@ export class FsmDriver {
               currentToolCall,
               sessionState,
               toolResults,
-              (ctx) => toolRegistry.executeToolWithCallbacks(
-                currentToolCall!.toolId,
-                currentToolCall!.toolUseId,
-                currentToolCall!.args as Record<string, unknown>,
-                ctx
-              ),
+              ctx =>
+                toolRegistry.executeToolWithCallbacks(
+                  currentToolCall!.toolId,
+                  currentToolCall!.toolUseId,
+                  currentToolCall!.args as Record<string, unknown>,
+                  ctx,
+                ),
               {
                 executionId: cw.peek()!.id,
                 permissionManager,
@@ -230,17 +230,19 @@ export class FsmDriver {
                 sessionState,
                 toolRegistry,
                 abortSignal: sessionState.abortController?.signal,
-              }
+              },
             );
           } catch (error) {
             // withToolCall handles errors internally, we just need to check for abort
             if ((error as Error).message === 'AbortError') {
-              logger.debug('Caught AbortError from withToolCall, requesting abort', LogCategory.SYSTEM);
+              logger.debug(
+                'Caught AbortError from withToolCall, requesting abort',
+                LogCategory.SYSTEM,
+              );
               this.dispatch({ type: 'ABORT_REQUESTED' });
               break;
             }
           }
-
 
           // Move to waiting for model final
           this.dispatch({ type: 'TOOL_FINISHED' });
@@ -254,7 +256,7 @@ export class FsmDriver {
             model,
             toolRegistry.getToolDescriptions(),
             sessionState,
-            abortSignal ? { signal: abortSignal } : undefined
+            abortSignal ? { signal: abortSignal } : undefined,
           );
 
           // Check for abort after model call
@@ -267,30 +269,30 @@ export class FsmDriver {
           if (finalToolCallChat.toolChosen && finalToolCallChat.toolCall) {
             // Chain another tool - return to tool execution flow
             currentToolCall = finalToolCallChat.toolCall;
-            
+
             // Add tool_use to conversation history
             cw.pushToolUse({
               id: currentToolCall.toolUseId,
               name: currentToolCall.toolId,
-              input: currentToolCall.args as Record<string, unknown>
+              input: currentToolCall.args as Record<string, unknown>,
             });
-            
+
             // Loop back to waiting for tool result
             this.dispatch({
               type: 'MODEL_TOOL_CALL',
-              toolUseId: currentToolCall.toolUseId
+              toolUseId: currentToolCall.toolUseId,
             });
           } else {
             // MODEL_FINAL path - store the response for later return
             if (finalToolCallChat.response) {
               finalAssistant = finalToolCallChat.response;
-              
+
               // Add assistant's response to conversation history
               if (finalAssistant.content && finalAssistant.content.length > 0) {
                 cw.pushAssistant(finalAssistant.content);
               }
             }
-            
+
             // Move to complete state
             this.dispatch({ type: 'MODEL_FINAL' });
           }
@@ -302,35 +304,32 @@ export class FsmDriver {
     // Handle the aborted state
     if (this.state.type === 'ABORTED') {
       return {
-        response: "Operation aborted by user",
+        response: 'Operation aborted by user',
         aborted: true,
-        toolResults
+        toolResults,
       };
     }
 
     // Return assistant text from all text blocks
-      if (
-        finalAssistant &&
-        Array.isArray(finalAssistant.content) &&
-        finalAssistant.content.length > 0
-      ) {
+    if (
+      finalAssistant &&
+      Array.isArray(finalAssistant.content) &&
+      finalAssistant.content.length > 0
+    ) {
       const textBlocks = finalAssistant.content.filter(isTextBlock) as TextBlock[];
-      const responseText = textBlocks
-        .map(block => block.text)
-        .join('');
-      
+      const responseText = textBlocks.map(block => block.text).join('');
+
       return {
         response: responseText,
         aborted: false,
-        toolResults
+        toolResults,
       };
     }
-    
+
     return {
       response: '',
       aborted: false,
-      toolResults
+      toolResults,
     };
   }
 }
-

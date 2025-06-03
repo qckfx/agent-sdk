@@ -47,9 +47,9 @@ export async function createSubAgentTool(
     if (nestedAgent) return nestedAgent;
 
     if (getRemoteId) {
-      nestedAgent = await Agent.create({config: parsed, callbacks: { getRemoteId }});
+      nestedAgent = await Agent.create({ config: parsed, callbacks: { getRemoteId } });
     } else {
-      nestedAgent = await Agent.create({config: parsed});
+      nestedAgent = await Agent.create({ config: parsed });
     }
     return nestedAgent;
   }
@@ -57,7 +57,9 @@ export async function createSubAgentTool(
   return createTool({
     id: ref.name,
     name: ref.name,
-    description: (parsed.description ?? `Sub-agent defined in ${ref.configFile}`) + '\n\nExample call:\n            { "query": "analyze the performance of this codebase" }',
+    description:
+      (parsed.description ?? `Sub-agent defined in ${ref.configFile}`) +
+      '\n\nExample call:\n            { "query": "analyze the performance of this codebase" }',
     parameters: {
       query: {
         type: 'string',
@@ -78,7 +80,7 @@ export async function createSubAgentTool(
       const result = await agent.processQuery(query);
       return {
         ok: true,
-        data: result.response || 'No response from sub-agent'
+        data: result.response || 'No response from sub-agent',
       };
     },
   });

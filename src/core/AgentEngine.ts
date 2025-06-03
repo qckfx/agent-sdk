@@ -17,10 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Type imports – kept local to avoid circular public exports
 // ---------------------------------------------------------------------------
 
-import type {
-  Agent,
-  CoreAgentConfig,
-} from '../types/main.js';
+import type { Agent, CoreAgentConfig } from '../types/main.js';
 
 import type { SessionState, ModelProvider } from '../types/model.js';
 import type { Tool, ExecutionAdapter } from '../types/tool.js';
@@ -37,11 +34,7 @@ import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
 import { createModelClient } from './ModelClient.js';
 
-import {
-  createDefaultPromptManager,
-  createPromptManager,
-  PromptManager,
-} from './PromptManager.js';
+import { createDefaultPromptManager, createPromptManager, PromptManager } from './PromptManager.js';
 
 // The legacy AgentRunner orchestrator has been subsumed – we now inline the
 // relevant logic directly.  Only the finite-state-machine driver remains as a
@@ -49,10 +42,7 @@ import {
 
 import { FsmDriver } from './FsmDriver.js';
 
-import {
-  isSessionAborted,
-  clearSessionAborted,
-} from '../utils/sessionUtils.js';
+import { isSessionAborted, clearSessionAborted } from '../utils/sessionUtils.js';
 
 import { attachCheckpointSync } from '../utils/CheckpointSync.js';
 
@@ -89,10 +79,7 @@ export class AgentEngine implements Agent {
   // Static factory – performs all async work
   // -----------------------------------------------------------------------
 
-  static async create(
-    config: CoreAgentConfig,
-    sessionId: string,
-  ): Promise<AgentEngine> {
+  static async create(config: CoreAgentConfig, sessionId: string): Promise<AgentEngine> {
     if (!config.modelProvider) {
       throw new Error('AgentEngine requires a "modelProvider" function');
     }
@@ -100,7 +87,8 @@ export class AgentEngine implements Agent {
     // ----------------------------------------------------------
     // Logger (may rely on session id for correlation)
     // ----------------------------------------------------------
-    const logger = config.logger ?? createLogger({ level: config.logLevel ?? LogLevel.INFO, sessionId });
+    const logger =
+      config.logger ?? createLogger({ level: config.logLevel ?? LogLevel.INFO, sessionId });
 
     // ----------------------------------------------------------
     // Core singletons that live for the whole agent life-time
@@ -116,9 +104,10 @@ export class AgentEngine implements Agent {
     // 2) Prompt manager – honour inline string OR { file: "…" }
     let promptManager = config.promptManager as PromptManager | undefined;
     if (!promptManager && config.systemPrompt) {
-      const promptText = typeof config.systemPrompt === 'string'
-        ? config.systemPrompt
-        : fs.readFileSync(path.resolve(process.cwd(), config.systemPrompt.file), 'utf8');
+      const promptText =
+        typeof config.systemPrompt === 'string'
+          ? config.systemPrompt
+          : fs.readFileSync(path.resolve(process.cwd(), config.systemPrompt.file), 'utf8');
       promptManager = createPromptManager(promptText);
     }
 
@@ -245,11 +234,7 @@ export class AgentEngine implements Agent {
    * Process a user query.  Lazily constructs an AgentRunner (for now) that
    * owns one interaction with the FSM.
    */
-  async processQuery(
-    query: string,
-    model: string,
-    sessionState: SessionState,
-  ) {
+  async processQuery(query: string, model: string, sessionState: SessionState) {
     // Ensure an execution adapter is present for this session.
     const executionAdapter = await this._ensureExecutionAdapter(sessionState);
 
@@ -269,8 +254,12 @@ export class AgentEngine implements Agent {
         const gitRepos = await executionAdapter.getGitRepositoryInfo();
 
         // The prompt manager lives on the engine, not the adapter.
-        (this._config.promptManager || createDefaultPromptManager()).setMultiRepoDirectoryStructures(directoryStructures);
-        (this._config.promptManager || createDefaultPromptManager()).setMultiRepoGitStates(gitRepos);
+        (
+          this._config.promptManager || createDefaultPromptManager()
+        ).setMultiRepoDirectoryStructures(directoryStructures);
+        (this._config.promptManager || createDefaultPromptManager()).setMultiRepoGitStates(
+          gitRepos,
+        );
 
         const repoPaths = Array.from(directoryStructures.keys());
         sessionState.multiRepoTracking = {
@@ -288,7 +277,6 @@ export class AgentEngine implements Agent {
         );
       }
     }
-
 
     // -------------------------------------------------------------------
     // Execute the finite-state-machine driver – this is the core logic that
@@ -309,9 +297,7 @@ export class AgentEngine implements Agent {
   // Execution adapter helper – one per session
   // -----------------------------------------------------------------------
 
-  private async _ensureExecutionAdapter(
-    sessionState: SessionState,
-  ): Promise<ExecutionAdapter> {
+  private async _ensureExecutionAdapter(sessionState: SessionState): Promise<ExecutionAdapter> {
     if (sessionState.executionAdapter) {
       return sessionState.executionAdapter;
     }
@@ -345,7 +331,10 @@ export class AgentEngine implements Agent {
 
     // Validate sessionId
     if (!sessionId) {
-      this._logger.error('Cannot process query: Missing sessionId in session state', LogCategory.SYSTEM);
+      this._logger.error(
+        'Cannot process query: Missing sessionId in session state',
+        LogCategory.SYSTEM,
+      );
       return {
         error: 'Missing sessionId in session state',
         contextWindow: sessionState.contextWindow,
@@ -356,7 +345,10 @@ export class AgentEngine implements Agent {
 
     // Check if the session is already aborted
     if (isSessionAborted(sessionState)) {
-      this._logger.info(`Session ${sessionId} is aborted, skipping FSM execution`, LogCategory.SYSTEM);
+      this._logger.info(
+        `Session ${sessionId} is aborted, skipping FSM execution`,
+        LogCategory.SYSTEM,
+      );
       return {
         aborted: true,
         done: true,
@@ -371,7 +363,8 @@ export class AgentEngine implements Agent {
     // Append user message when required
     if (
       sessionState.contextWindow.getLength() === 0 ||
-      sessionState.contextWindow.getMessages()[sessionState.contextWindow.getLength() - 1].role !== 'user'
+      sessionState.contextWindow.getMessages()[sessionState.contextWindow.getLength() - 1].role !==
+        'user'
     ) {
       sessionState.contextWindow.pushUser(query);
     }
@@ -386,7 +379,11 @@ export class AgentEngine implements Agent {
         logger: this._logger,
       });
 
-      const { response: driverResponse, toolResults, aborted } = await driver.run(query, sessionState, model);
+      const {
+        response: driverResponse,
+        toolResults,
+        aborted,
+      } = await driver.run(query, sessionState, model);
 
       let response: string | undefined = driverResponse;
 
@@ -397,7 +394,9 @@ export class AgentEngine implements Agent {
         const msgs = sessionState.contextWindow.getMessages();
         const last = msgs[msgs.length - 1];
         if (!skipAck && (!last || last.role !== 'assistant')) {
-          sessionState.contextWindow.pushAssistant([{ type: 'text', text: 'Operation aborted by user' }]);
+          sessionState.contextWindow.pushAssistant([
+            { type: 'text', text: 'Operation aborted by user' },
+          ]);
         }
 
         if (skipAck) {

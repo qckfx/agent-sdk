@@ -1,6 +1,6 @@
 /**
  * Model Provider for the Judge
- * 
+ *
  * Creates a model provider for the AI judge to evaluate agent execution.
  */
 
@@ -20,7 +20,7 @@ class AnthropicProviderAdapter implements ModelProvider {
   private provider: ReturnType<typeof LLMFactory.createProvider>;
   private logger = createLogger({
     level: LogLevel.INFO,
-    prefix: 'JudgeProvider'
+    prefix: 'JudgeProvider',
   });
 
   constructor(provider: ReturnType<typeof LLMFactory.createProvider>) {
@@ -30,14 +30,14 @@ class AnthropicProviderAdapter implements ModelProvider {
   async processQuery(prompt: string, options: ProcessQueryOptions = {}) {
     try {
       // Create user message from the prompt
-      const userMessage: MessageParam = { 
-        role: 'user', 
-        content: [{ type: 'text', text: prompt }] 
+      const userMessage: MessageParam = {
+        role: 'user',
+        content: [{ type: 'text', text: prompt }],
       };
-      
+
       // Call the provider
       const response = await this.provider({
-        systemMessage: options.systemPrompt || "You are an expert AI evaluator and judge.",
+        systemMessage: options.systemPrompt || 'You are an expert AI evaluator and judge.',
         temperature: options.temperature || 0.1, // Lower temperature for more consistent judging
         sessionState: {
           contextWindow: createContextWindow([userMessage]),
@@ -47,7 +47,7 @@ class AnthropicProviderAdapter implements ModelProvider {
             cachingEnabled: process.env.QCKFX_DISABLE_CACHING ? false : true,
           },
         },
-        model: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet'
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet',
       });
 
       // Extract the text content from the response
@@ -74,7 +74,7 @@ class AnthropicProviderAdapter implements ModelProvider {
 export function createJudgeModelProvider(): ModelProvider {
   // Create an Anthropic provider
   const anthropicProvider = LLMFactory.createProvider({
-    model: 'claude-3-7-sonnet'
+    model: 'claude-3-7-sonnet',
   });
 
   // Wrap it in the adapter

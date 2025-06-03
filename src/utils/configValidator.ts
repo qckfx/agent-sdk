@@ -46,7 +46,7 @@ export function validateConfig<T = unknown>(config: T): T {
     return config;
   } catch (err) {
     if (err instanceof ZodError) {
-      const messages = err.errors.map((e) => `${e.path.join('.')} ${e.message}`);
+      const messages = err.errors.map(e => `${e.path.join('.')} ${e.message}`);
       throw new ConfigValidationError(err.errors, messages.join('\n'));
     }
     // Re-throw unknown errors as ConfigValidationError for consistency

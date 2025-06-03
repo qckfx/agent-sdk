@@ -1,6 +1,6 @@
 /**
  * CheckpointManager.ts
- * 
+ *
  * Provides session-scoped snapshot facilities that run inside any
  * ExecutionAdapter and expose completed snapshot bundles to upstream
  * consumers (the agent server).
@@ -42,7 +42,7 @@ const getShadowDir = (repoRoot: string, sessionId: string): string => {
 
 /**
  * Build a git command with the correct --git-dir and --work-tree prefixes to target the shadow repo
- * 
+ *
  * This ensures we operate on the shadow repo without affecting the user's .git directory
  */
 const gitCommand = (shadowDir: string, repoRoot: string, cmd: string): string => {
@@ -83,24 +83,31 @@ const ensureShadowDirIgnored = (repoRoot: string): void => {
  * Make a gitignore-style exclusion file for the shadow repo
  * Copies the host .gitignore and adds shadow-specific exclusions
  */
-const makeExcludeFile = async (repoRoot: string, shadowDir: string, adapter: ExecutionAdapter): Promise<void> => {
+const makeExcludeFile = async (
+  repoRoot: string,
+  shadowDir: string,
+  adapter: ExecutionAdapter,
+): Promise<void> => {
   const executionId = 'cp-make-exclude-file';
   // Ensure the info directory exists
   await adapter.executeCommand(executionId, `mkdir -p "${shadowDir}/info"`);
-  
+
   // Try to read the host .gitignore using cat to avoid line numbering
   let excludeContent = '';
-  
+
   try {
-    // Use cat to get raw content without line numbers 
-    const catResult = await adapter.executeCommand(executionId, `cat "${repoRoot}/.gitignore" 2>/dev/null`);
+    // Use cat to get raw content without line numbers
+    const catResult = await adapter.executeCommand(
+      executionId,
+      `cat "${repoRoot}/.gitignore" 2>/dev/null`,
+    );
     if (catResult.exitCode === 0) {
       excludeContent = catResult.stdout + '\n\n';
     }
   } catch (error) {
     // Ignore errors - .gitignore might not exist
   }
-  
+
   // Add shadow-specific exclusions
   excludeContent += `
 # Checkpoint exclusions
@@ -110,14 +117,14 @@ dist/
 *.log
 .agent-shadow/
 `;
-  
+
   // Write to the shadow repo's exclude file
   await adapter.writeFile(executionId, `${shadowDir}/info/exclude`, excludeContent);
 };
 
 /**
  * Initialize the checkpoint system for a session
- * 
+ *
  * @param repoRoot Path to the repository root
  * @param sessionId Unique identifier for the session
  * @param adapter Execution adapter to use for operations
@@ -135,7 +142,7 @@ export async function init(
   if (!gitInfo || !gitInfo.isGitRepository) {
     throw new Error('Cannot initialize checkpoint system in non-git repository');
   }
-  
+
   // Create shadow directory path
   const shadowDir = getShadowDir(repoRoot, sessionId);
 
@@ -175,13 +182,13 @@ export async function init(
       `echo 'dist/';` +
       `echo '*.log';` +
       `echo '.agent-shadow/';` +
-    `) > "${shadowDir}/info/exclude"`
+      `) > "${shadowDir}/info/exclude"`,
   ];
 
   await adapter.executeCommand(executionId, oneShotCmdParts.join(' && '));
-  
+
   // Exclude file already created by the one-shot command above.
-  
+
   // We intentionally DO NOT create an initial commit here – doing so required
   // staging the entire work-tree which negated the speed-up we gain from the
   // shallow, shared clone.  The first call to `snapshot()` will create the
@@ -190,7 +197,7 @@ export async function init(
 
 /**
  * Create a snapshot of the current state
- * 
+ *
  * @param meta Metadata for the snapshot
  * @param adapter Execution adapter to use for operations
  * @param repoRoot Path to the repository root
@@ -204,7 +211,7 @@ export async function snapshot(
   const executionId = 'cp-snapshot';
   // Get shadow directory
   const shadowDir = getShadowDir(repoRoot, meta.sessionId);
-  
+
   // Step 1: Add all files (using --git-dir/--work-tree pattern)
   // ---------------------------------------------------------------------
   // Snapshot via standalone shell script (scripts/snapshot.sh)
@@ -225,7 +232,8 @@ export async function snapshot(
   // Detect the LocalExecutionAdapter by inspection of the runtime type.  We
   // intentionally avoid importing the concrete class here to keep this file
   // free of circular dependencies.
-  const adapterName = (adapter as unknown as { constructor?: { name?: string } })?.constructor?.name;
+  const adapterName = (adapter as unknown as { constructor?: { name?: string } })?.constructor
+    ?.name;
   if (adapterName === 'LocalExecutionAdapter') {
     const candidate = path.join(repoRoot, 'scripts', 'snapshot.sh');
     // Only switch when the helper exists – this guards against situations
@@ -276,18 +284,18 @@ export async function snapshot(
   // To stay compatible with the current signature we map the returned object
   // to the new format and throw a descriptive error when the read fails.
   const readRes = await adapter.readFile(
-      executionId,
-      bundlePath,
-      50 * 1024 * 1024, // 50 MB
-      undefined,
-      undefined,
-      'base64'
+    executionId,
+    bundlePath,
+    50 * 1024 * 1024, // 50 MB
+    undefined,
+    undefined,
+    'base64',
   );
 
   if (!readRes || !readRes.ok) {
-      throw new Error(
-          `Snapshot failed: unable to read bundle file (${readRes?.error || 'unknown error'})`
-      );
+    throw new Error(
+      `Snapshot failed: unable to read bundle file (${readRes?.error || 'unknown error'})`,
+    );
   }
 
   const bundleBuffer = Buffer.from(readRes.data.content, 'base64');
@@ -356,7 +364,7 @@ export async function restore(
 
 /**
  * Initialize the checkpoint system for multiple repositories in a session
- * 
+ *
  * @param repoPaths Array of repository root paths
  * @param sessionId Unique identifier for the session
  * @param adapter Execution adapter to use for operations
@@ -380,7 +388,7 @@ export async function initMultiRepo(
 /**
  * Create coordinated snapshots across multiple repositories
  * Uses --allow-empty to ensure each repository gets a checkpoint even if no changes exist
- * 
+ *
  * @param meta Multi-repo snapshot metadata
  * @param adapter Execution adapter to use for operations
  * @param repoPaths Array of repository root paths
@@ -399,20 +407,19 @@ export async function snapshotMultiRepo(
     try {
       // Get the host commit for this repository (if it exists in meta)
       const hostCommit = meta.hostCommits.get(repoPath) || 'HEAD';
-      
+
       // Create single-repo snapshot metadata
       const singleRepoMeta: SnapshotMeta = {
         sessionId: meta.sessionId,
         toolExecutionId: meta.toolExecutionId,
         hostCommits: new Map([[repoPath, hostCommit]]),
         reason: meta.reason,
-        timestamp: meta.timestamp
+        timestamp: meta.timestamp,
       };
-      
+
       // Create snapshot for this repository
       const result = await snapshot(singleRepoMeta, adapter, repoPath);
       repoSnapshots.set(repoPath, result);
-      
     } catch (error) {
       const errorMsg = `Failed to create snapshot for ${repoPath}: ${(error as Error).message}`;
       errors.push(errorMsg);
@@ -428,7 +435,9 @@ export async function snapshotMultiRepo(
 
   // Log warnings for any failed repositories
   if (errors.length > 0) {
-    console.warn(`Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`);
+    console.warn(
+      `Multi-repo snapshot completed with ${errors.length} failures: ${errors.join('; ')}`,
+    );
   }
 
   return {
@@ -437,13 +446,13 @@ export async function snapshotMultiRepo(
       toolExecutionId: meta.toolExecutionId,
       timestamp: meta.timestamp,
       repoCount: repoSnapshots.size,
-    }
+    },
   };
 }
 
 /**
  * Restore multiple repositories to specific checkpoint commits
- * 
+ *
  * @param sessionId The session whose shadow repositories should be used
  * @param adapter Execution adapter used to run git commands
  * @param repoPaths Array of repository root paths to restore
@@ -479,7 +488,9 @@ export async function restoreMultiRepo(
 
   // Log warnings for any failed repositories
   if (errors.length > 0) {
-    console.warn(`Multi-repo restore completed with ${errors.length} failures: ${errors.join('; ')}`);
+    console.warn(
+      `Multi-repo restore completed with ${errors.length} failures: ${errors.join('; ')}`,
+    );
   }
 
   return restoredCommits;

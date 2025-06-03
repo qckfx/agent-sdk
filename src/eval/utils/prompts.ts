@@ -82,16 +82,16 @@ CRITICAL GUIDELINES FOR SCORING:
 export interface JudgingPromptOptions {
   /** The task the agent was given */
   task: string;
-  
+
   /** The execution history to evaluate */
   executionHistory: AgentExecutionHistory;
-  
+
   /** Examples for calibration (optional) */
   examples?: {
     good?: AgentExecutionHistory;
     bad?: AgentExecutionHistory;
   };
-  
+
   /** Override the system prompt (optional) */
   systemPromptOverride?: string;
 }
@@ -100,11 +100,7 @@ export interface JudgingPromptOptions {
  * Create a judging prompt with execution history and examples
  */
 export function createJudgingPrompt(options: JudgingPromptOptions): string {
-  const {
-    task,
-    executionHistory,
-    examples
-  } = options;
+  const { task, executionHistory, examples } = options;
 
   let prompt = `
 # TASK EVALUATION REQUEST
@@ -119,13 +115,13 @@ ${task}
   if (executionHistory.metadata?.configInfo?.availableTools) {
     const tools = executionHistory.metadata.configInfo.availableTools;
     let toolInfo: string;
-    
+
     if (Array.isArray(tools)) {
-      toolInfo = tools.join(", ");
+      toolInfo = tools.join(', ');
     } else {
       toolInfo = String(tools); // Convert to string in case it's not a string
     }
-    
+
     prompt += `
 ## AVAILABLE TOOLS
 The agent had access to these tools: ${toolInfo}.
@@ -159,7 +155,7 @@ This is a good example because:
 - The code quality and explanations are clear
 `;
     }
-    
+
     // Add bad example
     if (examples.bad) {
       prompt += `

@@ -3,13 +3,13 @@
  * @internal
  */
 
-import { 
-  ModelClient, 
-  ModelClientConfig, 
-  ModelProvider, 
-  ModelProviderRequest, 
-  SessionState, 
-  ToolCallResponse 
+import {
+  ModelClient,
+  ModelClientConfig,
+  ModelProvider,
+  ModelProviderRequest,
+  SessionState,
+  ToolCallResponse,
 } from '../types/model.js';
 import { isToolUseBlock } from '../types/llm.js';
 // Import utils as needed
@@ -31,10 +31,10 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
   }
 
   const logger = config.logger;
-  
+
   const modelProvider: ModelProvider = config.modelProvider;
   const promptManager: PromptManager = config.promptManager || createDefaultPromptManager();
-  
+
   return {
     /**
      * Format our tools into Claude's expected format
@@ -46,13 +46,13 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         name: tool.id,
         description: tool.description,
         input_schema: {
-          type: "object",
+          type: 'object',
           properties: tool.parameters || {},
-          required: tool.requiredParameters || []
-        }
+          required: tool.requiredParameters || [],
+        },
       }));
     },
-    
+
     /**
      * Get a tool call recommendation from the model
      * @param query - The user's query
@@ -66,21 +66,20 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       model: string,
       toolDescriptions: ToolDescription[],
       sessionState: SessionState,
-      options?: { signal?: AbortSignal }
+      options?: { signal?: AbortSignal },
     ): Promise<ToolCallResponse> {
-
       // Fast‑exit if already aborted before work starts
       if (options?.signal?.aborted) {
         return { toolChosen: false, aborted: true };
       }
-      
+
       // Format tools for Claude
       const claudeTools = this.formatToolsForClaude(toolDescriptions);
-      
+
       // Get system messages and temperature from the prompt manager
       const systemMessages = promptManager.getSystemPrompts(sessionState);
       const temperature = promptManager.getTemperature(sessionState);
-      
+
       // Prepare the request for AnthropicProvider
       const request: ModelProviderRequest = {
         query: query,
@@ -92,40 +91,50 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         // Pass the conversation history in a way AnthropicProvider can use
         sessionState,
         // Include the model parameter
-        model: model
+        model: model,
       };
 
       if (claudeTools.length > 0) {
-        request.tool_choice = { type: "auto" };
+        request.tool_choice = { type: 'auto' };
       }
-      
+
       let response;
       try {
         // Guard against orphaned tool calls
         const msgs = sessionState.contextWindow.getMessages();
         if (msgs.length > 0) {
           const last = msgs[msgs.length - 1];
-          if (last?.role === 'assistant' && Array.isArray(last.content) && last.content.length > 0) {
+          if (
+            last?.role === 'assistant' &&
+            Array.isArray(last.content) &&
+            last.content.length > 0
+          ) {
             const content = last.content[0];
-            if (content && typeof content === 'object' && 'type' in content && content.type === 'tool_use' && 'id' in content) {
+            if (
+              content &&
+              typeof content === 'object' &&
+              'type' in content &&
+              content.type === 'tool_use' &&
+              'id' in content
+            ) {
               const useId = content.id as string;
               let paired = false;
-              
+
               if (msgs.length > 1) {
                 const prevMsg = msgs[msgs.length - 2];
                 if (prevMsg && Array.isArray(prevMsg.content) && prevMsg.content.length > 0) {
                   const prevContent = prevMsg.content[0];
                   paired = !!(
-                    prevContent && 
-                    typeof prevContent === 'object' && 
-                    'type' in prevContent && 
-                    prevContent.type === 'tool_result' && 
-                    'tool_use_id' in prevContent && 
+                    prevContent &&
+                    typeof prevContent === 'object' &&
+                    'type' in prevContent &&
+                    prevContent.type === 'tool_result' &&
+                    'tool_use_id' in prevContent &&
                     prevContent.tool_use_id === useId
                   );
                 }
               }
-              
+
               if (!paired) {
                 sessionState.contextWindow.pushToolResult(useId, { aborted: true });
               }
@@ -135,29 +144,30 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
 
         if (options?.signal) {
           // Wrap call so it races with abort signal
-          response = await new Promise<import('../types/llm.js').LLM.Messages.Message>((resolve, reject) => {
-            const onAbort = () => {
-              reject(new Error('AbortError'));
-            };
-            if (options.signal!.aborted) {
-              return onAbort();
-            }
-            options.signal!.addEventListener('abort', onAbort);
+          response = await new Promise<import('../types/llm.js').LLM.Messages.Message>(
+            (resolve, reject) => {
+              const onAbort = () => {
+                reject(new Error('AbortError'));
+              };
+              if (options.signal!.aborted) {
+                return onAbort();
+              }
+              options.signal!.addEventListener('abort', onAbort);
 
-            modelProvider(request)
-              .then((r) => {
-                options.signal!.removeEventListener('abort', onAbort);
-                resolve(r);
-              })
-              .catch((err) => {
-                options.signal!.removeEventListener('abort', onAbort);
-                reject(err);
-              });
-          });
+              modelProvider(request)
+                .then(r => {
+                  options.signal!.removeEventListener('abort', onAbort);
+                  resolve(r);
+                })
+                .catch(err => {
+                  options.signal!.removeEventListener('abort', onAbort);
+                  reject(err);
+                });
+            },
+          );
         } else {
           response = await modelProvider(request);
         }
-
       } catch (error) {
         if ((error as Error).message === 'AbortError') {
           return { toolChosen: false, aborted: true };
@@ -165,33 +175,36 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         logger?.error('⚠️ MODEL_CLIENT error calling modelProvider:', error, LogCategory.MODEL);
         throw error;
       }
-      
+
       // Track token usage from response
       if (response.usage) {
         trackTokenUsage(response, sessionState);
       }
-      
+
       logger?.debug('Response:', JSON.stringify(response, null, 2), LogCategory.MODEL);
       // Check if Claude wants to use a tool - look for tool_use in the content
-      const hasTool = Array.isArray(response.content) && response.content.some((c: any) => c.type === 'tool_use');
-      
+      const hasTool =
+        Array.isArray(response.content) && response.content.some((c: any) => c.type === 'tool_use');
+
       if (hasTool && response.content) {
         logger?.debug('hasTool:', hasTool, LogCategory.MODEL);
         // Extract the tool use from the response and check its type
-        const toolUse = Array.isArray(response.content) ? response.content.find(isToolUseBlock) : undefined;
-        
+        const toolUse = Array.isArray(response.content)
+          ? response.content.find(isToolUseBlock)
+          : undefined;
+
         if (toolUse) {
-        // Add the assistant's tool use response to the conversation history only if not aborted
-        // NOTE: We no longer mutate the ContextWindow here. The caller (e.g. the
-        // FsmDriver) is responsible for appending the `tool_use` message once it
-        // has successfully parsed the model response. Mutating the history in
-        // two different layers led to duplicate `tool_use` blocks with the same
-        // ID, which in turn violated Anthropic's constraint that tool_use IDs
-        // be unique within a conversation. Duplicates manifested as
-        // `invalid_request_error: \`tool_use\` ids must be unique` errors from
-        // the Claude API. By centralising this responsibility in the driver we
-        // guarantee that each tool invocation is recorded exactly once.
-        
+          // Add the assistant's tool use response to the conversation history only if not aborted
+          // NOTE: We no longer mutate the ContextWindow here. The caller (e.g. the
+          // FsmDriver) is responsible for appending the `tool_use` message once it
+          // has successfully parsed the model response. Mutating the history in
+          // two different layers led to duplicate `tool_use` blocks with the same
+          // ID, which in turn violated Anthropic's constraint that tool_use IDs
+          // be unique within a conversation. Duplicates manifested as
+          // `invalid_request_error: \`tool_use\` ids must be unique` errors from
+          // the Claude API. By centralising this responsibility in the driver we
+          // guarantee that each tool invocation is recorded exactly once.
+
           const toolCallResponse = {
             toolCall: {
               toolId: toolUse.name,
@@ -199,16 +212,16 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
               toolUseId: toolUse.id, // Save this for returning results
             },
             toolChosen: true,
-            aborted: isSessionAborted(sessionState) // Check current abort status
+            aborted: isSessionAborted(sessionState), // Check current abort status
           };
-          
+
           return toolCallResponse;
         }
       }
-      
-      return {response: response, toolChosen: false, aborted: isSessionAborted(sessionState)};
+
+      return { response: response, toolChosen: false, aborted: isSessionAborted(sessionState) };
     },
-    
+
     /**
      * Generate a response to the user based on tool execution results
      * @param query - The original user query
@@ -222,20 +235,19 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
       model: string,
       toolDescriptions: ToolDescription[],
       sessionState: SessionState,
-      options?: { tool_choice?: { type: string }; signal?: AbortSignal }
+      options?: { tool_choice?: { type: string }; signal?: AbortSignal },
     ): Promise<import('../types/llm.js').LLM.Messages.Message> {
-
       // Early abort check
       if (options?.signal?.aborted) {
         throw new Error('AbortError');
       }
       // Format tools for Claude
       const claudeTools = this.formatToolsForClaude(toolDescriptions);
-      
+
       // Get system messages and temperature from the prompt manager
       const systemMessages = promptManager.getSystemPrompts(sessionState);
       const temperature = promptManager.getTemperature(sessionState);
-      
+
       const prompt: ModelProviderRequest = {
         tools: claudeTools,
         sessionState,
@@ -244,39 +256,45 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         systemMessage: systemMessages[0],
         temperature,
         // Include the model parameter
-        model: model
+        model: model,
       };
-      
+
       // Add optional tool_choice if provided
       if (options?.tool_choice) {
         prompt.tool_choice = options.tool_choice;
       }
-      
+
       // Guard against orphaned tool calls
       const msgs = sessionState.contextWindow.getMessages();
       if (msgs.length > 0) {
         const last = msgs[msgs.length - 1];
         if (last?.role === 'assistant' && Array.isArray(last.content) && last.content.length > 0) {
           const content = last.content[0];
-          if (content && typeof content === 'object' && 'type' in content && content.type === 'tool_use' && 'id' in content) {
+          if (
+            content &&
+            typeof content === 'object' &&
+            'type' in content &&
+            content.type === 'tool_use' &&
+            'id' in content
+          ) {
             const useId = content.id as string;
             let paired = false;
-            
+
             if (msgs.length > 1) {
               const prevMsg = msgs[msgs.length - 2];
               if (prevMsg && Array.isArray(prevMsg.content) && prevMsg.content.length > 0) {
                 const prevContent = prevMsg.content[0];
                 paired = !!(
-                  prevContent && 
-                  typeof prevContent === 'object' && 
-                  'type' in prevContent && 
-                  prevContent.type === 'tool_result' && 
-                  'tool_use_id' in prevContent && 
+                  prevContent &&
+                  typeof prevContent === 'object' &&
+                  'type' in prevContent &&
+                  prevContent.type === 'tool_result' &&
+                  'tool_use_id' in prevContent &&
                   prevContent.tool_use_id === useId
                 );
               }
             }
-            
+
             if (!paired) {
               sessionState.contextWindow.pushToolResult(useId, { aborted: true });
             }
@@ -284,28 +302,29 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         }
       }
 
-      const response: import('../types/llm.js').LLM.Messages.Message = await (options?.signal ?
-        new Promise((resolve, reject) => {
-          const onAbort = () => reject(new Error('AbortError'));
-          if (options.signal!.aborted) return onAbort();
-          options.signal!.addEventListener('abort', onAbort);
-          modelProvider(prompt)
-            .then((r) => {
-              options.signal!.removeEventListener('abort', onAbort);
-              resolve(r);
-            })
-            .catch((err) => {
-              options.signal!.removeEventListener('abort', onAbort);
-              reject(err);
-            });
-        }) : modelProvider(prompt));
-      
+      const response: import('../types/llm.js').LLM.Messages.Message = await (options?.signal
+        ? new Promise((resolve, reject) => {
+            const onAbort = () => reject(new Error('AbortError'));
+            if (options.signal!.aborted) return onAbort();
+            options.signal!.addEventListener('abort', onAbort);
+            modelProvider(prompt)
+              .then(r => {
+                options.signal!.removeEventListener('abort', onAbort);
+                resolve(r);
+              })
+              .catch(err => {
+                options.signal!.removeEventListener('abort', onAbort);
+                reject(err);
+              });
+          })
+        : modelProvider(prompt));
+
       // Track token usage from response
       if (response.usage) {
         trackTokenUsage(response, sessionState);
       }
-      
+
       return response;
-    }
+    },
   };
-};
+}
