@@ -23,15 +23,18 @@ export interface SubAgentReference {
  *
  * @param ref            Object from the parent config `{ name, configFile }`.
  */
+import { Logger, LogCategory } from '../utils/logger.js';
+
 export async function createSubAgentTool(
   ref: SubAgentReference,
   getRemoteId?: (sessionId: string) => Promise<string>,
+  logger?: Logger,
 ): Promise<Tool> {
   if (!ref?.name || !ref?.configFile) {
     throw new Error('createSubAgentTool requires both "name" and "configFile"');
   }
 
-  console.info('Creating sub-agent tool with ref:', JSON.stringify(ref, null, 2));
+  logger?.info('Creating sub-agent tool', LogCategory.TOOLS, ref);
   const resolvedConfigPath = path.resolve(process.cwd(), ref.configFile);
 
   const raw = await fs.promises.readFile(resolvedConfigPath, 'utf8');
@@ -63,7 +66,7 @@ export async function createSubAgentTool(
     },
     requiredParameters: ['query'],
     async execute(args) {
-      console.info('Executing sub-agent tool with args:', args);
+      logger?.debug('Executing sub-agent tool', LogCategory.TOOLS, args);
       const { query } = args as { query: string };
 
       if (typeof query !== 'string' || !query.length) {
@@ -71,7 +74,7 @@ export async function createSubAgentTool(
       }
 
       const agent = await getNestedAgent();
-      console.info('Executing sub-agent with args:', args);
+      logger?.debug('Executing sub-agent', LogCategory.TOOLS, args);
       const result = await agent.processQuery(query);
       return {
         ok: true,

@@ -76,18 +76,12 @@ export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
       }
 
       try {
-        const fsmLogger = createLogger({
-          level: LogLevel.DEBUG,
-          prefix: 'FsmDriver',
-          sessionId,
-        });
-
         const driver = new FsmDriver({
           modelClient,
           toolRegistry,
           permissionManager,
           executionAdapter,
-          logger: fsmLogger,
+          logger,
         });
 
         const { response: driverResponse, toolResults, aborted } = await driver.run(

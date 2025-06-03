@@ -91,8 +91,7 @@ export class AgentEngine implements Agent {
 
   static async create(
     config: CoreAgentConfig,
-    /** Optional explicit session identifier used mainly for logging */
-    creationSessionId: string = uuidv4(),
+    sessionId: string,
   ): Promise<AgentEngine> {
     if (!config.modelProvider) {
       throw new Error('AgentEngine requires a "modelProvider" function');
@@ -101,15 +100,14 @@ export class AgentEngine implements Agent {
     // ----------------------------------------------------------
     // Logger (may rely on session id for correlation)
     // ----------------------------------------------------------
-    const logger =
-      config.logger || createLogger({ level: LogLevel.INFO, sessionId: creationSessionId });
+    const logger = config.logger ?? createLogger({ level: config.logLevel ?? LogLevel.INFO, sessionId });
 
     // ----------------------------------------------------------
     // Core singletons that live for the whole agent life-time
     // ----------------------------------------------------------
 
     // 1) Tool registry and permission manager
-    const toolRegistry = createToolRegistry();
+    const toolRegistry = createToolRegistry(logger);
 
     const permissionManager = createPermissionManager(toolRegistry, {
       uiHandler: config.permissionUIHandler,
@@ -128,6 +126,7 @@ export class AgentEngine implements Agent {
     const modelClient = createModelClient({
       modelProvider: config.modelProvider as ModelProvider,
       promptManager,
+      logger,
     });
 
     // ----------------------------------------------------------
@@ -378,20 +377,13 @@ export class AgentEngine implements Agent {
     }
 
     try {
-      // Logger specific to FSM driver for easier filtering
-      const fsmLogger = createLogger({
-        level: LogLevel.DEBUG,
-        prefix: 'FsmDriver',
-        sessionId,
-      });
-
       // Instantiate driver
       const driver = new FsmDriver({
         modelClient: this._modelClient,
         toolRegistry: this._toolRegistry,
         permissionManager: this._permissionManager,
         executionAdapter,
-        logger: fsmLogger,
+        logger: this._logger,
       });
 
       const { response: driverResponse, toolResults, aborted } = await driver.run(query, sessionState, model);

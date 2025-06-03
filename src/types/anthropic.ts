@@ -138,7 +138,7 @@ export interface LLMFactory {
   /**
    * Returns a list of available models with their providers
    */
-  getAvailableModels(llmKey: string): Promise<ModelInfo[]>;
+  getAvailableModels(llmKey: string, logger?: Logger): Promise<ModelInfo[]>;
 }
 
 /**

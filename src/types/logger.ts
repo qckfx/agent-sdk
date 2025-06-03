@@ -46,14 +46,3 @@ export interface LoggerOptions {
    */
   enabledCategories?: LogCategory[];
 }
-
-/**
- * Logger interface
- */
-export interface Logger {
-  debug: (message: string, category?: LogCategory | string, data?: unknown) => void;
-  info: (message: string, category?: LogCategory | string, data?: unknown) => void;
-  warn: (message: string, category?: LogCategory | string, data?: unknown) => void;
-  error: (message: string, category?: LogCategory | string | Error, data?: unknown) => void;
-}
-

@@ -81,8 +81,8 @@ export async function createExecutionAdapter(
     logger
   } = options;
   
-  console.log(`Creating execution adapter: Requested type = ${type}, default = docker`, 'system');
-  console.log('Options:', JSON.stringify(options, null, 2));
+  logger?.info(`Creating execution adapter: Requested type = ${type}, default = docker`, LogCategory.SYSTEM);
+  logger?.debug('Options:', LogCategory.SYSTEM, JSON.stringify(options, null, 2));
   
   // Track reasons for fallback for logging
   let fallbackReason = '';
@@ -144,7 +144,7 @@ export async function createExecutionAdapter(
       
       let attempts = 0;
       while (!dockerAdapter.initialized && attempts < 10) {
-        console.log('Waiting for Docker container to initialize...', attempts);
+        logger?.debug('Waiting for Docker container to initialize...', LogCategory.SYSTEM, attempts);
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
@@ -158,7 +158,7 @@ export async function createExecutionAdapter(
         dockerAdapter,
         options.sessionId,
       );
-      console.log('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
+      logger?.info('Wrapped Docker adapter with checkpointing', LogCategory.SYSTEM);
       
       return {
         adapter: concreteAdapter,
@@ -190,7 +190,7 @@ export async function createExecutionAdapter(
         e2bAdapter,
         options.sessionId,
       );
-      console.log('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
+      logger?.info('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
       
       return {
         adapter: concreteAdapter,
@@ -232,7 +232,7 @@ export async function createExecutionAdapter(
     localAdapter,
     options.sessionId,
   );
-  console.log('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
+  logger?.info('Wrapped local adapter with checkpointing', LogCategory.SYSTEM);
   
   
   return {

@@ -11,7 +11,7 @@ import { ToolRegistry } from './registry.js';
 import { Tool } from './tool.js';
 import { ModelProvider } from './model.js';
 import { ToolExecutionEvent, ToolExecutionStatus } from './tool-execution/index.js';
-import { Logger } from '../utils/logger.js';
+import { Logger, LogLevel } from '../utils/logger.js';
 import { BusEvents } from './bus-events.js';
 import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 
@@ -82,6 +82,12 @@ export interface CoreAgentConfig {
    * If not provided, a default logger will be created
    */
   logger?: Logger;
+
+  /**
+   * Minimum log level for the built-in logger. Any message below this level
+   * will be filtered out. If omitted, defaults to `LogLevel.INFO`.
+   */
+  logLevel?: LogLevel;
 
   /**
    * Optional UI handler for permission requests
@@ -165,6 +171,13 @@ export interface Agent {
   modelClient: ModelClient;
   environment?: RepositoryEnvironment;
   logger: Logger;
+
+  /**
+   * Minimum log level for messages emitted by this agent.  Any log with a
+   * severity below this threshold will be suppressed.  If omitted, the
+   * default level is `info`.
+   */
+  logLevel?: LogLevel;
 
   // Helper methods
   /**

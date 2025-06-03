@@ -9,7 +9,7 @@ import { GitRepositoryInfo } from "./repository.js";
 import { SessionState } from "./model.js";
 import { PermissionManager } from "./permission.js";
 import { ToolResult } from "./tool-result.js";
-import { Logger } from "./logger.js";
+import { Logger } from "../utils/logger.js";
 
 /**
  * Categories for tools to classify their purpose and permission requirements

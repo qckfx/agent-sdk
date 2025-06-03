@@ -113,7 +113,7 @@ export type LLMProvider = (prompt: ModelProviderRequest) => Promise<Message>;
 
 export interface LLMFactory {
   createProvider(config: LLMConfig): LLMProvider;
-  getAvailableModels(llmKey?: string): Promise<ModelInfo[]>;
+  getAvailableModels(llmKey?: string, logger?: Logger): Promise<ModelInfo[]>;
 }
 
 // ---------------------------------------------------------------------------

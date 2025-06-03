@@ -6,6 +6,7 @@
  */
 
 import { CoreAgentConfig, RepositoryEnvironment } from '../types/main.js';
+import { LogLevel } from '../types/logger.js';
 import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 import { BusEvents } from '../types/bus-events.js';
 import { AgentConfig } from '@qckfx/sdk-schema';
@@ -55,6 +56,11 @@ export function convertToCoreAgentConfig(
   
   if (jsonConfig.systemPrompt !== undefined) {
     config.systemPrompt = jsonConfig.systemPrompt;
+  }
+
+  if (jsonConfig.logLevel !== undefined) {
+    // jsonConfig.logLevel is validated by the schema; cast to LogLevel for internal use
+    config.logLevel = jsonConfig.logLevel as unknown as LogLevel;
   }
   
   if (jsonConfig.tools !== undefined) {

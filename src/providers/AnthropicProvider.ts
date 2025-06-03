@@ -301,7 +301,7 @@ function createModelListFetcher() {
    * Fetches the list of available models from the remote API
    * @returns Promise with array of model information
    */
-  async function fetchModelList(llmKey?: string): Promise<RemoteModelInfo[]> {
+  async function fetchModelList(llmKey?: string, logger?: Logger): Promise<RemoteModelInfo[]> {
     // If we already have an inflight request, return it
     if (inflight) return inflight;
 
@@ -310,7 +310,7 @@ function createModelListFetcher() {
 
     // Check if we have an API URL configured
     if (!LIST_MODELS_URL) {
-      console.warn('LIST_MODELS_URL not configured');
+      logger?.warn('LIST_MODELS_URL not configured', LogCategory.MODEL);
       
       // Check if we have a default model configured
       const defaultModel = process.env.LLM_DEFAULT_MODEL;
@@ -324,7 +324,7 @@ function createModelListFetcher() {
         return cache;
       }
       
-      console.warn('No LLM_DEFAULT_MODEL configured, returning empty model list');
+      logger?.warn('No LLM_DEFAULT_MODEL configured, returning empty model list', LogCategory.MODEL);
       return [];
     }
     
@@ -364,8 +364,8 @@ function createModelListFetcher() {
         const result = ModelListResponseSchema.safeParse(data);
         
         if (!result.success) {
-          console.warn(`Failed to parse model list: ${result.error.message}`);
-          console.log('Full error:', JSON.stringify(result.error.format(), null, 2));
+          logger?.warn(`Failed to parse model list: ${result.error.message}`, LogCategory.MODEL);
+          logger?.warn('Full error:', JSON.stringify(result.error.format(), null, 2));
           
           // Check if we have a default model configured
           const defaultModel = process.env.LLM_DEFAULT_MODEL;
@@ -433,9 +433,9 @@ function createModelListFetcher() {
    * Returns the list of available models with their providers
    * @returns Promise with array of model names and providers
    */
-  async function getAvailableModels(llmKey?: string): Promise<ModelInfo[]> {
+  async function getAvailableModels(llmKey?: string, logger?: Logger): Promise<ModelInfo[]> {
     try {
-      const models = await fetchModelList(llmKey);
+      const models = await fetchModelList(llmKey, logger);
       
       // If models list is empty, fallback to default model
       if (models.length === 0) {
@@ -583,7 +583,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
       
       try {
         // Attempt to fetch model list to determine model-specific token limits
-        const list = await modelFetcher.fetchModelList(prompt.sessionState?.llmApiKey);
+        const list = await modelFetcher.fetchModelList(prompt.sessionState?.llmApiKey, logger);
         const info = list.find((m: RemoteModelInfo) => m.model_name === modelToUse);
         dynamicMaxInputTokens = info?.max_input_tokens;
         
@@ -646,7 +646,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
         const toolWithCache = modifiedTools[lastToolIndex] as ToolWithCache;
         toolWithCache.cache_control = { type: "ephemeral" };
         
-        console.log(`AnthropicProvider: Added cache_control to the last tool: ${toolWithCache.name}`);
+        logger?.debug(`AnthropicProvider: Added cache_control to the last tool: ${toolWithCache.name}`, LogCategory.MODEL);
       }
       
       // Format system message with cache_control if caching is enabled
@@ -661,7 +661,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
           }
         ];
         
-        console.log('AnthropicProvider: Added cache_control to system message');
+        logger?.debug('AnthropicProvider: Added cache_control to system message', LogCategory.MODEL);
       }
       
       // Add cache_control to the last message in conversation history if available
@@ -685,7 +685,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
               const contentWithCache = content[lastContentIndex] as ContentBlockWithCache;
               contentWithCache.cache_control = { type: "ephemeral" };
               
-              console.log(`AnthropicProvider: Added cache_control to last user message at index ${i} with type ${content[lastContentIndex].type}`);
+              logger?.debug(`AnthropicProvider: Added cache_control to last user message at index ${i} with type ${content[lastContentIndex].type}`, LogCategory.MODEL);
             } else if (typeof content === 'string') {
               // If content is a string, convert to content block array with cache_control
               modifiedMessages[i].content = [{
@@ -694,7 +694,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
                 cache_control: { type: "ephemeral" }
               }];
               
-              console.log(`AnthropicProvider: Converted string content to block with cache_control in last user message at index ${i}`);
+              logger?.debug(`AnthropicProvider: Converted string content to block with cache_control in last user message at index ${i}`, LogCategory.MODEL);
             }
             break;
           }
@@ -710,7 +710,7 @@ function createAnthropicProvider(config: LLMConfig): LLMProvider {
         temperature: prompt.temperature
       };
       
-      console.log('preparing system messages');
+      logger?.debug('preparing system messages', LogCategory.MODEL);
       // Handle system messages based on new multi-message support
       if (prompt.systemMessages && prompt.systemMessages.length > 0) {
         // If systemMessages array is provided and has content, use that

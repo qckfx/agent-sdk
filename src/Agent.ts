@@ -22,6 +22,7 @@ import { ContextWindow, createContextWindow, Message } from './types/contextWind
 
 import { TypedEventEmitter } from './utils/TypedEventEmitter.js';
 import { BusEvents, BusEventKey, BusEvent } from './types/bus-events.js';
+import { Logger } from './utils/logger.js';
 
 /**
  * Main Agent class for creating and managing AI agents
@@ -383,8 +384,8 @@ export class Agent {
     return rollbackSession(sessionState, messageId, bus);
   }
 
-  static async getAvailableModels(llmApiKey?: string) {
-    return LLMFactory.getAvailableModels(llmApiKey);
+  static async getAvailableModels(llmApiKey?: string, logger?: Logger) {
+    return LLMFactory.getAvailableModels(llmApiKey, logger);
   }
 
   setFastEditMode(enabled: boolean) {

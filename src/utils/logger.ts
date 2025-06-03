@@ -84,7 +84,9 @@ export class Logger {
       [LogLevel.DEBUG]: 4
     };
     
-    return levels[this.level] <= levels[messageLevel];
+    // Only log if the message level is **less than or equal to** the configured level
+    // (e.g. only ERROR messages when level is ERROR, ERROR + WARN when level is WARN, etc.)
+    return levels[messageLevel] <= levels[this.level];
   }
 
   // Implementation for overloaded debug method

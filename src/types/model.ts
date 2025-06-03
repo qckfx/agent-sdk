@@ -121,6 +121,7 @@ export interface ModelClientConfig {
   modelProvider: ModelProvider;
   promptManager?: PromptManager;
   toolRegistry?: ToolRegistry;
+  logger?: Logger;
 }
 
 export interface ModelClient {

@@ -2,7 +2,7 @@
  * Types and interfaces for permission management
  */
 
-import { Logger } from "./logger.js";
+import { Logger } from "../utils/logger.js";
 
 export interface UIHandler {
   requestPermission(sessionId: string, toolId: string, args: Record<string, unknown>): Promise<boolean>;

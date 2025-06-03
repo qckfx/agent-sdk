@@ -6,13 +6,14 @@
 import { Tool, ToolContext, ToolCategory } from '../types/tool.js';
 import { ToolDescription, ToolRegistry } from '../types/registry.js';
 import { ToolResult } from '../types/tool-result.js';
+import { Logger, LogCategory } from '../utils/logger.js';
 
 /**
  * Creates a tool registry to manage available tools
  * @returns The tool registry interface
  * @internal
  */
-function createToolRegistry(): ToolRegistry {
+function createToolRegistry(logger: Logger): ToolRegistry {
   // Private storage for registered tools
   const tools = new Map<string, Tool>();
   // Index to look up tools by category
@@ -28,9 +29,9 @@ function createToolRegistry(): ToolRegistry {
      * @param tool - The tool to register
      */
     registerTool(tool: Tool): void {
-      console.info('Registering tool:', tool.id);
+      logger.info(`Registering tool: ${tool.id}`, LogCategory.TOOLS);
       if (!tool || !tool.id) {
-        console.error('Invalid tool:', tool);
+        logger.error('Invalid tool', undefined, LogCategory.TOOLS);
         throw new Error('Invalid tool: Tool must have an id');
       }
       
@@ -172,10 +173,10 @@ function createToolRegistry(): ToolRegistry {
      * @returns The result of the tool execution
      */
     async executeToolWithCallbacks(toolId: string, toolUseId: string, args: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
-      console.info('Executing tool with callbacks', JSON.stringify(tools), toolId);
+      logger.debug('Executing tool with callbacks', LogCategory.TOOLS, JSON.stringify(tools), toolId);
       const tool = tools.get(toolId);
       if (!tool) {
-        console.error('Tool not found', toolId);
+        logger.error('Tool not found', undefined, LogCategory.TOOLS);
         throw new Error(`Tool ${toolId} not found`);
       }
 
@@ -190,12 +191,12 @@ function createToolRegistry(): ToolRegistry {
         ),
       );
 
-      console.info('Executing tool: ', JSON.stringify(tool, null, 2));
+      logger.debug('Executing tool', LogCategory.TOOLS, JSON.stringify(tool, null, 2));
       const startTime = Date.now();
       try {
         // Execute the tool
         const result = await tool.execute(args, context);
-        console.info('Tool execution complete');
+        logger.info('Tool execution complete', LogCategory.TOOLS);
         
         // Calculate execution time
         const executionTime = Date.now() - startTime;
@@ -207,7 +208,7 @@ function createToolRegistry(): ToolRegistry {
         
         return result;
       } catch (error) {
-        console.error('Tool execution error:', error);
+        logger.error('Tool execution error', error as Error, LogCategory.TOOLS);
         // Notify error callbacks
         errorCallbacks.forEach(callback => 
           callback(context.executionId, toolId, toolUseId, startTime, args, error instanceof Error ? error : new Error(String(error)))

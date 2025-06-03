@@ -68,7 +68,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * @returns Promise that resolves when container is initialized
    */
   public initializeContainer(): Promise<ContainerInfo | null> {
-    console.log('Starting Docker container initialization');
+    this.logger?.info('Starting Docker container initialization', LogCategory.SYSTEM);
     
     // Emit initializing status
     this.emitEnvironmentStatus('initializing', false);
@@ -77,12 +77,12 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     return this.containerManager.ensureContainer()
       .then(container => {
         if (container) {
-          console.log('Docker container initialized successfully', LogCategory.SYSTEM);
+          this.logger?.info('Docker container initialized successfully', LogCategory.SYSTEM);
           
           // Emit connected and ready status
           this.emitEnvironmentStatus('connected', true);
         } else {
-          console.log('Docker container initialization failed');
+          this.logger?.error('Docker container initialization failed', LogCategory.SYSTEM);
           
           // Emit error status
           this.emitEnvironmentStatus('error', false, 'Failed to initialize Docker container');
@@ -970,7 +970,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    */
   async generateDirectoryMap(rootPath: string, maxDepth: number = 10): Promise<string> {
     try {
-      console.log(`DockerExecutionAdapter: Generating directory map for ${rootPath} with max depth ${maxDepth}`);
+      this.logger?.debug(`DockerExecutionAdapter: Generating directory map for ${rootPath} with max depth ${maxDepth}`, LogCategory.SYSTEM);
       
       // Run the directory-mapper.sh script in the container
       const scriptPath = `/usr/local/bin/directory-mapper.sh`;
@@ -980,10 +980,10 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         throw new Error(`Failed to generate directory structure: ${result.stderr}`);
       }
       
-      console.log(`DockerExecutionAdapter: Directory map generated successfully: ${result.stdout}`);
+      this.logger?.debug(`DockerExecutionAdapter: Directory map generated successfully: ${result.stdout}`, LogCategory.SYSTEM);
       return result.stdout;
     } catch (error) {
-      console.error(`DockerExecutionAdapter: Error generating directory map: ${(error as Error).message}`);
+      this.logger?.error(`DockerExecutionAdapter: Error generating directory map: ${(error as Error).message}`, LogCategory.SYSTEM);
       
       // Return a basic fallback structure on error
       return `<context name="directoryStructure">Below is a snapshot of this project's file structure at the start of the conversation. This snapshot will NOT update during the conversation. It skips over .gitignore patterns.

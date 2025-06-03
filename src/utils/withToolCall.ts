@@ -2,6 +2,7 @@ import { ToolCall, SessionState } from '../types/model.js';
 import { ToolResultEntry } from '../types/agent.js';
 import { ToolContext } from '../types/tool.js';
 import { ToolResult, LastToolError } from '../types/tool-result.js';
+import { LogCategory } from '../types/logger.js';
 
 /**
  * Executes a tool call and guarantees that a matching `tool_result` block is
@@ -17,7 +18,7 @@ export async function withToolCall(
   exec: (ctx: ToolContext) => Promise<ToolResult>,
   context: ToolContext,
 ): Promise<unknown> {
-  console.log(`[withToolCall] Executing tool ${toolCall.toolId}, abortSignal=${context.abortSignal?.aborted}`);
+  context.logger?.debug(`[withToolCall] Executing tool ${toolCall.toolId}, abortSignal=${context.abortSignal?.aborted}`, LogCategory.TOOLS);
   let result: unknown;
   let aborted = false;
 
@@ -34,12 +35,12 @@ export async function withToolCall(
           execPromise,
           new Promise<unknown>((_, reject) => {
             const onAbort = () => {
-              console.log(`[withToolCall] AbortSignal 'abort' event received`);
+              context.logger?.debug(`[withToolCall] AbortSignal 'abort' event received`, LogCategory.TOOLS);
               context.abortSignal!.removeEventListener('abort', onAbort);
               reject(new Error('AbortError'));
             };
             if (context.abortSignal!.aborted) {
-              console.log(`[withToolCall] AbortSignal was already aborted when Promise.race started`);
+              context.logger?.debug(`[withToolCall] AbortSignal was already aborted when Promise.race started`, LogCategory.TOOLS);
               return onAbort();
             }
             context.abortSignal!.addEventListener('abort', onAbort);
@@ -50,7 +51,7 @@ export async function withToolCall(
       }
     } catch (err) {
       if ((err as Error).message === 'AbortError') {
-        console.log(`[withToolCall] Caught AbortError, marking result as aborted`);
+        context.logger?.debug(`[withToolCall] Caught AbortError, marking result as aborted`, LogCategory.TOOLS);
         aborted = true;
         // Surface a simple aborted marker so tests (and callers) can detect it
         result = { aborted: true };
@@ -100,7 +101,7 @@ export async function withToolCall(
         sessionState.contextWindow.pushToolResult(toolCall.toolUseId, result);
       } else {
         // ContextWindow has been rolled back – skip appending the result.
-        console.warn(
+        context.logger?.warn(
           `[withToolCall] Skipping tool_result for toolUseId=${toolCall.toolUseId} because context was rolled back`,
         );
         shouldAppendResult = false;

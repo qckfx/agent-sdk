@@ -508,7 +508,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
    */
   async generateDirectoryMap(rootPath: string, maxDepth: number = 10): Promise<string> {
     try {
-      console.log(`LocalExecutionAdapter: Generating directory map for ${rootPath} with max depth ${maxDepth}`);
+      this.logger?.debug(`Generating directory map for ${rootPath} with max depth ${maxDepth}`, LogCategory.SYSTEM);
       
       // Use the shell script from our scripts directory
       const scriptPath = path.resolve(process.cwd(), 'scripts', 'directory-mapper.sh');
@@ -534,7 +534,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       
       return stdout;
     } catch (error) {
-      console.error(`LocalExecutionAdapter: Error generating directory map: ${(error as Error).message}`);
+      this.logger?.error('Error generating directory map', error as Error, LogCategory.SYSTEM);
       
       // Return a basic fallback structure on error
       return `<context name="directoryStructure">Below is a snapshot of this project's file structure at the start of the conversation. This snapshot will NOT update during the conversation. It skips over .gitignore patterns.

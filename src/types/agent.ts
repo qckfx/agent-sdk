@@ -7,11 +7,10 @@ import { ModelClient } from './model.js';
 import { PermissionManager } from './permission.js';
 import { ToolRegistry } from './registry.js';
 import { ExecutionAdapter } from './tool.js';
-import { SessionState } from './model.js';
 import { PromptManager } from '../core/PromptManager.js';
 import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 import { BusEvents } from './bus-events.js';
-import { Logger } from './logger.js';
+import { Logger } from '../utils/logger.js';
 import { ContextWindow } from './contextWindow.js';
 
 /** @internal */

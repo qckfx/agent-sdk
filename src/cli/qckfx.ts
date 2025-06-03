@@ -18,6 +18,10 @@ import ora from 'ora';
 
 import { Agent } from '../Agent.js';
 
+// Session persistence (CLI-only)
+import { loadLastSession, saveSession } from './sessionStore.js';
+import { ContextWindow } from '../types/contextWindow.js';
+
 // Local schema validator (same helper used by validate-config.ts)
 import {
   validateAgentConfig,
@@ -30,6 +34,9 @@ interface CliOptions {
   apiKey?: string;
   url?: string;
   validate?: string;
+  /** Commander stores this as a property literally named 'continue'.
+   *  We use string-literal property name to avoid TS keyword issues. */
+  'continue'?: boolean;
 }
 
 /** Build a minimal default AgentConfig that allows all built-in tools. */
@@ -51,12 +58,32 @@ async function main() {
     .option('--api-key <key>', 'Override LLM_API_KEY environment variable')
     .option('--url <baseUrl>', 'Override LLM_BASE_URL environment variable')
     .option('-v, --validate <file>', 'Validate agent definition file and exit')
+    .option('-c, --continue', 'Continue the most recent session')
     .argument('[prompt...]', 'Prompt to run');
 
   program.parse(process.argv);
 
   const opts = program.opts<CliOptions>();
   const promptArgs: string[] = program.args as string[];
+
+  // ---------------------------------------------------------
+  // Session resume logic – load the previous context window
+  // ---------------------------------------------------------
+  let initialContextWindow: ContextWindow | undefined;
+  const continueFlag = (opts as Record<string, unknown>)['continue'] === true;
+
+  if (continueFlag) {
+    const loaded = loadLastSession();
+    if (loaded?.messages) {
+      try {
+        initialContextWindow = new ContextWindow(loaded.messages as any);
+      } catch {
+        console.warn('⚠️  Failed to rebuild previous session; starting fresh.');
+      }
+    } else {
+      console.warn('⚠️  No previous session found; starting a fresh one.');
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Validation-only path
@@ -151,7 +178,11 @@ async function main() {
 
     const modelToUse = opts.model ?? agentConfig.defaultModel ?? 'gemini-2.5-pro';
 
-    const result = await agent.processQuery(promptText, modelToUse);
+    const result = await agent.processQuery(
+      promptText,
+      modelToUse,
+      initialContextWindow,
+    );
 
     spinner.stop();
 
@@ -169,6 +200,11 @@ async function main() {
       console.log(result.response);
     } else {
       console.log('No response returned.');
+    }
+
+    // Persist the updated conversation for next time, ignoring failures.
+    if (result.contextWindow) {
+      saveSession(result.contextWindow as any);
     }
 
     process.exit(0);

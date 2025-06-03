@@ -17,19 +17,7 @@ import { ToolDescription } from '../types/registry.js';
 import { trackTokenUsage } from '../utils/TokenManager.js';
 import { createDefaultPromptManager, PromptManager } from './PromptManager.js';
 import { isSessionAborted } from '../utils/sessionUtils.js';
-
-/**
- * Helper function to get sessionId from SessionState
- * @param sessionState The session state
- * @returns The session ID as a string
- * @internal
- */
-function getSessionId(sessionState: SessionState): string {
-  if (!sessionState.id) {
-    console.warn('ModelClient: Session state missing ID property', sessionState);
-  }
-  return (sessionState.id as string) || 'unknown-session';
-}
+import { LogCategory } from '../utils/logger.js';
 
 /**
  * Creates a client for interacting with the language model
@@ -41,6 +29,8 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
   if (!config || !config.modelProvider) {
     throw new Error('ModelClient requires a modelProvider function');
   }
+
+  const logger = config.logger;
   
   const modelProvider: ModelProvider = config.modelProvider;
   const promptManager: PromptManager = config.promptManager || createDefaultPromptManager();
@@ -172,7 +162,7 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         if ((error as Error).message === 'AbortError') {
           return { toolChosen: false, aborted: true };
         }
-        console.error('⚠️ MODEL_CLIENT error calling modelProvider:', error);
+        logger?.error('⚠️ MODEL_CLIENT error calling modelProvider:', error, LogCategory.MODEL);
         throw error;
       }
       
@@ -181,12 +171,12 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
         trackTokenUsage(response, sessionState);
       }
       
-      console.info('Response:', JSON.stringify(response, null, 2));
+      logger?.debug('Response:', JSON.stringify(response, null, 2), LogCategory.MODEL);
       // Check if Claude wants to use a tool - look for tool_use in the content
       const hasTool = Array.isArray(response.content) && response.content.some((c: any) => c.type === 'tool_use');
       
       if (hasTool && response.content) {
-        console.info('hasTool:', hasTool);
+        logger?.debug('hasTool:', hasTool, LogCategory.MODEL);
         // Extract the tool use from the response and check its type
         const toolUse = Array.isArray(response.content) ? response.content.find(isToolUseBlock) : undefined;
         

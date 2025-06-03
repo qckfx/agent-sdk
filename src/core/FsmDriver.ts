@@ -16,7 +16,7 @@ import { ToolRegistry } from '../types/registry.js';
 import { ModelClient, SessionState, ToolCall } from '../types/model.js';
 import { PermissionManager } from '../types/permission.js';
 import { ExecutionAdapter } from '../types/tool.js';
-import { Logger } from '../utils/logger.js';
+import { Logger, LogCategory } from '../utils/logger.js';
 import { withToolCall } from '../utils/withToolCall.js';
 import { ToolResultEntry } from '../types/agent.js';
 import type { LLM } from '../types/llm.js';
@@ -78,11 +78,11 @@ export class FsmDriver {
     } = this.deps;
     const cw = sessionState.contextWindow;
     const abortSignal = sessionState.abortController?.signal;
-    console.log(`[FsmDriver] Running with abortSignal, initial aborted=${abortSignal?.aborted}`);
+    logger.debug(`Running with abortSignal, initial aborted=${abortSignal?.aborted}`);
     
     // If the signal is already aborted, log a warning
     if (abortSignal?.aborted) {
-      console.log(`[FsmDriver] Warning: Starting run with already aborted signal!`);
+      logger.warn('Starting run with already aborted signal!', LogCategory.SYSTEM);
     }
 
     // Record the user message at the very start so that the conversation
@@ -113,7 +113,7 @@ export class FsmDriver {
       
       // Check for abortion at the beginning of each loop
       if (abortSignal?.aborted) {
-        console.log(`[FsmDriver] Detected aborted signal in iteration ${this._iterations}`);
+        logger.debug(`Detected aborted signal in iteration ${this._iterations}`, LogCategory.SYSTEM);
         // If we have an outstanding tool_use without a matching tool_result,
         // append an aborted tool_result so the conversation remains valid.
         if (
@@ -159,7 +159,7 @@ export class FsmDriver {
 
           // Check for abort after model call
           if (abortSignal?.aborted) {
-            console.log(`[FsmDriver] Detected abort after model call, requesting abort`);
+                logger.debug('Detected abort after model call, requesting abort', LogCategory.SYSTEM);
             this.dispatch({ type: 'ABORT_REQUESTED' });
             break;
           }
@@ -201,7 +201,7 @@ export class FsmDriver {
         case 'WAITING_FOR_TOOL_RESULT': {
           // If the operation was aborted before the tool starts, short‑circuit
           if (abortSignal?.aborted) {
-            console.log(`[FsmDriver] Detected abort before tool execution starts, short-circuiting`);
+            logger.debug('Detected abort before tool execution starts, short-circuiting', LogCategory.SYSTEM);
             // This block will be handled at the top‑level abort check in the
             // next loop iteration, so just continue.
             break;
@@ -235,7 +235,7 @@ export class FsmDriver {
           } catch (error) {
             // withToolCall handles errors internally, we just need to check for abort
             if ((error as Error).message === 'AbortError') {
-              console.log(`[FsmDriver] Caught AbortError from withToolCall, requesting abort`);
+              logger.debug('Caught AbortError from withToolCall, requesting abort', LogCategory.SYSTEM);
               this.dispatch({ type: 'ABORT_REQUESTED' });
               break;
             }
@@ -259,7 +259,7 @@ export class FsmDriver {
 
           // Check for abort after model call
           if (abortSignal?.aborted) {
-            console.log(`[FsmDriver] Detected abort after model call, requesting abort`);
+            logger.debug('Detected abort after model call, requesting abort', LogCategory.SYSTEM);
             this.dispatch({ type: 'ABORT_REQUESTED' });
             break;
           }

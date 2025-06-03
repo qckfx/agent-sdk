@@ -86,7 +86,7 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
     try {
       // Emit initializing status before connecting
       options.logger?.info('E2B sandbox connecting...', LogCategory.SYSTEM);
-      console.log('E2BExecutionAdapter: Connecting to sandbox', sandboxId);
+      options.logger?.debug('E2BExecutionAdapter: Connecting to sandbox', sandboxId, LogCategory.SYSTEM);
       
       const initStatusEvent: EnvironmentStatusEvent = {
         environmentType: 'remote',
@@ -198,9 +198,9 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
   }
 
   async writeFile(executionId: string, filepath: string, content: string) {
-    console.log('writeFile', filepath, content);
+    this.logger?.debug(`writeFile: ${filepath}`, LogCategory.TOOLS);
     const result = await this.sandbox.files.write(filepath, content);
-    console.log('writeFile result', result);
+    this.logger?.debug(`writeFile result: ${result}`, LogCategory.TOOLS);
     return;
   }
   
@@ -424,7 +424,7 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
    */
   async generateDirectoryMap(rootPath: string, maxDepth: number = 10): Promise<string> {
     try {
-      console.log(`E2BExecutionAdapter: Generating directory map for ${rootPath} with max depth ${maxDepth}`);
+      this.logger?.debug(`E2BExecutionAdapter: Generating directory map for ${rootPath} with max depth ${maxDepth}`, LogCategory.SYSTEM);
       
       // Run the directory-mapper.sh script in the E2B environment
       const scriptPath = `/usr/local/bin/directory-mapper.sh`;

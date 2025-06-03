@@ -4,7 +4,7 @@
 
 import { Agent, CoreAgentConfig } from '../types/main.js';
 import { ModelProvider, SessionState } from '../types/model.js';
-import { LogLevel, createLogger } from '../utils/logger.js';
+import { LogLevel, createLogger, LogCategory } from '../utils/logger.js';
 import { ContextWindow, createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
@@ -40,10 +40,10 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
   }
   
   // Create core components
-  const logger = config.logger || createLogger({ level: LogLevel.INFO, sessionId: sessionId });
+  const logger = config.logger ?? createLogger({ level: config.logLevel ?? LogLevel.INFO, sessionId: sessionId });
   
-  // Create tool registry first
-  const toolRegistry = createToolRegistry();
+  // Create tool registry first (propagate logger)
+  const toolRegistry = createToolRegistry(logger);
   
   const permissionManager = createPermissionManager(
     toolRegistry,
@@ -75,7 +75,8 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
   const modelClient = createModelClient({
     modelProvider: config.modelProvider as ModelProvider,
     // Use either provided prompt manager or the one built from systemPrompt
-    promptManager: promptManager
+    promptManager: promptManager,
+    logger: logger,
   });
   
   // -------------------------------------------------------------------
@@ -105,25 +106,23 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
   };
 
   if (Array.isArray(config.tools) && config.tools.length > 0) {
-    console.info('Registering tools:', config.tools);
+    logger.info('Registering tools', LogCategory.TOOLS, config.tools);
     // Only tools listed in config are allowed
     for (const entry of config.tools) {
-      console.info('Registering tool:', entry);
+      logger.info('Registering tool', LogCategory.TOOLS, entry);
       if (typeof entry === 'string') {
         registerBuiltIn(entry);
       } else {
         try {
-          console.info('Creating sub-agent tool:', entry);
+          logger.debug('Creating sub-agent tool', LogCategory.TOOLS, entry);
           const subAgentTool = await createSubAgentTool(
             entry as any,
             config.getRemoteId,
+            logger,
           );
           toolRegistry.registerTool(subAgentTool);
         } catch (err) {
-          console.error(
-            `Failed to register sub-agent tool from '${(entry as any).configFile}':`,
-            err
-          );
+          logger.error(`Failed to register sub-agent tool from '${(entry as any).configFile}'`, err as Error, LogCategory.TOOLS);
         }
       }
     }
@@ -132,7 +131,7 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
     Object.keys(builtInFactories).forEach(registerBuiltIn);
   }
 
-  console.info('Tool registry tools:', toolRegistry.getAllTools());
+  logger.debug('Tool registry tools', LogCategory.TOOLS, toolRegistry.getAllTools());
   
   // Create the agent runner (private implementation)
   const _agentRunner = async (sessionId: string, sessionExecutionAdapter?: ExecutionAdapter) => {
