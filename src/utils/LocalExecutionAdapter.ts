@@ -72,10 +72,24 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       ...statusEvent
     });
   }
-  async executeCommand(executionId: string, command: string, workingDir?: string) {
+  async executeCommand(
+    executionId: string,
+    command: string,
+    workingDir?: string,
+    checkpoint?: boolean, // ignored in local adapter, kept for interface compatibility
+    timeoutMs: number = 5 * 60 * 1000,   // 5-minute default to avoid runaway processes
+    maxBuffer: number = 10 * 1024 * 1024 // 10 MB of stdout/stderr capture
+  ) {
     try {
-      const options = workingDir ? { cwd: workingDir } : undefined;
-      const result = await execAsync(command, options);
+      const execOptions: any = {
+        timeout: timeoutMs,
+        maxBuffer,
+      };
+      if (workingDir) {
+        execOptions.cwd = workingDir;
+      }
+
+      const result = await execAsync(command, execOptions);
       return {
         stdout: result.stdout.toString(),
         stderr: result.stderr.toString(),
