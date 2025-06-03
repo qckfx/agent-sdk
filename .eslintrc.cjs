@@ -18,7 +18,7 @@ module.exports = {
     'plugin:import/recommended',
     'plugin:import/typescript',
     'plugin:jsdoc/recommended',
-    'plugin:vitest/globals',
+    'plugin:vitest/recommended',
     'prettier',
   ],
   rules: {
@@ -32,12 +32,5 @@ module.exports = {
     ],
     'jsdoc/require-jsdoc': 'off',
   },
-  overrides: [
-    {
-      files: ['**/*.test.ts', 'vitest.setup.ts'],
-      env: { vitest: true },
-      rules: { '@typescript-eslint/no-explicit-any': 'off' },
-    },
-  ],
   ignorePatterns: ['dist', 'node_modules', '*.cjs'],
 };
