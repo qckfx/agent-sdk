@@ -8,7 +8,7 @@
  * checkout is performed.
  */
 
-import type { BusEvents} from '../types/bus-events.js';
+import type { BusEvents } from '../types/bus-events.js';
 import { BusEvent } from '../types/bus-events.js';
 import type { SessionState } from '../types/model.js';
 

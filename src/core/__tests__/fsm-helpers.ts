@@ -9,11 +9,10 @@ import type { FileReadToolResult } from '../../tools/FileReadTool.js';
 import type { LSToolResult } from '../../tools/LSTool.js';
 import type { ModelClient } from '../../types/model.js';
 import type { ToolRegistry } from '../../types/registry.js';
-import type { ToolContext, ExecutionAdapter} from '../../types/tool.js';
+import type { ToolContext, ExecutionAdapter } from '../../types/tool.js';
 import { ToolCategory } from '../../types/tool.js';
-import type { Logger} from '../../utils/logger.js';
+import type { Logger } from '../../utils/logger.js';
 import { LogLevel, LogCategory } from '../../utils/logger.js';
-
 
 /**
  * Creates a fake model client for testing

@@ -5,26 +5,26 @@
 import type { AgentConfig } from '@qckfx/sdk-schema';
 import { AgentConfigSchema } from '@qckfx/sdk-schema';
 
-import { createAgent , createSessionState } from './core/Agent.js';
+import { createAgent, createSessionState } from './core/Agent.js';
 import { CheckpointEvents, CHECKPOINT_READY_EVENT } from './events/checkpoint-events.js';
 import { LLMFactory } from './providers/AnthropicProvider.js';
-import type { ProcessQueryResult} from './types/agent.js';
+import type { ProcessQueryResult } from './types/agent.js';
 import { ConversationResult } from './types/agent.js';
-import type { BusEvents, BusEventKey} from './types/bus-events.js';
+import type { BusEvents, BusEventKey } from './types/bus-events.js';
 import { BusEvent } from './types/bus-events.js';
 import type { AgentCallbacks } from './types/callbacks.js';
 import type { ContextWindow, Message } from './types/contextWindow.js';
-import type { Agent as AgentInterface , CoreAgentConfig} from './types/main.js';
-import { SessionState } from './types/model.js';
-import { Tool } from './types/tool.js';
+import { createContextWindow } from './types/contextWindow.js';
+import type { Agent as AgentInterface, CoreAgentConfig } from './types/main.js';
 import { ToolExecutionStatus } from './types/main.js';
+import type { SessionState } from './types/model.js';
+import type { Tool } from './types/tool.js';
 import { convertToCoreAgentConfig } from './utils/agent-config-converter.js';
 import type { Logger } from './utils/logger.js';
 import { rollbackSession } from './utils/RollbackManager.js';
 import { setSessionAborted } from './utils/sessionUtils.js';
 
 // Import legacy event emitters
-import { createContextWindow } from './types/contextWindow.js';
 import { TypedEventEmitter } from './utils/TypedEventEmitter.js';
 
 /**

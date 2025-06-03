@@ -3,7 +3,7 @@ import path from 'path';
 import type { FileEditToolResult } from '../tools/FileEditTool.js';
 import type { FileReadToolResult } from '../tools/FileReadTool.js';
 import type { FileEntry, LSToolResult } from '../tools/LSTool.js';
-import type { BusEvents} from '../types/bus-events.js';
+import type { BusEvents } from '../types/bus-events.js';
 import { BusEvent } from '../types/bus-events.js';
 import { SessionState } from '../types/model.js';
 import type { GitRepositoryInfo } from '../types/repository.js';
@@ -16,7 +16,6 @@ import { LogCategory } from './logger.js';
 import { MultiRepoManager } from './MultiRepoManager.js';
 import type { EnvironmentStatusEvent } from './sessionUtils.js';
 import type { TypedEventEmitter } from './TypedEventEmitter.js';
-
 
 /**
  * Execution adapter that runs commands in a Docker container

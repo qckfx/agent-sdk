@@ -3,11 +3,10 @@
  */
 
 import type { ToolResult } from '../types/tool-result.js';
-import type { Tool, ToolContext, ValidationResult} from '../types/tool.js';
+import type { Tool, ToolContext, ValidationResult } from '../types/tool.js';
 import { ToolCategory } from '../types/tool.js';
 
 import { createTool } from './createTool.js';
-
 
 // Used for type checking in execute function
 export interface BatchToolArgs {

@@ -1,7 +1,7 @@
 import type { ToolResultEntry } from '../types/agent.js';
 import { LogCategory } from '../types/logger.js';
 import type { ToolCall, SessionState } from '../types/model.js';
-import type { ToolResult} from '../types/tool-result.js';
+import type { ToolResult } from '../types/tool-result.js';
 import { LastToolError } from '../types/tool-result.js';
 import type { ToolContext } from '../types/tool.js';
 

@@ -5,7 +5,7 @@ import { Sandbox } from 'e2b';
 import type { FileEditToolResult } from '../tools/FileEditTool.js';
 import type { FileReadToolResult } from '../tools/FileReadTool.js';
 import type { FileEntry, LSToolResult } from '../tools/LSTool.js';
-import type { BusEvents} from '../types/bus-events.js';
+import type { BusEvents } from '../types/bus-events.js';
 import { BusEvent } from '../types/bus-events.js';
 import type { GitRepositoryInfo } from '../types/repository.js';
 import type { ExecutionAdapter } from '../types/tool.js';

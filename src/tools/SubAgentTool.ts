@@ -23,7 +23,7 @@ export interface SubAgentReference {
  * Create a Tool wrapper around a sub-agent definition.
  * @param ref            Object from the parent config `{ name, configFile }`.
  */
-import type { Logger} from '../utils/logger.js';
+import type { Logger } from '../utils/logger.js';
 import { LogCategory } from '../utils/logger.js';
 
 export async function createSubAgentTool(

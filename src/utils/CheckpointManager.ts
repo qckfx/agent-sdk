@@ -6,7 +6,6 @@
  * consumers (the agent server).
  */
 
-
 // ---------------------------------------------------------------------------
 // Utilities to keep the shadow repository out of the user's "git status"
 // ---------------------------------------------------------------------------

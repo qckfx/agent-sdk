@@ -11,26 +11,27 @@ import { createBashTool } from '../tools/BashTool.js';
 import { createBatchTool } from '../tools/BatchTool.js';
 import { createFileEditTool } from '../tools/FileEditTool.js';
 import { createFileReadTool } from '../tools/FileReadTool.js';
+import { createFileWriteTool } from '../tools/FileWriteTool.js';
 import { createGlobTool } from '../tools/GlobTool.js';
-import type { ContextWindow} from '../types/contextWindow.js';
+import { createGrepTool } from '../tools/GrepTool.js';
+import { createLSTool } from '../tools/LSTool.js';
+import { createSubAgentTool } from '../tools/SubAgentTool.js';
+import { createThinkTool } from '../tools/ThinkTool.js';
+import type { ContextWindow } from '../types/contextWindow.js';
 import { createContextWindow } from '../types/contextWindow.js';
 import type { Agent, CoreAgentConfig } from '../types/main.js';
 import type { ModelProvider, SessionState } from '../types/model.js';
 import type { ExecutionAdapter, Tool } from '../types/tool.js';
+import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
 import { LogLevel, createLogger, LogCategory } from '../utils/logger.js';
-import { createToolRegistry } from './ToolRegistry.js';
-import { createPermissionManager } from './PermissionManager.js';
-import { createModelClient } from './ModelClient.js';
-import { createDefaultPromptManager, createPromptManager } from './PromptManager.js';
+
 import { createAgentRunner } from './AgentRunner.js';
+import { createModelClient } from './ModelClient.js';
+import { createPermissionManager } from './PermissionManager.js';
+import { createDefaultPromptManager, createPromptManager } from './PromptManager.js';
+import { createToolRegistry } from './ToolRegistry.js';
 
 // Default tools
-import { createGrepTool } from '../tools/GrepTool.js';
-import { createLSTool } from '../tools/LSTool.js';
-import { createFileWriteTool } from '../tools/FileWriteTool.js';
-import { createThinkTool } from '../tools/ThinkTool.js';
-import { createSubAgentTool } from '../tools/SubAgentTool.js';
-import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
 
 /**
  * Creates a complete agent with default tools

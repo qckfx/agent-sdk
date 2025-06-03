@@ -12,7 +12,6 @@ import type { PermissionManager } from './permission.js';
 import type { GitRepositoryInfo } from './repository.js';
 import type { ToolResult } from './tool-result.js';
 
-
 /**
  * Categories for tools to classify their purpose and permission requirements
  */

@@ -8,7 +8,7 @@
 
 import type { Logger } from '../utils/logger.js';
 
-import type { ModelProviderRequest , TokenManager } from './model.js';
+import type { ModelProviderRequest, TokenManager } from './model.js';
 import type { ModelInfo } from './provider.js';
 
 // ---------------------------------------------------------------------------

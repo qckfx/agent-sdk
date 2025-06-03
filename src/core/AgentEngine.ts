@@ -27,45 +27,40 @@ import { createGrepTool } from '../tools/GrepTool.js';
 import { createLSTool } from '../tools/LSTool.js';
 import { createSubAgentTool } from '../tools/SubAgentTool.js';
 import { createThinkTool } from '../tools/ThinkTool.js';
+import type { BusEvents } from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
+import type { ContextWindow } from '../types/contextWindow.js';
+import { createContextWindow } from '../types/contextWindow.js';
 import type { Agent, CoreAgentConfig } from '../types/main.js';
-
 import type { SessionState, ModelProvider } from '../types/model.js';
-import type { Tool, ExecutionAdapter } from '../types/tool.js';
-import type { ToolRegistry } from '../types/registry.js';
 import type { PermissionManager } from '../types/permission.js';
+import type { ToolRegistry } from '../types/registry.js';
+import type { Tool, ExecutionAdapter } from '../types/tool.js';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-import { createLogger, LogLevel, LogCategory, type Logger } from '../utils/logger.js';
-
-import { createToolRegistry } from './ToolRegistry.js';
-import { createPermissionManager } from './PermissionManager.js';
-import { createModelClient } from './ModelClient.js';
-
-import { createDefaultPromptManager, createPromptManager, PromptManager } from './PromptManager.js';
-
 // The legacy AgentRunner orchestrator has been subsumed – we now inline the
 // relevant logic directly.  Only the finite-state-machine driver remains as a
 // separate class.
 
-import { FsmDriver } from './FsmDriver.js';
-
+import { attachCheckpointSync } from '../utils/CheckpointSync.js';
+import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
+import { createLogger, LogLevel, LogCategory, type Logger } from '../utils/logger.js';
 import { isSessionAborted, clearSessionAborted } from '../utils/sessionUtils.js';
 
-import { attachCheckpointSync } from '../utils/CheckpointSync.js';
-
-import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
-
 // Built-in tool factories ----------------------------------------------------
-import type { ContextWindow} from '../types/contextWindow.js';
-import { createContextWindow } from '../types/contextWindow.js';
 
 // Events / bus --------------------------------------------------------------
 import type { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
-import type { BusEvents} from '../types/bus-events.js';
-import { BusEvent } from '../types/bus-events.js';
+
+import { FsmDriver } from './FsmDriver.js';
+import { createModelClient } from './ModelClient.js';
+import { createPermissionManager } from './PermissionManager.js';
+import { createDefaultPromptManager, createPromptManager } from './PromptManager.js';
+import type { PromptManager } from './PromptManager.js';
+import { createToolRegistry } from './ToolRegistry.js';
 
 /**
  * `AgentEngine` composes all long-lived collaborators (tool registry, model

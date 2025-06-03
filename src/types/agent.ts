@@ -14,9 +14,6 @@ import type { PermissionManager } from './permission.js';
 import type { ToolRegistry } from './registry.js';
 import type { ExecutionAdapter } from './tool.js';
 
-
-
-
 /** @internal */
 export interface AgentRunnerConfig {
   modelClient: ModelClient;

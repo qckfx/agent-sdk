@@ -1,8 +1,5 @@
 import { exec } from 'child_process';
 import fs from 'fs';
-
-import { BusEvent } from '../types/bus-events.js';
-
 import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
@@ -10,7 +7,8 @@ import { promisify } from 'util';
 import { glob } from 'glob';
 
 import type { FileEntry } from '../tools/LSTool.js';
-import type { BusEvents} from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
+import type { BusEvents } from '../types/bus-events.js';
 import type { GitRepositoryInfo } from '../types/repository.js';
 import type { ExecutionAdapter } from '../types/tool.js';
 

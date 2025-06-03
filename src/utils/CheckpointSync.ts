@@ -16,12 +16,8 @@
  * closure.
  */
 
-import type {
-  CheckpointPayload} from '../events/checkpoint-events.js';
-import {
-  CheckpointEvents,
-  CHECKPOINT_READY_EVENT
-} from '../events/checkpoint-events.js';
+import type { CheckpointPayload } from '../events/checkpoint-events.js';
+import { CheckpointEvents, CHECKPOINT_READY_EVENT } from '../events/checkpoint-events.js';
 import type { SessionState } from '../types/model.js';
 
 const DETACH_KEY = Symbol('checkpointSyncDetach');

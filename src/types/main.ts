@@ -7,10 +7,10 @@
 import type { Logger, LogLevel } from '../utils/logger.js';
 import type { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 
-import type { ProcessQueryResult} from './agent.js';
+import type { ProcessQueryResult } from './agent.js';
 import { ConversationResult } from './agent.js';
 import type { BusEvents } from './bus-events.js';
-import type { ModelClient, SessionState , ModelProvider } from './model.js';
+import type { ModelClient, SessionState, ModelProvider } from './model.js';
 import type { PermissionManager } from './permission.js';
 import type { ToolRegistry } from './registry.js';
 import { ToolExecutionEvent, ToolExecutionStatus } from './tool-execution/index.js';

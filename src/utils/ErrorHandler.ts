@@ -6,10 +6,9 @@ import type {
   CustomError,
   ErrorResponse,
   ErrorHandlerConfig,
-  ErrorHandler} from '../types/error.js';
-import {
-  ErrorType
+  ErrorHandler,
 } from '../types/error.js';
+import { ErrorType } from '../types/error.js';
 
 /**
  * Creates a custom error with additional properties
