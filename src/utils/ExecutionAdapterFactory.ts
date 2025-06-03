@@ -1,12 +1,14 @@
-import { ExecutionAdapter } from '../types/tool.js';
-import { LocalExecutionAdapter } from './LocalExecutionAdapter.js';
-import { DockerExecutionAdapter } from './DockerExecutionAdapter.js';
-import { DockerContainerManager } from './DockerContainerManager.js';
-import { RemoteExecutionAdapter } from './RemoteExecutionAdapter.js';
+import type { BusEvents } from '../types/bus-events.js';
+import type { ExecutionAdapter } from '../types/tool.js';
+
 import { CheckpointingExecutionAdapter } from './CheckpointingExecutionAdapter.js';
-import { LogCategory, Logger } from './logger.js';
-import { TypedEventEmitter } from './TypedEventEmitter.js';
-import { BusEvents } from '../types/bus-events.js';
+import { DockerContainerManager } from './DockerContainerManager.js';
+import { DockerExecutionAdapter } from './DockerExecutionAdapter.js';
+import { LocalExecutionAdapter } from './LocalExecutionAdapter.js';
+import type { Logger } from './logger.js';
+import { LogCategory } from './logger.js';
+import { RemoteExecutionAdapter } from './RemoteExecutionAdapter.js';
+import type { TypedEventEmitter } from './TypedEventEmitter.js';
 
 export type ExecutionAdapterType = 'local' | 'docker' | 'remote';
 
@@ -68,6 +70,7 @@ export interface ExecutionAdapterFactoryOptions {
 
 /**
  * Factory function to create the appropriate execution adapter
+ * @param options
  */
 export async function createExecutionAdapter(options: ExecutionAdapterFactoryOptions): Promise<{
   adapter: ExecutionAdapter;

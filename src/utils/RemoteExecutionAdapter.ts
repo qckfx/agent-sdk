@@ -1,16 +1,21 @@
-import { Sandbox } from 'e2b';
-import { FileEditToolResult } from '../tools/FileEditTool.js';
-import { FileReadToolResult } from '../tools/FileReadTool.js';
-import { ExecutionAdapter } from '../types/tool.js';
-import { FileEntry, LSToolResult } from '../tools/LSTool.js';
 import path from 'path';
-import { LogCategory, Logger } from './logger.js';
-import { EnvironmentStatusEvent } from './sessionUtils.js';
-import { TypedEventEmitter } from './TypedEventEmitter.js';
-import { BusEvents, BusEvent } from '../types/bus-events.js';
-import { GitRepositoryInfo } from '../types/repository.js';
+
+import { Sandbox } from 'e2b';
+
+import type { FileEditToolResult } from '../tools/FileEditTool.js';
+import type { FileReadToolResult } from '../tools/FileReadTool.js';
+import type { FileEntry, LSToolResult } from '../tools/LSTool.js';
+import type { BusEvents} from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
+import type { GitRepositoryInfo } from '../types/repository.js';
+import type { ExecutionAdapter } from '../types/tool.js';
+
 import { GitInfoHelper } from './GitInfoHelper.js';
+import type { Logger } from './logger.js';
+import { LogCategory } from './logger.js';
 import { MultiRepoManager } from './MultiRepoManager.js';
+import type { EnvironmentStatusEvent } from './sessionUtils.js';
+import type { TypedEventEmitter } from './TypedEventEmitter.js';
 
 export class RemoteExecutionAdapter implements ExecutionAdapter {
   private sandbox: Sandbox;
@@ -55,6 +60,9 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Emit environment status event
+   * @param status
+   * @param isReady
+   * @param error
    */
   private emitEnvironmentStatus(
     status: 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'error',
@@ -82,6 +90,10 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
    * Creates a new E2BExecutionAdapter instance with a connected sandbox
    * @param sandboxId The ID of the sandbox to connect to
    * @param options Optional configuration options
+   * @param sessionId
+   * @param options.logger
+   * @param options.projectsRoot
+   * @param options.eventBus
    * @returns A fully initialized E2BExecutionAdapter
    * @throws Error if connection to the sandbox fails
    */

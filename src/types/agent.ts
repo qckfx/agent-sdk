@@ -3,15 +3,19 @@
  * @internal
  */
 
-import { ModelClient } from './model.js';
-import { PermissionManager } from './permission.js';
-import { ToolRegistry } from './registry.js';
-import { ExecutionAdapter } from './tool.js';
-import { PromptManager } from '../core/PromptManager.js';
-import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
-import { BusEvents } from './bus-events.js';
-import { Logger } from '../utils/logger.js';
-import { ContextWindow } from './contextWindow.js';
+import type { PromptManager } from '../core/PromptManager.js';
+import type { Logger } from '../utils/logger.js';
+import type { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+
+import type { BusEvents } from './bus-events.js';
+import type { ContextWindow } from './contextWindow.js';
+import type { ModelClient } from './model.js';
+import type { PermissionManager } from './permission.js';
+import type { ToolRegistry } from './registry.js';
+import type { ExecutionAdapter } from './tool.js';
+
+
+
 
 /** @internal */
 export interface AgentRunnerConfig {

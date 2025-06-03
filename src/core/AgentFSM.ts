@@ -21,7 +21,11 @@ export type AgentEvent =
   | { type: 'MODEL_FINAL' }
   | { type: 'ABORT_REQUESTED' };
 
-/** @internal */
+/**
+ * @param state
+ * @param event
+ * @internal
+ */
 export function transition(state: AgentState, event: AgentEvent): AgentState {
   switch (state.type) {
     case 'IDLE':
@@ -63,7 +67,10 @@ export function transition(state: AgentState, event: AgentEvent): AgentState {
   throw new Error(`Invalid transition: ${state.type} + ${event.type}`);
 }
 
-/** @internal */
+/**
+ * @param state
+ * @internal
+ */
 export function isTerminal(state: AgentState): boolean {
   return state.type === 'COMPLETE' || state.type === 'ABORTED';
 }

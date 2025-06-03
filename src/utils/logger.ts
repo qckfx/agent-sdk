@@ -2,7 +2,8 @@
  * Logger implementation
  */
 
-import { LogCategory, LogLevel, LoggerOptions } from '../types/logger.js';
+import type { LoggerOptions } from '../types/logger.js';
+import { LogCategory, LogLevel } from '../types/logger.js';
 
 // Re-export both as enums (values) and types
 export { LogCategory, LogLevel };
@@ -38,6 +39,7 @@ export class Logger {
   /**
    * Set context information for this logger
    * Useful for adding details like test ID, config name, etc.
+   * @param context
    */
   setContext(context: Record<string, string>): void {
     this.contextInfo = { ...this.contextInfo, ...context };
@@ -45,6 +47,8 @@ export class Logger {
 
   /**
    * Format a log message with optional timestamp and styling
+   * @param level
+   * @param message
    */
   private format(level: string, message: string): string {
     const timestamp = this.formatOptions.showTimestamp ? `[${new Date().toISOString()}] ` : '';
@@ -64,6 +68,8 @@ export class Logger {
 
   /**
    * Check if a given log level should be displayed based on the current logger level
+   * @param messageLevel
+   * @param category
    */
   private shouldLog(messageLevel: LogLevel, category?: LogCategory): boolean {
     // Check if silent or level is SILENT

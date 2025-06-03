@@ -9,9 +9,10 @@ import fs from 'fs';
 import path from 'path';
 
 import { createTool } from './createTool.js';
-import { Tool } from '../types/tool.js';
-import { ToolResult } from '../types/tool-result.js';
+
 import { Agent } from '../Agent.js';
+import { ToolResult } from '../types/tool-result.js';
+import type { Tool } from '../types/tool.js';
 
 export interface SubAgentReference {
   name: string;
@@ -20,10 +21,10 @@ export interface SubAgentReference {
 
 /**
  * Create a Tool wrapper around a sub-agent definition.
- *
  * @param ref            Object from the parent config `{ name, configFile }`.
  */
-import { Logger, LogCategory } from '../utils/logger.js';
+import type { Logger} from '../utils/logger.js';
+import { LogCategory } from '../utils/logger.js';
 
 export async function createSubAgentTool(
   ref: SubAgentReference,

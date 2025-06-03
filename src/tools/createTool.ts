@@ -2,8 +2,8 @@
  * Base tool factory - Creates a standardized tool interface
  */
 
-import { Tool, ToolConfig, ToolContext, ValidationResult } from '../types/tool.js';
-import { ToolResult } from '../types/tool-result.js';
+import type { ToolResult } from '../types/tool-result.js';
+import type { Tool, ToolConfig, ToolContext, ValidationResult } from '../types/tool.js';
 
 /**
  * Creates a tool with a standardized interface

@@ -1,18 +1,25 @@
 import { exec } from 'child_process';
 import fs from 'fs';
-import { promisify } from 'util';
-import { ExecutionAdapter } from '../types/tool.js';
-import path from 'path';
-import { glob } from 'glob';
-import { FileEntry } from '../tools/LSTool.js';
-import { LogCategory, Logger } from './logger.js';
-import { TypedEventEmitter } from './TypedEventEmitter.js';
-import { BusEvents, BusEvent } from '../types/bus-events.js';
+
+import { BusEvent } from '../types/bus-events.js';
+
 import os from 'os';
-import { GitRepositoryInfo } from '../types/repository.js';
+import path from 'path';
+import { promisify } from 'util';
+
+import { glob } from 'glob';
+
+import type { FileEntry } from '../tools/LSTool.js';
+import type { BusEvents} from '../types/bus-events.js';
+import type { GitRepositoryInfo } from '../types/repository.js';
+import type { ExecutionAdapter } from '../types/tool.js';
+
 import { GitInfoHelper } from './GitInfoHelper.js';
+import { LogCategory } from './logger.js';
+import type { Logger } from './logger.js';
 import { MultiRepoManager } from './MultiRepoManager.js';
-import { EnvironmentStatusEvent } from './sessionUtils.js';
+import type { EnvironmentStatusEvent } from './sessionUtils.js';
+import type { TypedEventEmitter } from './TypedEventEmitter.js';
 
 const execAsync = promisify(exec);
 const readFileAsync = promisify(fs.readFile);
@@ -55,6 +62,9 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Emit environment status event
+   * @param status
+   * @param isReady
+   * @param error
    */
   private emitEnvironmentStatus(
     status: 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'error',
@@ -119,6 +129,11 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
   /**
    * Edit a file by replacing content
    * Uses a binary-safe approach to handle files with special characters and line endings
+   * @param executionId
+   * @param filepath
+   * @param searchCode
+   * @param replaceCode
+   * @param encoding
    */
   async editFile(
     executionId: string,
@@ -369,6 +384,10 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
   /**
    * Write content to a file
    * Uses a more robust approach for handling larger files
+   * @param executionId
+   * @param filePath
+   * @param content
+   * @param encoding
    */
   async writeFile(executionId: string, filePath: string, content: string, encoding?: string) {
     if (!encoding) {

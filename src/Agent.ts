@@ -2,34 +2,36 @@
  * Agent class - Main entry point for the agent-core SDK
  */
 
-import { AgentCallbacks } from './types/callbacks.js';
+import type { AgentConfig } from '@qckfx/sdk-schema';
+import { AgentConfigSchema } from '@qckfx/sdk-schema';
+
+import { createAgent , createSessionState } from './core/Agent.js';
+import { CheckpointEvents, CHECKPOINT_READY_EVENT } from './events/checkpoint-events.js';
+import { LLMFactory } from './providers/AnthropicProvider.js';
+import type { ProcessQueryResult} from './types/agent.js';
+import { ConversationResult } from './types/agent.js';
+import type { BusEvents, BusEventKey} from './types/bus-events.js';
+import { BusEvent } from './types/bus-events.js';
+import type { AgentCallbacks } from './types/callbacks.js';
+import type { ContextWindow, Message } from './types/contextWindow.js';
+import type { Agent as AgentInterface , CoreAgentConfig} from './types/main.js';
 import { SessionState } from './types/model.js';
 import { Tool } from './types/tool.js';
-import { createAgent } from './core/Agent.js';
-import type { Agent as AgentInterface } from './types/main.js';
-import { createSessionState } from './core/Agent.js';
-import { ProcessQueryResult, ConversationResult } from './types/agent.js';
-import { AgentConfigSchema, AgentConfig } from '@qckfx/sdk-schema';
-import { CoreAgentConfig, ToolExecutionStatus } from './types/main.js';
+import { ToolExecutionStatus } from './types/main.js';
 import { convertToCoreAgentConfig } from './utils/agent-config-converter.js';
+import type { Logger } from './utils/logger.js';
 import { rollbackSession } from './utils/RollbackManager.js';
 import { setSessionAborted } from './utils/sessionUtils.js';
 
 // Import legacy event emitters
-import { CheckpointEvents, CHECKPOINT_READY_EVENT } from './events/checkpoint-events.js';
-import { LLMFactory } from './providers/AnthropicProvider.js';
-import { ContextWindow, createContextWindow, Message } from './types/contextWindow.js';
-
+import { createContextWindow } from './types/contextWindow.js';
 import { TypedEventEmitter } from './utils/TypedEventEmitter.js';
-import { BusEvents, BusEventKey, BusEvent } from './types/bus-events.js';
-import { Logger } from './utils/logger.js';
 
 /**
  * Main Agent class for creating and managing AI agents
  *
  * This is the primary entry point for the agent-core SDK, replacing
  * the previous functional `createAgent` factory.
- *
  * @example
  * ```typescript
  * import { Agent } from '@qckfx/agent';
@@ -94,9 +96,10 @@ export class Agent {
 
   /**
    * Create a new Agent instance from a JSON configuration
-   *
    * @param jsonConfig The agent configuration as a JSON object
+   * @param jsonConfig.config
    * @param callbacks Optional runtime callbacks for events and dynamic data
+   * @param jsonConfig.callbacks
    * @returns A new Agent instance
    * @throws ConfigValidationError if the config is invalid
    */
@@ -119,18 +122,16 @@ export class Agent {
   /**
    * Execute a tool manually while preserving all the bookkeeping the agent
    * normally performs when the LLM initiates the call.  This will:
-   *   • append the correct `tool_use` / `tool_result` blocks to the
-   *     session's ContextWindow
-   *   • fire the tool execution lifecycle events that the Agent instance
-   *     already re-emits (`tool:execution:*`)
-   *   • honour permission prompts, abort signals and checkpoint logic – all
-   *     handled internally by the same helper that the FSM driver uses.
-   *
+   * • append the correct `tool_use` / `tool_result` blocks to the
+   * session's ContextWindow
+   * • fire the tool execution lifecycle events that the Agent instance
+   * already re-emits (`tool:execution:*`)
+   * • honour permission prompts, abort signals and checkpoint logic – all
+   * handled internally by the same helper that the FSM driver uses.
    * @param toolId        The identifier of the tool to run
    * @param args          Arguments for the tool
    * @param sessionState  Optional session.  If omitted a new one is created
    *                      (mirrors `processQuery` behaviour).
-   *
    * @returns The raw value returned by the tool’s `execute` method
    */
   public async invokeTool(
@@ -200,9 +201,10 @@ export class Agent {
 
   /**
    * Create a new agent instance
-   *
    * @param config The agent configuration object
+   * @param config.jsonConfig
    * @param callbacks Optional runtime callbacks for events and dynamic data
+   * @param config.callbacks
    */
   private constructor({
     jsonConfig,
@@ -342,7 +344,6 @@ export class Agent {
 
   /**
    * Process a natural language query with the agent
-   *
    * @param query The query string to process
    * @param model Optional model to use (required if defaultModel not set in config)
    * @param contextWindow Optional context window. If omitted, the session will continue.
@@ -429,7 +430,6 @@ export class Agent {
 
   /**
    * Subscribe to an agent event
-   *
    * @param event The event name to subscribe to
    * @param handler The event handler function
    * @returns A function that can be called to unsubscribe the handler
@@ -441,7 +441,6 @@ export class Agent {
 
   /**
    * Unsubscribe from an agent event
-   *
    * @param event The event name to unsubscribe from
    * @param handler The event handler function to remove
    */

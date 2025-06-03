@@ -2,14 +2,16 @@
  * Types and interfaces for tools
  */
 
-import { FileEditToolResult } from '../tools/FileEditTool.js';
-import { FileReadToolResult } from '../tools/FileReadTool.js';
-import { LSToolResult } from '../tools/LSTool.js';
-import { GitRepositoryInfo } from './repository.js';
-import { SessionState } from './model.js';
-import { PermissionManager } from './permission.js';
-import { ToolResult } from './tool-result.js';
-import { Logger } from '../utils/logger.js';
+import type { FileEditToolResult } from '../tools/FileEditTool.js';
+import type { FileReadToolResult } from '../tools/FileReadTool.js';
+import type { LSToolResult } from '../tools/LSTool.js';
+import type { Logger } from '../utils/logger.js';
+
+import type { SessionState } from './model.js';
+import type { PermissionManager } from './permission.js';
+import type { GitRepositoryInfo } from './repository.js';
+import type { ToolResult } from './tool-result.js';
+
 
 /**
  * Categories for tools to classify their purpose and permission requirements

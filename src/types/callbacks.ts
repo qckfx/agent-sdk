@@ -3,7 +3,7 @@
  * @module Callbacks
  */
 
-import {
+import type {
   ProcessingStartedData,
   ProcessingCompletedData,
   ProcessingErrorData,
@@ -11,7 +11,7 @@ import {
   CheckpointData,
   PermissionData,
 } from './events.js';
-import { ToolExecutionState } from './tool-execution/index.js';
+import type { ToolExecutionState } from './tool-execution/index.js';
 
 /**
  * Dynamic data providers

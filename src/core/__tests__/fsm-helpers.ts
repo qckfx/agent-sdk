@@ -2,17 +2,24 @@
  * Test helpers for the FSM driver tests
  */
 
-import { ModelClient } from '../../types/model.js';
-import { ToolRegistry } from '../../types/registry.js';
-import { ToolContext, ExecutionAdapter, ToolCategory } from '../../types/tool.js';
-import { FileEditToolResult } from '../../tools/FileEditTool.js';
-import { FileReadToolResult } from '../../tools/FileReadTool.js';
-import { LSToolResult } from '../../tools/LSTool.js';
-import { Logger, LogLevel, LogCategory } from '../../utils/logger.js';
 import { vi } from 'vitest';
+
+import type { FileEditToolResult } from '../../tools/FileEditTool.js';
+import type { FileReadToolResult } from '../../tools/FileReadTool.js';
+import type { LSToolResult } from '../../tools/LSTool.js';
+import type { ModelClient } from '../../types/model.js';
+import type { ToolRegistry } from '../../types/registry.js';
+import type { ToolContext, ExecutionAdapter} from '../../types/tool.js';
+import { ToolCategory } from '../../types/tool.js';
+import type { Logger} from '../../utils/logger.js';
+import { LogLevel, LogCategory } from '../../utils/logger.js';
+
 
 /**
  * Creates a fake model client for testing
+ * @param opts
+ * @param opts.chooseTool
+ * @param opts.secondChooseTool
  */
 export function fakeModelClient(opts: {
   // when true model returns tool_use on first call, otherwise "none"
@@ -73,6 +80,7 @@ export function fakeModelClient(opts: {
 
 /**
  * Creates a stubbed tool registry for testing
+ * @param abortBehavior
  */
 export function stubToolRegistry(abortBehavior?: 'never-resolves'): {
   registry: ToolRegistry;

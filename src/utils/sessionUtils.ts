@@ -3,15 +3,16 @@
  * @module SessionUtils
  * @internal
  */
-import { BusEvent, BusEvents } from '../types/bus-events.js';
-import { SessionState } from '../types/model.js';
-import { GitRepositoryInfo, DirtyRepositoryStatus } from '../types/repository.js';
-import { TypedEventEmitter } from './TypedEventEmitter.js';
+import type { BusEvents } from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
+import type { SessionState } from '../types/model.js';
+import type { GitRepositoryInfo, DirtyRepositoryStatus } from '../types/repository.js';
+
+import type { TypedEventEmitter } from './TypedEventEmitter.js';
 
 /**
  * Global event emitter for agent-wide events
  * This provides a centralized event system that doesn't rely on object references
- *
  * @example
  * ```typescript
  * import { AgentEvents, AgentEventType } from '@qckfx/agent';
@@ -30,7 +31,6 @@ import { TypedEventEmitter } from './TypedEventEmitter.js';
  *
  * This interface represents the data structure emitted with the
  * {@link AgentEventType.ENVIRONMENT_STATUS_CHANGED} event.
- *
  * @interface
  * @internal
  */
@@ -59,8 +59,8 @@ export interface EnvironmentStatusEvent {
 /**
  * Check if a session has been aborted
  * This function is used to check if an operation should be stopped mid-execution.
- *
  * @param sessionId The session ID to check
+ * @param sessionState
  * @returns Whether the session has been aborted
  * @internal
  */
@@ -72,6 +72,7 @@ export function isSessionAborted(sessionState: SessionState): boolean {
 /**
  * Get the timestamp when a session was aborted
  * @param sessionId The session ID to check
+ * @param sessionState
  * @returns The timestamp when the session was aborted, or null if not aborted
  * @internal
  */
@@ -82,6 +83,8 @@ export function getAbortTimestamp(sessionState: SessionState): number | null {
 /**
  * Mark a session as aborted
  * @param sessionId The session ID to abort
+ * @param sessionState
+ * @param eventBus
  * @returns The timestamp when the session was aborted
  * @internal
  */
@@ -102,6 +105,7 @@ export function setSessionAborted(
 /**
  * Clear aborted status for a session
  * @param sessionId The session ID to clear
+ * @param sessionState
  * @internal
  */
 export function clearSessionAborted(sessionState: SessionState): void {

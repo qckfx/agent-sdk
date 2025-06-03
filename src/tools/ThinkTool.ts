@@ -2,9 +2,10 @@
  * ThinkTool - Provides a dedicated space for Claude to think through complex problems
  */
 
+import type { ToolResult } from '../types/tool-result.js';
+import type { Tool, ToolContext, ValidationResult } from '../types/tool.js';
+
 import { createTool } from './createTool.js';
-import { Tool, ToolContext, ValidationResult } from '../types/tool.js';
-import { ToolResult } from '../types/tool-result.js';
 
 // Define types for the think tool
 interface ThinkArgs {

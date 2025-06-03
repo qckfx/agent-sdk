@@ -3,7 +3,7 @@
  * @module Events
  */
 
-import { ToolExecutionState } from './tool-execution/index.js';
+import type { ToolExecutionState } from './tool-execution/index.js';
 
 /**
  * Constants for processing lifecycle events

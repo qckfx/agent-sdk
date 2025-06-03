@@ -1,11 +1,11 @@
 /**
  * Mock implementation of E2BExecutionAdapter
  */
-import { ExecutionAdapter } from '../../types/tool.js';
-import { LSToolResult } from '../../tools/LSTool.js';
-import { FileReadToolResult } from '../../tools/FileReadTool.js';
-import { FileEditToolResult } from '../../tools/FileEditTool.js';
-import { GitRepositoryInfo } from '../../types/repository.js';
+import type { FileEditToolResult } from '../../tools/FileEditTool.js';
+import type { FileReadToolResult } from '../../tools/FileReadTool.js';
+import type { LSToolResult } from '../../tools/LSTool.js';
+import type { GitRepositoryInfo } from '../../types/repository.js';
+import type { ExecutionAdapter } from '../../types/tool.js';
 
 export class E2BExecutionAdapter implements ExecutionAdapter {
   /**

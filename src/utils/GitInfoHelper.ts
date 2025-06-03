@@ -7,8 +7,10 @@
  * - Working directory status - always checked in parallel
  */
 
-import { GitRepositoryInfo } from '../types/repository.js';
-import { LogCategory, Logger } from './logger.js';
+import type { GitRepositoryInfo } from '../types/repository.js';
+
+import type { Logger } from './logger.js';
+import { LogCategory } from './logger.js';
 
 // Type for execution function that runs git commands
 export type ExecuteCommandFn = (command: string) => Promise<{
@@ -47,6 +49,7 @@ export class GitInfoHelper {
    * Retrieves git repository information using optimized parallel execution
    * and instance-based caching
    * @param executeCommand Function to execute git commands
+   * @param repoPath
    * @returns Git repository information or null if not a git repository
    */
   async getGitRepositoryInfo(

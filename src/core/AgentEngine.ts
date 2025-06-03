@@ -8,8 +8,8 @@
  * altogether.
  */
 
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,6 +17,16 @@ import { v4 as uuidv4 } from 'uuid';
 // Type imports – kept local to avoid circular public exports
 // ---------------------------------------------------------------------------
 
+import { createBashTool } from '../tools/BashTool.js';
+import { createBatchTool } from '../tools/BatchTool.js';
+import { createFileEditTool } from '../tools/FileEditTool.js';
+import { createFileReadTool } from '../tools/FileReadTool.js';
+import { createFileWriteTool } from '../tools/FileWriteTool.js';
+import { createGlobTool } from '../tools/GlobTool.js';
+import { createGrepTool } from '../tools/GrepTool.js';
+import { createLSTool } from '../tools/LSTool.js';
+import { createSubAgentTool } from '../tools/SubAgentTool.js';
+import { createThinkTool } from '../tools/ThinkTool.js';
 import type { Agent, CoreAgentConfig } from '../types/main.js';
 
 import type { SessionState, ModelProvider } from '../types/model.js';
@@ -49,23 +59,13 @@ import { attachCheckpointSync } from '../utils/CheckpointSync.js';
 import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
 
 // Built-in tool factories ----------------------------------------------------
-import { createBashTool } from '../tools/BashTool.js';
-import { createGlobTool } from '../tools/GlobTool.js';
-import { createGrepTool } from '../tools/GrepTool.js';
-import { createLSTool } from '../tools/LSTool.js';
-import { createFileReadTool } from '../tools/FileReadTool.js';
-import { createFileEditTool } from '../tools/FileEditTool.js';
-import { createFileWriteTool } from '../tools/FileWriteTool.js';
-import { createThinkTool } from '../tools/ThinkTool.js';
-import { createBatchTool } from '../tools/BatchTool.js';
-
-import { createSubAgentTool } from '../tools/SubAgentTool.js';
-
-import { ContextWindow, createContextWindow } from '../types/contextWindow.js';
+import type { ContextWindow} from '../types/contextWindow.js';
+import { createContextWindow } from '../types/contextWindow.js';
 
 // Events / bus --------------------------------------------------------------
-import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
-import { BusEvents, BusEvent } from '../types/bus-events.js';
+import type { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+import type { BusEvents} from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
 
 /**
  * `AgentEngine` composes all long-lived collaborators (tool registry, model
@@ -233,6 +233,9 @@ export class AgentEngine implements Agent {
   /**
    * Process a user query.  Lazily constructs an AgentRunner (for now) that
    * owns one interaction with the FSM.
+   * @param query
+   * @param model
+   * @param sessionState
    */
   async processQuery(query: string, model: string, sessionState: SessionState) {
     // Ensure an execution adapter is present for this session.
@@ -288,6 +291,7 @@ export class AgentEngine implements Agent {
 
   /**
    * Register a new tool at runtime.
+   * @param tool
    */
   registerTool(tool: Tool) {
     this._toolRegistry.registerTool(tool);
@@ -448,6 +452,9 @@ export class AgentEngine implements Agent {
   /**
    * Create a fresh SessionState for convenience – mirrors legacy helper.
    * Kept as static helper so public Agent wrapper can re-export.
+   * @param config
+   * @param sessionId
+   * @param contextWindow
    */
   static async createSessionState(
     config: CoreAgentConfig,

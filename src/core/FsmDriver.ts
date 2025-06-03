@@ -5,17 +5,20 @@
  * @internal
  */
 
-import { AgentState, AgentEvent, transition, isTerminal } from './AgentFSM.js';
 
-import { ToolRegistry } from '../types/registry.js';
-import { ModelClient, SessionState, ToolCall } from '../types/model.js';
-import { PermissionManager } from '../types/permission.js';
-import { ExecutionAdapter } from '../types/tool.js';
-import { Logger, LogCategory } from '../utils/logger.js';
-import { withToolCall } from '../utils/withToolCall.js';
-import { ToolResultEntry } from '../types/agent.js';
+import type { ToolResultEntry } from '../types/agent.js';
 import type { LLM } from '../types/llm.js';
 import { isTextBlock, isToolUseBlock } from '../types/llm.js';
+import type { ModelClient, SessionState, ToolCall } from '../types/model.js';
+import type { PermissionManager } from '../types/permission.js';
+import type { ToolRegistry } from '../types/registry.js';
+import type { ExecutionAdapter } from '../types/tool.js';
+import type { Logger} from '../utils/logger.js';
+import { LogCategory } from '../utils/logger.js';
+import { withToolCall } from '../utils/withToolCall.js';
+
+import { transition, isTerminal } from './AgentFSM.js';
+import type { AgentState, AgentEvent} from './AgentFSM.js';
 
 type TextBlock = LLM.Messages.TextBlock;
 

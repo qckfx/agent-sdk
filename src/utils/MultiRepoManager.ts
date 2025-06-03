@@ -6,8 +6,9 @@
  * utilities for multi-repo operations.
  */
 
-import { ExecutionAdapter } from '../types/tool.js';
 import path from 'path';
+
+import type { ExecutionAdapter } from '../types/tool.js';
 
 export class MultiRepoManager {
   private repoCache: string[] | null = null;

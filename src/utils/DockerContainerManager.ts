@@ -1,8 +1,8 @@
 import { exec } from 'child_process';
-import path from 'path';
 import fs from 'fs';
-import { promisify } from 'util';
+import path from 'path';
 import { fileURLToPath } from 'url';
+import { promisify } from 'util';
 
 // ---------------------------------------------------------------------------
 // __dirname helper for ESM
@@ -97,6 +97,7 @@ export class DockerContainerManager {
 
   /**
    * Create a Docker container manager using docker-compose
+   * @param options
    */
   constructor(options: DockerManagerOptions) {
     // -------------------------------------------------------------------
@@ -232,6 +233,7 @@ export class DockerContainerManager {
    * with a mismatch between the recorded project root and the bind mount that
    * is active inside the container.  In that situation we return _false_ so
    * that the caller can stop and recreate the sandbox.
+   * @param containerId
    */
   private async isWorkspaceMountCorrect(containerId: string): Promise<boolean> {
     try {
@@ -433,6 +435,8 @@ export class DockerContainerManager {
 
   /**
    * Execute a command in the container
+   * @param command
+   * @param workingDir
    */
   public async executeCommand(
     command: string,

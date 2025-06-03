@@ -2,9 +2,9 @@
  * Types and interfaces for the tool registry
  */
 
-import { Tool, ParameterSchema, ToolContext, ToolCategory } from './tool.js';
-import { ToolResult } from './tool-result.js';
 import { ToolExecutionStatus } from './main.js';
+import type { ToolResult } from './tool-result.js';
+import type { Tool, ParameterSchema, ToolContext, ToolCategory } from './tool.js';
 
 export interface ToolDescription {
   id: string;

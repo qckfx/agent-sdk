@@ -2,7 +2,7 @@
  * Types and interfaces for model providers
  */
 
-import { AgentMessage, AgentResponse, ToolDefinition } from './agent.js';
+import type { AgentMessage, AgentResponse, ToolDefinition } from './agent.js';
 
 export interface ProviderOptions {
   baseUrl?: string;

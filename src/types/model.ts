@@ -2,13 +2,14 @@
  * Types and interfaces for model clients
  */
 
+import type { PromptManager } from '../core/PromptManager.js';
+import type { Logger } from '../utils/logger.js';
+
+import type { ContextWindow } from './contextWindow.js';
 import type { LLM } from './llm.js';
-import { ToolDescription, ToolRegistry } from './registry.js';
-import { PromptManager } from '../core/PromptManager.js';
-import { Logger } from '../utils/logger.js';
-import { ExecutionAdapter } from './tool.js';
-import { ContextWindow } from './contextWindow.js';
-import { LastToolError } from './tool-result.js';
+import type { ToolDescription, ToolRegistry } from './registry.js';
+import type { LastToolError } from './tool-result.js';
+import type { ExecutionAdapter } from './tool.js';
 
 export interface ToolCall {
   toolId: string;

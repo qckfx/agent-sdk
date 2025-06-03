@@ -6,10 +6,10 @@
  * switched to the new names and the alias will then be removed.
  */
 
-import type { ModelProviderRequest } from './model.js';
-import type { ModelInfo } from './provider.js';
 import type { Logger } from '../utils/logger.js';
-import type { TokenManager } from './model.js';
+
+import type { ModelProviderRequest , TokenManager } from './model.js';
+import type { ModelInfo } from './provider.js';
 
 // ---------------------------------------------------------------------------
 // Cache-control metadata (used by Claude-style prompt caching but kept generic)

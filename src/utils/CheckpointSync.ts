@@ -16,10 +16,11 @@
  * closure.
  */
 
+import type {
+  CheckpointPayload} from '../events/checkpoint-events.js';
 import {
   CheckpointEvents,
-  CHECKPOINT_READY_EVENT,
-  CheckpointPayload,
+  CHECKPOINT_READY_EVENT
 } from '../events/checkpoint-events.js';
 import type { SessionState } from '../types/model.js';
 
@@ -28,6 +29,7 @@ const DETACH_KEY = Symbol('checkpointSyncDetach');
 /**
  * Attach the checkpoint‑sync listener if it is not already attached.
  * Handles both single and multi-repo scenarios.
+ * @param sessionState
  */
 export function attachCheckpointSync(sessionState: SessionState): void {
   // If we have already attached a listener for this session, do nothing.
@@ -80,6 +82,7 @@ export function attachCheckpointSync(sessionState: SessionState): void {
 
 /**
  * Detach the checkpoint‑sync listener for the given session (if attached).
+ * @param sessionState
  */
 export function detachCheckpointSync(sessionState: SessionState): void {
   const detach: (() => void) | undefined = (sessionState as any)[DETACH_KEY];

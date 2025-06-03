@@ -3,7 +3,8 @@
  * @internal
  */
 
-import {
+import { isToolUseBlock } from '../types/llm.js';
+import type {
   ModelClient,
   ModelClientConfig,
   ModelProvider,
@@ -11,13 +12,14 @@ import {
   SessionState,
   ToolCallResponse,
 } from '../types/model.js';
-import { isToolUseBlock } from '../types/llm.js';
 // Import utils as needed
-import { ToolDescription } from '../types/registry.js';
-import { trackTokenUsage } from '../utils/TokenManager.js';
-import { createDefaultPromptManager, PromptManager } from './PromptManager.js';
-import { isSessionAborted } from '../utils/sessionUtils.js';
+import type { ToolDescription } from '../types/registry.js';
 import { LogCategory } from '../utils/logger.js';
+import { isSessionAborted } from '../utils/sessionUtils.js';
+import { trackTokenUsage } from '../utils/TokenManager.js';
+
+import type { PromptManager } from './PromptManager.js';
+import { createDefaultPromptManager } from './PromptManager.js';
 
 /**
  * Creates a client for interacting with the language model
@@ -59,6 +61,8 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
      * @param model - The model to use for this query
      * @param toolDescriptions - Descriptions of available tools
      * @param sessionState - Current session state
+     * @param options
+     * @param options.signal
      * @returns The recommended tool call
      */
     async getToolCall(
@@ -228,6 +232,10 @@ export function createModelClient(config: ModelClientConfig): ModelClient {
      * @param model - The model to use for this query
      * @param toolDescriptions - Descriptions of available tools
      * @param sessionState - Current session state
+     * @param options
+     * @param options.tool_choice
+     * @param options.tool_choice.type
+     * @param options.signal
      * @returns The generated response
      */
     async generateResponse(

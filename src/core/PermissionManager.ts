@@ -3,8 +3,8 @@
  * @internal
  */
 
-import { PermissionManager, PermissionManagerConfig, UIHandler } from '../types/permission.js';
-import { ToolRegistry } from '../types/registry.js';
+import type { PermissionManager, PermissionManagerConfig, UIHandler } from '../types/permission.js';
+import type { ToolRegistry } from '../types/registry.js';
 import { ToolCategory } from '../types/tool.js';
 import { LogCategory } from '../utils/logger.js';
 
@@ -43,6 +43,7 @@ const createPermissionManager = (
   return {
     /**
      * Request permission for a tool
+     * @param sessionId
      * @param toolId - The ID of the tool requesting permission
      * @param args - The arguments the tool will use
      * @returns Whether permission was granted

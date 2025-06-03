@@ -9,12 +9,13 @@
  */
 
 import fs from 'fs';
-import path from 'path';
 import os from 'os';
+import path from 'path';
 
 // We may safely import types from the SDK – they don’t create a runtime
 // dependency the CLI wouldn’t already have.
-import { ContextWindow, Message } from '../types/contextWindow.js';
+import type { Message } from '../types/contextWindow.js';
+import { ContextWindow } from '../types/contextWindow.js';
 
 // ---------------------------------------------------------------------------
 // Storage directory helpers
@@ -57,7 +58,10 @@ const ensureDir = (dir: string) => {
 // Serialisation helpers
 // ---------------------------------------------------------------------------
 
-/** Extract a serialisable representation from a ContextWindow instance. */
+/**
+ * Extract a serialisable representation from a ContextWindow instance.
+ * @param source
+ */
 function toSerializableMessages(source: ContextWindow | Message[] | unknown): Message[] | unknown {
   if (source instanceof ContextWindow) {
     return source.getMessages();
@@ -83,7 +87,10 @@ interface StoredSession {
   title?: string;
 }
 
-/** Persist the provided ContextWindow (or raw message array) to disk. */
+/**
+ * Persist the provided ContextWindow (or raw message array) to disk.
+ * @param source
+ */
 export function saveSession(source: ContextWindow | Message[] | undefined): void {
   if (!source) return;
 

@@ -5,17 +5,20 @@
  * Creates checkpoints before state-changing operations (writeFile, editFile, bash).
  */
 
-import { ExecutionAdapter } from '../types/tool.js';
-import { GitRepositoryInfo } from '../types/repository.js';
-import { FileEditToolResult } from '../tools/FileEditTool.js';
-import { FileReadToolResult } from '../tools/FileReadTool.js';
-import { LSToolResult } from '../tools/LSTool.js';
-import * as CheckpointManager from './CheckpointManager.js';
+import type {
+  CheckpointPayload} from '../events/checkpoint-events.js';
 import {
   CheckpointEvents,
-  CHECKPOINT_READY_EVENT,
-  CheckpointPayload,
+  CHECKPOINT_READY_EVENT
 } from '../events/checkpoint-events.js';
+import type { FileEditToolResult } from '../tools/FileEditTool.js';
+import type { FileReadToolResult } from '../tools/FileReadTool.js';
+import type { LSToolResult } from '../tools/LSTool.js';
+import type { GitRepositoryInfo } from '../types/repository.js';
+import type { ExecutionAdapter } from '../types/tool.js';
+
+import * as CheckpointManager from './CheckpointManager.js';
+
 
 /**
  * A wrapper around an ExecutionAdapter that adds multi-repo checkpointing functionality
@@ -59,6 +62,7 @@ export class CheckpointingExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Take a multi-repo checkpoint before a state-changing operation
+   * @param executionId
    * @param reason The reason for the checkpoint
    * @returns True if checkpoint was created, false if skipped
    */

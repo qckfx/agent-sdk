@@ -2,12 +2,13 @@
  * ErrorHandler - Provides consistent error handling functionality
  */
 
-import {
-  ErrorType,
+import type {
   CustomError,
   ErrorResponse,
   ErrorHandlerConfig,
-  ErrorHandler,
+  ErrorHandler} from '../types/error.js';
+import {
+  ErrorType
 } from '../types/error.js';
 
 /**

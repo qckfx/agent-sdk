@@ -5,13 +5,14 @@
  * and the internal AgentConfig type expected by the Agent implementation.
  */
 
-import { CoreAgentConfig, RepositoryEnvironment } from '../types/main.js';
-import { LogLevel } from '../types/logger.js';
-import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
-import { BusEvents } from '../types/bus-events.js';
-import { AgentConfig } from '@qckfx/sdk-schema';
+import type { AgentConfig } from '@qckfx/sdk-schema';
+
 import { LLMFactory } from '../providers/index.js';
-import { AgentCallbacks } from '../types/callbacks.js';
+import type { BusEvents } from '../types/bus-events.js';
+import type { AgentCallbacks } from '../types/callbacks.js';
+import type { LogLevel } from '../types/logger.js';
+import type { CoreAgentConfig, RepositoryEnvironment } from '../types/main.js';
+import type { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
 
 /**
  * A version of AgentConfig without the required properties so we can build it step by step.
@@ -21,9 +22,10 @@ type PartialAgentConfig = Partial<CoreAgentConfig>;
 
 /**
  * Convert a Zod-validated AgentConfigJSON to the internal AgentConfig type.
- *
  * @param jsonConfig The validated JSON configuration
  * @param modelProvider The model provider to use
+ * @param eventBus
+ * @param callbacks
  * @returns A proper AgentConfig object
  */
 export function convertToCoreAgentConfig(

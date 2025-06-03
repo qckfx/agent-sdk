@@ -2,14 +2,15 @@
  * TokenManager - Manages conversation history token usage
  */
 
-import {
+import type { LLM } from '../types/llm.js';
+import { isToolUseBlock } from '../types/llm.js';
+import type {
   SessionState,
   MessageTokenUsage,
   TokenManager as TokenManagerInterface,
 } from '../types/model.js';
-import type { LLM } from '../types/llm.js';
-import { LogCategory, Logger } from '../utils/logger.js';
-import { isToolUseBlock } from '../types/llm.js';
+import type { Logger } from '../utils/logger.js';
+import { LogCategory } from '../utils/logger.js';
 
 /**
  * Tracks token usage from model responses, including cache metrics if available

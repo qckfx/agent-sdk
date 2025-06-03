@@ -1,4 +1,4 @@
-import { AgentEventMap } from './events.js';
+import type { AgentEventMap } from './events.js';
 
 /**
  * Re-export AgentEventMap under a clearer alias used by the event bus.

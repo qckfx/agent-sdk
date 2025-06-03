@@ -4,16 +4,17 @@
  * This module re-exports the main public interfaces and types used by the agent.
  */
 
-import { ProcessQueryResult, ConversationResult } from './agent.js';
-import { ModelClient, SessionState } from './model.js';
-import { PermissionManager } from './permission.js';
-import { ToolRegistry } from './registry.js';
-import { Tool } from './tool.js';
-import { ModelProvider } from './model.js';
+import type { Logger, LogLevel } from '../utils/logger.js';
+import type { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+
+import type { ProcessQueryResult} from './agent.js';
+import { ConversationResult } from './agent.js';
+import type { BusEvents } from './bus-events.js';
+import type { ModelClient, SessionState , ModelProvider } from './model.js';
+import type { PermissionManager } from './permission.js';
+import type { ToolRegistry } from './registry.js';
 import { ToolExecutionEvent, ToolExecutionStatus } from './tool-execution/index.js';
-import { Logger, LogLevel } from '../utils/logger.js';
-import { BusEvents } from './bus-events.js';
-import { TypedEventEmitter } from '../utils/TypedEventEmitter.js';
+import type { Tool } from './tool.js';
 
 // Re-export tool execution types
 export { ToolExecutionEvent, ToolExecutionStatus };
@@ -23,7 +24,6 @@ export type RepositoryEnvironment = { type: 'local' } | { type: 'docker' } | { t
 
 /**
  * Configuration options for creating a new agent
- *
  * @interface CoreAgentConfig
  */
 export interface CoreAgentConfig {
@@ -89,7 +89,6 @@ export interface CoreAgentConfig {
   /**
    * Optional UI handler for permission requests
    * If not provided, a default console-based handler will be used
-   *
    * @example
    * ```typescript
    * const permissionUIHandler = {
@@ -112,7 +111,6 @@ export interface CoreAgentConfig {
   /**
    * Optional prompt manager for customizing system prompts
    * If not provided, a default prompt manager will be created
-   *
    * @example
    * ```typescript
    * const promptManager = createPromptManager(`

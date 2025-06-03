@@ -8,20 +8,21 @@
  * checkout is performed.
  */
 
-import { SessionState } from '../types/model.js';
-import { setSessionAborted } from './sessionUtils.js';
-import { TypedEventEmitter } from './TypedEventEmitter.js';
-import { BusEvents, BusEvent } from '../types/bus-events.js';
+import type { BusEvents} from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
+import type { SessionState } from '../types/model.js';
+
 import * as CheckpointManager from './CheckpointManager.js';
+import { setSessionAborted } from './sessionUtils.js';
+import type { TypedEventEmitter } from './TypedEventEmitter.js';
 
 /**
  * Roll back all repositories to a previous checkpoint for the given session.
  * Handles both single and multi-repo scenarios.
- *
  * @param sessionId   The active session identifier.
  * @param sessionState The session state containing execution adapter.
  * @param messageId   The message ID to rollback to (determines checkpoint).
- *
+ * @param eventBus
  * @returns Map of repository paths to commit SHAs that were reset to.
  */
 export async function rollbackSession(

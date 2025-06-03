@@ -4,10 +4,11 @@
 
 // Deprecated – kept solely for transitional builds.  Do **not** import this
 // module going forward; switch to `types/llm.ts` instead.
-import { ModelProviderRequest, TokenManager } from './model.js';
-import { Logger } from '../utils/logger.js';
-import { ModelInfo } from './provider.js';
+import type { Logger } from '../utils/logger.js';
+
 import type { LLM } from './llm.js';
+import type { ModelProviderRequest, TokenManager } from './model.js';
+import type { ModelInfo } from './provider.js';
 
 // Map all legacy Anthropic.* symbol references to the new generic LLM types.
 // This keeps the public interface unchanged while removing the dependency on
@@ -144,6 +145,7 @@ export interface LLMFactory {
 /**
  * Type guard to check if a content block is a TextBlock
  * Compatible with both our internal types and Anthropic SDK types
+ * @param block
  */
 export function isTextBlock(block: any): block is TextBlock {
   return block && block.type === 'text' && 'text' in block;
@@ -152,6 +154,7 @@ export function isTextBlock(block: any): block is TextBlock {
 /**
  * Type guard to check if a content block is a ToolUseBlock
  * Compatible with both our internal types and Anthropic SDK types
+ * @param block
  */
 export function isToolUseBlock(block: any): block is ToolUseBlock {
   return block && block.type === 'tool_use' && 'id' in block && 'name' in block && 'input' in block;

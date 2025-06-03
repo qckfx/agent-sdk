@@ -14,6 +14,17 @@
 // actual client instance is no longer used for the `create` call – doing so
 // would require an Anthropic API key, which we no longer need once the request
 // is proxied to OpenAI.
+import dotenv from 'dotenv';
+import OpenAI from 'openai';
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionCreateParams,
+  ChatCompletion,
+  ChatCompletionTool,
+  ChatCompletionToolChoiceOption,
+} from 'openai/resources/chat/completions';
+import { z } from 'zod';
+
 import type {
   LLM,
   LLMConfig,
@@ -22,15 +33,13 @@ import type {
   ToolWithCache,
   SystemWithCache,
 } from '../types/llm.js';
+import { LogCategory } from '../types/logger.js';
+import type { ModelProviderRequest } from '../types/model.js';
 import type { RemoteModelInfo, ModelInfo } from '../types/provider.js';
 // Official OpenAI SDK
-import OpenAI from 'openai';
-import type { ModelProviderRequest } from '../types/model.js';
-import { LogCategory } from '../types/logger.js';
-import { Logger } from '../utils/logger.js';
+import type { Logger } from '../utils/logger.js';
 import { tokenManager as defaultTokenManager } from '../utils/TokenManager.js';
-import { z } from 'zod';
-import dotenv from 'dotenv';
+
 
 dotenv.config();
 
@@ -44,13 +53,6 @@ const LIST_MODELS_URL = process.env.LIST_MODELS_URL!;
  * Convert Anthropic tool format (name/description/input_schema) → OpenAI
  * function tools format.
  */
-import type {
-  ChatCompletionMessageParam,
-  ChatCompletionCreateParams,
-  ChatCompletion,
-  ChatCompletionTool,
-  ChatCompletionToolChoiceOption,
-} from 'openai/resources/chat/completions';
 
 function convertToolsToOpenAI(tools?: LLM.Tool[]): ChatCompletionTool[] | undefined {
   if (!tools) return undefined;
@@ -66,6 +68,7 @@ function convertToolsToOpenAI(tools?: LLM.Tool[]): ChatCompletionTool[] | undefi
 
 /**
  * Convert a single Anthropic message → OpenAI chat message object.
+ * @param msg
  */
 function convertMessageToOpenAI(msg: LLM.Messages.MessageParam): ChatCompletionMessageParam {
   const role = msg.role;
@@ -151,6 +154,7 @@ function convertMessageToOpenAI(msg: LLM.Messages.MessageParam): ChatCompletionM
 
 /**
  * Convert Anthropic API params to an OpenAI chat/completions request body.
+ * @param apiParams
  */
 function convertAnthropicRequestToOpenAI(apiParams: any): ChatCompletionCreateParams {
   const messages: ChatCompletionMessageParam[] = [];
@@ -190,6 +194,7 @@ function convertAnthropicRequestToOpenAI(apiParams: any): ChatCompletionCreatePa
 /**
  * Perform the Chat Completions request via the official OpenAI SDK instead of a
  * raw `fetch`.  This returns the strongly-typed `ChatCompletion` object.
+ * @param sessionLlmApiKey
  */
 function getOpenAIClient(sessionLlmApiKey?: string): OpenAI {
   // Use the session API key if provided, otherwise fall back to environment variable
@@ -234,6 +239,7 @@ async function callOpenAI(
 /**
  * Convert an OpenAI ChatCompletion response back into Anthropic's Message
  * shape so that the rest of the codebase remains unchanged.
+ * @param openaiResp
  */
 function convertOpenAIResponseToAnthropic(openaiResp: ChatCompletion): LLM.Messages.Message {
   const choice = openaiResp.choices?.[0];
@@ -319,6 +325,8 @@ function createModelListFetcher() {
 
   /**
    * Fetches the list of available models from the remote API
+   * @param llmKey
+   * @param logger
    * @returns Promise with array of model information
    */
   async function fetchModelList(llmKey?: string, logger?: Logger): Promise<RemoteModelInfo[]> {
@@ -464,6 +472,8 @@ function createModelListFetcher() {
 
   /**
    * Returns the list of available models with their providers
+   * @param llmKey
+   * @param logger
    * @returns Promise with array of model names and providers
    */
   async function getAvailableModels(llmKey?: string, logger?: Logger): Promise<ModelInfo[]> {

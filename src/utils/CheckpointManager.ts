@@ -6,13 +6,14 @@
  * consumers (the agent server).
  */
 
-import { ExecutionAdapter } from '../types/tool.js';
 
 // ---------------------------------------------------------------------------
 // Utilities to keep the shadow repository out of the user's "git status"
 // ---------------------------------------------------------------------------
 import fs from 'fs';
 import path from 'path';
+
+import type { ExecutionAdapter } from '../types/tool.js';
 
 // Define interface for snapshot metadata (handles both single and multi-repo)
 export interface SnapshotMeta {
@@ -35,6 +36,8 @@ export interface SnapshotResult {
 
 /**
  * Get the shadow git directory path for a given repo root and session ID
+ * @param repoRoot
+ * @param sessionId
  */
 const getShadowDir = (repoRoot: string, sessionId: string): string => {
   return `${repoRoot}/.agent-shadow/${sessionId}`;
@@ -44,6 +47,9 @@ const getShadowDir = (repoRoot: string, sessionId: string): string => {
  * Build a git command with the correct --git-dir and --work-tree prefixes to target the shadow repo
  *
  * This ensures we operate on the shadow repo without affecting the user's .git directory
+ * @param shadowDir
+ * @param repoRoot
+ * @param cmd
  */
 const gitCommand = (shadowDir: string, repoRoot: string, cmd: string): string => {
   return `git --git-dir="${shadowDir}" --work-tree="${repoRoot}" ${cmd}`;
@@ -53,6 +59,7 @@ const gitCommand = (shadowDir: string, repoRoot: string, cmd: string): string =>
  * Ensure `.agent-shadow/` is ignored by the host repository so that it does
  * not appear in `git status`. This adds the pattern to `.git/info/exclude`, a
  * repo-local ignore file that is never committed.
+ * @param repoRoot
  */
 const ensureShadowDirIgnored = (repoRoot: string): void => {
   try {
@@ -82,6 +89,9 @@ const ensureShadowDirIgnored = (repoRoot: string): void => {
 /**
  * Make a gitignore-style exclusion file for the shadow repo
  * Copies the host .gitignore and adds shadow-specific exclusions
+ * @param repoRoot
+ * @param shadowDir
+ * @param adapter
  */
 const makeExcludeFile = async (
   repoRoot: string,
@@ -124,7 +134,6 @@ dist/
 
 /**
  * Initialize the checkpoint system for a session
- *
  * @param repoRoot Path to the repository root
  * @param sessionId Unique identifier for the session
  * @param adapter Execution adapter to use for operations
@@ -197,7 +206,6 @@ export async function init(
 
 /**
  * Create a snapshot of the current state
- *
  * @param meta Metadata for the snapshot
  * @param adapter Execution adapter to use for operations
  * @param repoRoot Path to the repository root
@@ -316,7 +324,6 @@ export async function snapshot(
  * NOTE:  This operation **will discard** any uncommitted modifications in the
  * worktree.  Callers are expected to checkpoint first if they might need to
  * recover those changes.
- *
  * @param sessionId  The session whose shadow repository should be used.
  * @param adapter    Execution adapter used to run git commands.
  * @param repoRoot   Absolute path to the host repository root.
@@ -364,7 +371,6 @@ export async function restore(
 
 /**
  * Initialize the checkpoint system for multiple repositories in a session
- *
  * @param repoPaths Array of repository root paths
  * @param sessionId Unique identifier for the session
  * @param adapter Execution adapter to use for operations
@@ -388,7 +394,6 @@ export async function initMultiRepo(
 /**
  * Create coordinated snapshots across multiple repositories
  * Uses --allow-empty to ensure each repository gets a checkpoint even if no changes exist
- *
  * @param meta Multi-repo snapshot metadata
  * @param adapter Execution adapter to use for operations
  * @param repoPaths Array of repository root paths
@@ -452,7 +457,6 @@ export async function snapshotMultiRepo(
 
 /**
  * Restore multiple repositories to specific checkpoint commits
- *
  * @param sessionId The session whose shadow repositories should be used
  * @param adapter Execution adapter used to run git commands
  * @param repoPaths Array of repository root paths to restore

@@ -12,19 +12,20 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 
+import { AgentConfigSchema } from '@qckfx/sdk-schema';
 import { Command } from 'commander';
-import prompts from 'prompts';
 import ora from 'ora';
+import prompts from 'prompts';
+import { ZodError } from 'zod';
 
 import { Agent } from '../Agent.js';
 
 // Session persistence (CLI-only)
-import { loadLastSession, saveSession } from './sessionStore.js';
 import { ContextWindow } from '../types/contextWindow.js';
 
+import { loadLastSession, saveSession } from './sessionStore.js';
+
 // Local schema validator (same helper used by validate-config.ts)
-import { AgentConfigSchema } from '@qckfx/sdk-schema';
-import { ZodError } from 'zod';
 
 interface CliOptions {
   agent?: string;
@@ -32,12 +33,17 @@ interface CliOptions {
   apiKey?: string;
   url?: string;
   validate?: string;
-  /** Commander stores this as a property literally named 'continue'.
-   *  We use string-literal property name to avoid TS keyword issues. */
+  /**
+   * Commander stores this as a property literally named 'continue'.
+   *  We use string-literal property name to avoid TS keyword issues.
+   */
   continue?: boolean;
 }
 
-/** Build a minimal default AgentConfig that allows all built-in tools. */
+/**
+ * Build a minimal default AgentConfig that allows all built-in tools.
+ * @param model
+ */
 function createDefaultConfig(model: string) {
   return {
     logLevel: 'error',

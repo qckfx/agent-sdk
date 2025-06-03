@@ -9,7 +9,7 @@
  * `ContextWindow.getMessages()` which exposes only the Anthropic shape.
  */
 
-import { Message } from './contextWindow.js';
+import type { Message } from './contextWindow.js';
 
 export interface ConversationMessage {
   /**

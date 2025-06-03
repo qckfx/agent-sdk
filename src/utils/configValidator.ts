@@ -33,7 +33,6 @@ export class ConfigValidationError extends Error {
 
 /**
  * Validate a configuration object against the latest AgentConfig schema.
- *
  * @param config The parsed configuration object
  * @returns The **same** object if validation succeeds
  * @throws ConfigValidationError when validation fails

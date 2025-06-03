@@ -1,17 +1,22 @@
 import path from 'path';
-import { ExecutionAdapter } from '../types/tool.js';
-import { FileEditToolResult } from '../tools/FileEditTool.js';
-import { FileReadToolResult } from '../tools/FileReadTool.js';
-import { FileEntry, LSToolResult } from '../tools/LSTool.js';
-import { DockerContainerManager, ContainerInfo } from './DockerContainerManager.js';
-import { LogCategory, Logger } from './logger.js';
-import { EnvironmentStatusEvent } from './sessionUtils.js';
-import { TypedEventEmitter } from './TypedEventEmitter.js';
-import { BusEvents, BusEvent } from '../types/bus-events.js';
-import { GitRepositoryInfo } from '../types/repository.js';
-import { GitInfoHelper } from './GitInfoHelper.js';
-import { MultiRepoManager } from './MultiRepoManager.js';
+
+import type { FileEditToolResult } from '../tools/FileEditTool.js';
+import type { FileReadToolResult } from '../tools/FileReadTool.js';
+import type { FileEntry, LSToolResult } from '../tools/LSTool.js';
+import type { BusEvents} from '../types/bus-events.js';
+import { BusEvent } from '../types/bus-events.js';
 import { SessionState } from '../types/model.js';
+import type { GitRepositoryInfo } from '../types/repository.js';
+import type { ExecutionAdapter } from '../types/tool.js';
+
+import type { DockerContainerManager, ContainerInfo } from './DockerContainerManager.js';
+import { GitInfoHelper } from './GitInfoHelper.js';
+import type { Logger } from './logger.js';
+import { LogCategory } from './logger.js';
+import { MultiRepoManager } from './MultiRepoManager.js';
+import type { EnvironmentStatusEvent } from './sessionUtils.js';
+import type { TypedEventEmitter } from './TypedEventEmitter.js';
+
 
 /**
  * Execution adapter that runs commands in a Docker container
@@ -38,6 +43,11 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Create a Docker execution adapter with a container manager
+   * @param sessionId
+   * @param containerManager
+   * @param options
+   * @param options.logger
+   * @param options.eventBus
    */
   constructor(
     sessionId: string,
@@ -117,6 +127,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Emit environment status event
+   * @param status
+   * @param isReady
+   * @param error
    */
   private emitEnvironmentStatus(
     status: 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'error',
@@ -170,6 +183,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Execute a command in the Docker container
+   * @param executionId
+   * @param command
+   * @param workingDir
    */
   async executeCommand(
     executionId: string,
@@ -247,6 +263,12 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Read a file from the container
+   * @param executionId
+   * @param filepath
+   * @param maxSize
+   * @param lineOffset
+   * @param lineCount
+   * @param encoding
    */
   async readFile(
     executionId: string,
@@ -414,6 +436,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Write content to a file in the container
+   * @param executionId
+   * @param filepath
+   * @param content
    */
   async writeFile(executionId: string, filepath: string, content: string): Promise<void> {
     try {
@@ -512,6 +537,11 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Edit a file by replacing content
    * Uses a binary-safe approach to handle files with special characters
+   * @param executionId
+   * @param filepath
+   * @param searchCode
+   * @param replaceCode
+   * @param encoding
    */
   async editFile(
     executionId: string,
@@ -776,6 +806,9 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Find files matching a glob pattern
+   * @param executionId
+   * @param pattern
+   * @param _options
    */
   async glob(executionId: string, pattern: string, _options?: any): Promise<string[]> {
     try {
@@ -814,6 +847,10 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * List directory contents
+   * @param executionId
+   * @param dirPath
+   * @param showHidden
+   * @param details
    */
   async ls(
     executionId: string,
@@ -1035,6 +1072,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Convert a host path to a container path
+   * @param hostPath
+   * @param containerInfo
    */
   private toContainerPath(hostPath: string, containerInfo: ContainerInfo): string {
     // If path is already a container path starting with workspace path, return as is
@@ -1076,6 +1115,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Convert a container path to a host path
+   * @param containerPath
+   * @param containerInfo
    */
   private toHostPath(containerPath: string, containerInfo: ContainerInfo): string {
     if (containerPath.startsWith(containerInfo.workspacePath)) {
@@ -1090,6 +1131,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
   /**
    * Format a path for display by converting absolute paths to relative ones
    * This is used in tool results to show more user-friendly paths
+   * @param absolutePath
+   * @param containerInfo
    */
   private formatPathForDisplay(absolutePath: string, containerInfo: ContainerInfo): string {
     // If it's a container path, convert to relative project path
@@ -1108,6 +1151,8 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
 
   /**
    * Check if a path is within the working directory
+   * @param filepath
+   * @param containerInfo
    */
   private isPathWithinWorkingDir(filepath: string, containerInfo: ContainerInfo): boolean {
     // Only allow paths within /workspace or /tmp

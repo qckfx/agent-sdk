@@ -5,23 +5,25 @@
  */
 
 import type { AgentRunner, AgentRunnerConfig, ProcessQueryResult } from '../types/agent.js';
+import { BusEvent } from '../types/bus-events.js';
 import type { SessionState } from '../types/model.js';
-
-import { createDefaultPromptManager } from './PromptManager.js';
-
+import { attachCheckpointSync } from '../utils/CheckpointSync.js';
 import { LogCategory, createLogger, LogLevel } from '../utils/logger.js';
+import { isSessionAborted, clearSessionAborted } from '../utils/sessionUtils.js';
 
 import { FsmDriver } from './FsmDriver.js';
-import { isSessionAborted, clearSessionAborted } from '../utils/sessionUtils.js';
-import { attachCheckpointSync } from '../utils/CheckpointSync.js';
+import { createDefaultPromptManager } from './PromptManager.js';
 
-import { BusEvent } from '../types/bus-events.js';
+
+
+
 
 /**
  * Drop-in compatible shim that exposes the historical `createAgentRunner`
  * signature but internally runs the exact same FSM logic that now lives in
  * AgentEngine.  All stateful collaborators are supplied by the caller via the
  * config object just like before.
+ * @param config
  */
 export function createAgentRunner(config: AgentRunnerConfig): AgentRunner {
   const {

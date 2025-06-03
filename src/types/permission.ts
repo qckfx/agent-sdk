@@ -2,7 +2,7 @@
  * Types and interfaces for permission management
  */
 
-import { Logger } from '../utils/logger.js';
+import type { Logger } from '../utils/logger.js';
 
 export interface UIHandler {
   requestPermission(

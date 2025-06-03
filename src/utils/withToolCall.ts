@@ -1,8 +1,9 @@
-import { ToolCall, SessionState } from '../types/model.js';
-import { ToolResultEntry } from '../types/agent.js';
-import { ToolContext } from '../types/tool.js';
-import { ToolResult, LastToolError } from '../types/tool-result.js';
+import type { ToolResultEntry } from '../types/agent.js';
 import { LogCategory } from '../types/logger.js';
+import type { ToolCall, SessionState } from '../types/model.js';
+import type { ToolResult} from '../types/tool-result.js';
+import { LastToolError } from '../types/tool-result.js';
+import type { ToolContext } from '../types/tool.js';
 
 /**
  * Executes a tool call and guarantees that a matching `tool_result` block is
@@ -10,6 +11,11 @@ import { LogCategory } from '../types/logger.js';
  *
  * It also appends an entry to the in‑memory `toolResults` array that the
  * AgentRunner uses for its cumulative result.
+ * @param toolCall
+ * @param sessionState
+ * @param toolResults
+ * @param exec
+ * @param context
  */
 export async function withToolCall(
   toolCall: ToolCall,

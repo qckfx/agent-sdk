@@ -3,13 +3,15 @@
  * @internal
  */
 
-import { Tool, ToolContext, ToolCategory } from '../types/tool.js';
-import { ToolDescription, ToolRegistry } from '../types/registry.js';
-import { ToolResult } from '../types/tool-result.js';
-import { Logger, LogCategory } from '../utils/logger.js';
+import type { ToolDescription, ToolRegistry } from '../types/registry.js';
+import type { ToolResult } from '../types/tool-result.js';
+import type { Tool, ToolContext, ToolCategory } from '../types/tool.js';
+import type { Logger} from '../utils/logger.js';
+import { LogCategory } from '../utils/logger.js';
 
 /**
  * Creates a tool registry to manage available tools
+ * @param logger
  * @returns The tool registry interface
  * @internal
  */

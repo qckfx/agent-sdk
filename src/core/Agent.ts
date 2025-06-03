@@ -2,10 +2,22 @@
  * Agent - Main factory for creating agents
  */
 
-import { Agent, CoreAgentConfig } from '../types/main.js';
-import { ModelProvider, SessionState } from '../types/model.js';
+import fs from 'fs';
+import path from 'path';
+
+import { v4 as uuidv4 } from 'uuid';
+
+import { createBashTool } from '../tools/BashTool.js';
+import { createBatchTool } from '../tools/BatchTool.js';
+import { createFileEditTool } from '../tools/FileEditTool.js';
+import { createFileReadTool } from '../tools/FileReadTool.js';
+import { createGlobTool } from '../tools/GlobTool.js';
+import type { ContextWindow} from '../types/contextWindow.js';
+import { createContextWindow } from '../types/contextWindow.js';
+import type { Agent, CoreAgentConfig } from '../types/main.js';
+import type { ModelProvider, SessionState } from '../types/model.js';
+import type { ExecutionAdapter, Tool } from '../types/tool.js';
 import { LogLevel, createLogger, LogCategory } from '../utils/logger.js';
-import { ContextWindow, createContextWindow } from '../types/contextWindow.js';
 import { createToolRegistry } from './ToolRegistry.js';
 import { createPermissionManager } from './PermissionManager.js';
 import { createModelClient } from './ModelClient.js';
@@ -13,25 +25,17 @@ import { createDefaultPromptManager, createPromptManager } from './PromptManager
 import { createAgentRunner } from './AgentRunner.js';
 
 // Default tools
-import { createBashTool } from '../tools/BashTool.js';
-import { createGlobTool } from '../tools/GlobTool.js';
 import { createGrepTool } from '../tools/GrepTool.js';
 import { createLSTool } from '../tools/LSTool.js';
-import { createFileReadTool } from '../tools/FileReadTool.js';
-import { createFileEditTool } from '../tools/FileEditTool.js';
 import { createFileWriteTool } from '../tools/FileWriteTool.js';
 import { createThinkTool } from '../tools/ThinkTool.js';
-import { createBatchTool } from '../tools/BatchTool.js';
-import { ExecutionAdapter, Tool } from '../types/tool.js';
 import { createSubAgentTool } from '../tools/SubAgentTool.js';
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import { createExecutionAdapter } from '../utils/ExecutionAdapterFactory.js';
 
 /**
  * Creates a complete agent with default tools
  * @param config - Agent configuration
+ * @param sessionId
  * @returns The configured agent
  */
 export const createAgent = async (config: CoreAgentConfig, sessionId: string): Promise<Agent> => {

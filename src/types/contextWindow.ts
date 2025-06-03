@@ -2,9 +2,10 @@
  * ContextWindow - Manages conversation context and file access tracking
  */
 
-import type { LLM } from './llm.js';
 import { nanoid } from 'nanoid';
-import { ConversationMessage } from './conversation.js';
+
+import type { ConversationMessage } from './conversation.js';
+import type { LLM } from './llm.js';
 
 export class ContextWindow {
   // Internal conversation history (wrapper objects)
@@ -48,6 +49,7 @@ export class ContextWindow {
    * Update the context's notion of the most recent checkpoint.  All
    * subsequently pushed messages will store this value so that rollbacks can
    * resolve the correct commit even for read‑only events.
+   * @param id
    */
   public setLastCheckpointId(id?: string): void {
     this._lastCheckpointId = id;
@@ -55,6 +57,7 @@ export class ContextWindow {
 
   /**
    * Record a file being read in the current context
+   * @param filePath
    */
   public recordFileRead(filePath: string): void {
     this._filesRead.add(filePath);
@@ -62,6 +65,7 @@ export class ContextWindow {
 
   /**
    * Check if a file has been read in the current context
+   * @param filePath
    */
   public hasReadFile(filePath: string): boolean {
     return this._filesRead.has(filePath);

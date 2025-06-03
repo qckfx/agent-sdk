@@ -12,8 +12,8 @@
  * for caching and prompt organization.
  */
 
-import { SessionState } from '../types/model.js';
-import { GitRepositoryInfo } from '../types/repository.js';
+import type { SessionState } from '../types/model.js';
+import type { GitRepositoryInfo } from '../types/repository.js';
 
 /**
  * Interface for prompt managers that generate system prompts
@@ -93,6 +93,7 @@ export class BasicPromptManager implements PromptManager {
   }
 
   /**
+   * @param sessionState
    * @deprecated Use getSystemPrompts() instead for multi-prompt support
    */
   getSystemPrompt(sessionState?: SessionState): string {
@@ -108,6 +109,7 @@ export class BasicPromptManager implements PromptManager {
    * 3. Git state (updated per iteration)
    * 4. Error context (changes per iteration)
    * 5. Tool limit warning (only added when needed)
+   * @param sessionState
    */
   getSystemPrompts(sessionState?: SessionState): string[] {
     // Start with the most stable prompts
