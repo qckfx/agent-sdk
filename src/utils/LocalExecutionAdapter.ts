@@ -157,106 +157,72 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
         };
       }
       
-      // Create a temporary directory for our work files
-      const tempDir = await mkdtempAsync(path.join(os.tmpdir(), 'qckfx-edit-'));
-      
-      try {
-        this.logger?.debug(`Using binary-safe replacement with temp directory: ${tempDir}`, LogCategory.TOOLS);
-        
-        // Create temporary files for the search pattern, replacement, and original content
-        const searchFile = path.join(tempDir, 'search');
-        const replaceFile = path.join(tempDir, 'replace');
-        const originalFile = path.join(tempDir, 'original');
-        const newFile = path.join(tempDir, 'new');
-        
-        // Write content to temporary files
-        await writeFileAsync(searchFile, normalizedSearchCode);
-        await writeFileAsync(replaceFile, normalizedReplaceCode);
-        await writeFileAsync(originalFile, fileContent);
-        
-        // Check if our binary-replace script is available
-        const binaryReplaceScript = path.resolve(__dirname, '..', '..', 'scripts', 'binary-replace.sh');
-        let binaryReplaceExists = false;
-        
-        try {
-          await fs.promises.access(binaryReplaceScript, fs.constants.X_OK);
-          binaryReplaceExists = true;
-          this.logger?.debug(`Using binary-replace script at: ${binaryReplaceScript}`, LogCategory.TOOLS);
-        } catch (err) {
-          this.logger?.warn(`Binary-replace script not found or not executable at: ${binaryReplaceScript}`, LogCategory.TOOLS);
-          binaryReplaceExists = false;
+      // ---------------------------------------------
+      // In-memory binary-safe replacement (single match)
+      // ---------------------------------------------
+
+      // Read original file as raw bytes
+      const originalBuffer = await fs.promises.readFile(resolvedPath);
+
+      // Build candidate search buffers to handle possible \r\n vs \n differences
+      const searchBufferCandidates = [
+        Buffer.from(searchCode, encoding as BufferEncoding),
+        Buffer.from(normalizedSearchCode, encoding as BufferEncoding)
+      ];
+
+      let firstIdx = -1;
+      let searchBuffer: Buffer | null = null;
+      for (const cand of searchBufferCandidates) {
+        if (cand.length === 0) continue;
+        const idx = originalBuffer.indexOf(cand);
+        if (idx !== -1) {
+          firstIdx = idx;
+          searchBuffer = cand;
+          break;
         }
-        
-        let newContent: string;
-        
-        if (binaryReplaceExists) {
-          // Execute the binary-replace script to do the replacement
-          try {
-            const { exitCode, stdout, stderr } = 
-              await this.executeCommand(executionId, `"${binaryReplaceScript}" "${originalFile}" "${searchFile}" "${replaceFile}" "${newFile}"`);
-            
-            if (exitCode !== 0) {
-              // Handle specific exit codes from the script
-              if (exitCode === 2) {
-                throw new Error(`Search pattern not found in file: ${filepath}`);
-              } else if (exitCode === 3) {
-                throw new Error(`Multiple instances of the search pattern found in file: ${filepath}`);
-              } else {
-                throw new Error(`Binary replacement script failed: ${stderr || stdout || 'Unknown error'}`);
-              }
-            }
-            
-            // Read the new content after successful replacement
-            newContent = (await readFileAsync(newFile, encoding as BufferEncoding)).toString();
-          } catch (scriptError) {
-            throw new Error(`Binary replacement failed: ${(scriptError as Error).message}`);
-          }
-        } else {
-          // Fallback to the string-based approach if the script isn't available
-          this.logger?.warn('Falling back to string-based replacement', LogCategory.TOOLS);
-          
-          // Use string replacement with careful handling of newlines
-          const searchIndex = normalizedContent.indexOf(normalizedSearchCode);
-          if (searchIndex === -1) {
-            throw new Error(`Search pattern not found in file: ${filepath}`);
-          }
-          
-          const prefixContent = normalizedContent.substring(0, searchIndex);
-          const suffixContent = normalizedContent.substring(searchIndex + normalizedSearchCode.length);
-          
-          // Construct the new content with proper newline preservation
-          newContent = prefixContent + normalizedReplaceCode + suffixContent;
-          
-          // Add diagnostic logging for newline debugging
-          this.logger?.debug('File edit newline preservation check:', LogCategory.TOOLS, {
-            searchEndsWithNewline: normalizedSearchCode.endsWith('\n'),
-            replaceEndsWithNewline: normalizedReplaceCode.endsWith('\n'),
-            suffixStartsWithNewline: suffixContent.startsWith('\n')
-          });
-        }
-        
-        // Write the updated content back to the original file
-        await writeFileAsync(resolvedPath, newContent, encoding as BufferEncoding);
-        
-        // Clean up temporary directory
-        await this.executeCommand(executionId, `rm -rf "${tempDir}"`);
-        
-        return {
-          ok: true as const,
-          data: {
-            path: resolvedPath,
-            originalContent: fileContent,
-            newContent: newContent
-          }
-        };
-      } catch (processingError) {
-        // Clean up temporary directory on error
-        await this.executeCommand(executionId, `rm -rf "${tempDir}"`).catch(() => {
-          // Ignore cleanup errors
-        });
-        
-        throw processingError;
       }
+
+      if (firstIdx === -1 || !searchBuffer) {
+        return {
+          ok: false as const,
+          error: `Search code not found in file: ${filepath}`
+        };
+      }
+
+      const secondIdx = originalBuffer.indexOf(searchBuffer, firstIdx + searchBuffer.length);
+      if (secondIdx !== -1) {
+        return {
+          ok: false as const,
+          error: `Found multiple instances of the search code. Please provide a more specific search code that matches exactly once.`
+        };
+      }
+
+      // Build new buffer
+      const replaceBuffer = Buffer.from(replaceCode, encoding as BufferEncoding);
+
+      const newBuffer = Buffer.concat([
+        originalBuffer.subarray(0, firstIdx),
+        replaceBuffer,
+        originalBuffer.subarray(firstIdx + searchBuffer.length)
+      ]);
+
+      // Write back atomically using a temporary file then rename
+      const tempDir = await mkdtempAsync(path.join(os.tmpdir(), 'qckfx-edit-'));
+      const tempFilePath = path.join(tempDir, path.basename(resolvedPath));
+      await fs.promises.writeFile(tempFilePath, newBuffer);
+      await fs.promises.rename(tempFilePath, resolvedPath);
+      await fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {/* ignore */});
+
+      const newContent = newBuffer.toString(encoding as BufferEncoding);
+
+      return {
+        ok: true as const,
+        data: {
+          path: resolvedPath,
+          originalContent: fileContent,
+          newContent
+        }
+      };
     } catch (error: unknown) {
       const err = error as Error;
       return {
@@ -327,28 +293,6 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       }
     }
     
-    // ------------------------------------------------------
-    // TEXT FILE HANDLING (utf-8 and friends)
-    // ------------------------------------------------------
-    // The previous implementation relied on spawning external
-    // `head`, `tail` and `nl` commands. That approach had a few
-    // drawbacks:
-    //   1. Performance – every invocation spawns a new shell
-    //      process which is noticeably slower, especially on
-    //      macOS and even more so on Windows where GNU coreutils
-    //      are not available by default.
-    //   2. Portability – `nl` is not shipped with the default
-    //      Windows environment leading to runtime failures.
-    //   3. Correctness – once the command already paginated the
-    //      output, we were slicing the text a second time which
-    //      produced empty results for many (offset, count)
-    //      combinations.
-    //
-    // Given that FileReadTool imposes a hard 500 kB limit (and
-    // passes the requested `maxSize` to this adapter) it is safe
-    // and much faster to read the file directly into memory and
-    // perform the minimal pagination/numbering logic in JS.
-
     // Read the entire file – we have already checked that it does
     // not exceed `maxSize`.
     const rawText = await fs.promises.readFile(resolvedPath, encoding as BufferEncoding);
