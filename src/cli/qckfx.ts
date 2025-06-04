@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable jsdoc/require-param-type, jsdoc/require-param-description, jsdoc/require-returns, @typescript-eslint/no-explicit-any */
 /**
  * qckfx.ts – unified CLI entry-point for quick agent execution
  *
@@ -9,7 +10,9 @@
  *   $ npx qckfx --validate my-agent.json   # validate only
  */
 
-import { readFileSync, existsSync } from 'fs';
+/* eslint-disable no-console */
+
+import { readFileSync } from 'fs';
 import path from 'path';
 
 import { AgentConfigSchema } from '@qckfx/sdk-schema';
@@ -20,28 +23,34 @@ import { ZodError } from 'zod';
 
 import { Agent } from '../Agent.js';
 
-// Session persistence (CLI-only)
+// Session persistence helpers (CLI-only)
 import { ContextWindow } from '../types/contextWindow.js';
-
 import { loadLastSession, saveSession } from './sessionStore.js';
 
-// Local schema validator (same helper used by validate-config.ts)
+// Shared helpers
+import { augmentAgentConfigWithSubAgents } from './augmentSubAgentTools.js';
+import { resolveAgentConfigPath } from './pathResolvers.js';
 
+//---------------------------------------------------------------------
+// Types
+//---------------------------------------------------------------------
 interface CliOptions {
   agent?: string;
   model?: string;
   apiKey?: string;
   url?: string;
   validate?: string;
-  /**
-   * Commander stores this as a property literally named 'continue'.
-   *  We use string-literal property name to avoid TS keyword issues.
-   */
+  /* Commander stores the flag literally named 'continue'.  We use an
+   * index access to avoid the TS keyword when reading it below. */
   continue?: boolean;
+  withSubagent?: string[];
 }
 
+//---------------------------------------------------------------------
+// Helpers
+//---------------------------------------------------------------------
 /**
- * Build a minimal default AgentConfig that allows all built-in tools.
+ *
  * @param model
  */
 function createDefaultConfig(model: string) {
@@ -51,6 +60,9 @@ function createDefaultConfig(model: string) {
   } as const;
 }
 
+//---------------------------------------------------------------------
+// Main
+//---------------------------------------------------------------------
 /**
  *
  */
@@ -66,6 +78,10 @@ async function main() {
     .option('--url <baseUrl>', 'Override LLM_BASE_URL environment variable')
     .option('-v, --validate <file>', 'Validate agent definition file and exit')
     .option('-c, --continue', 'Continue the most recent session')
+    .option(
+      '--with-subagent <name...>',
+      'Add sub-agent tool(s) for this run (resolved from .qckfx/sub-agents/<name>.json)',
+    )
     .argument('[prompt...]', 'Prompt to run');
 
   program.parse(process.argv);
@@ -73,9 +89,9 @@ async function main() {
   const opts = program.opts<CliOptions>();
   const promptArgs: string[] = program.args as string[];
 
-  // ---------------------------------------------------------
-  // Session resume logic – load the previous context window
-  // ---------------------------------------------------------
+  //-------------------------------------------------------------------
+  // Session resume logic
+  //-------------------------------------------------------------------
   let initialContextWindow: ContextWindow | undefined;
   const continueFlag = (opts as Record<string, unknown>)['continue'] === true;
 
@@ -92,9 +108,9 @@ async function main() {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Validation-only path
-  // ---------------------------------------------------------------------------
+  //-------------------------------------------------------------------
+  // Validate-only path
+  //-------------------------------------------------------------------
   if (opts.validate) {
     try {
       const filePath = path.resolve(process.cwd(), opts.validate);
@@ -115,10 +131,10 @@ async function main() {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Gather prompt (positional args or interactive)
-  // ---------------------------------------------------------------------------
-  let promptText: string | undefined;
+  //-------------------------------------------------------------------
+  // Gather prompt
+  //-------------------------------------------------------------------
+  let promptText: string;
   if (promptArgs && promptArgs.length > 0) {
     promptText = promptArgs.join(' ');
   } else {
@@ -128,7 +144,6 @@ async function main() {
       message: 'Enter prompt',
       validate: val => (val && val.trim().length > 0 ? true : 'Prompt cannot be empty'),
     });
-
     if (typeof res.prompt !== 'string') {
       console.error('Prompt is required.');
       process.exit(1);
@@ -136,43 +151,15 @@ async function main() {
     promptText = res.prompt.trim();
   }
 
-  // ---------------------------------------------------------------------------
+  //-------------------------------------------------------------------
   // Determine agent configuration
-  // ---------------------------------------------------------------------------
-  let agentConfig: any; // Using any to avoid re-declaring full type here
-
+  //-------------------------------------------------------------------
+  let agentConfig: any; // Using `any` to avoid repeating full type here
   if (opts.agent) {
     try {
-      // ---------------------------------------------------------------------
-      // Support shorthand agent names by resolving against .qckfx/<name>.json
-      // ---------------------------------------------------------------------
-      const resolveAgentPath = (input: string): string => {
-        const cwd = process.cwd();
-
-        // 1. If the supplied path exists as-is (relative or absolute) use it
-        const directPath = path.resolve(cwd, input);
-        if (existsSync(directPath)) {
-          return directPath;
-        }
-
-        // 2. If the user omitted the .json extension, append it
-        const withJsonExt = input.endsWith('.json') ? input : `${input}.json`;
-
-        // 3. Look inside the conventional .qckfx directory in the CWD
-        const qckfxPath = path.resolve(cwd, '.qckfx', withJsonExt);
-        if (existsSync(qckfxPath)) {
-          return qckfxPath;
-        }
-
-        // 4. Not found – fall back to direct path (will error below)
-        return directPath;
-      };
-
-      const filePath = resolveAgentPath(opts.agent);
-
+      const filePath = resolveAgentConfigPath(opts.agent);
       const raw = readFileSync(filePath, 'utf8');
       const parsed = JSON.parse(raw);
-      // Validate upfront for a nicer error message
       AgentConfigSchema.parse(parsed);
       agentConfig = parsed;
     } catch (err: unknown) {
@@ -188,38 +175,38 @@ async function main() {
     agentConfig = createDefaultConfig(opts.model ?? 'gemini-2.5-pro');
   }
 
-  // If the user supplied -m but the config already has defaultModel we still honour the flag when calling processQuery.
-
-  // ---------------------------------------------------------------------------
+  //-------------------------------------------------------------------
   // Environment overrides
-  // ---------------------------------------------------------------------------
+  //-------------------------------------------------------------------
   if (opts.apiKey) {
     process.env.LLM_API_KEY = opts.apiKey;
   }
-
   if (opts.url) {
     process.env.LLM_BASE_URL = opts.url;
   }
 
-  // ---------------------------------------------------------------------------
-  // Run the agent
-  // ---------------------------------------------------------------------------
-  const spinner = ora('Processing…').start();
+  //-------------------------------------------------------------------
+  // Augment config with additional sub-agent tool(s)
+  //-------------------------------------------------------------------
+  if (Array.isArray(opts.withSubagent) && opts.withSubagent.length > 0) {
+    augmentAgentConfigWithSubAgents(agentConfig, opts.withSubagent, process.cwd());
+  }
 
+  //-------------------------------------------------------------------
+  // Run the agent
+  //-------------------------------------------------------------------
+  const spinner = ora('Processing…').start();
   try {
     const agent = await Agent.create({ config: agentConfig });
-
     const modelToUse = opts.model ?? agentConfig.defaultModel ?? 'gemini-2.5-pro';
 
     const result = await agent.processQuery(promptText, modelToUse, initialContextWindow);
-
     spinner.stop();
 
     if (result.aborted) {
       console.error('Operation aborted.');
       process.exit(1);
     }
-
     if (result.error) {
       console.error(`Error: ${result.error}`);
       process.exit(1);
@@ -231,7 +218,7 @@ async function main() {
       console.log('No response returned.');
     }
 
-    // Persist the updated conversation for next time, ignoring failures.
+    // Persist updated context for next session (ignore failures)
     if (result.contextWindow) {
       saveSession(result.contextWindow as any);
     }

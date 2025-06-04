@@ -21,6 +21,11 @@ model_list:
       model: openai/o4-mini
       api_key: 'os.environ/OPENAI_API_KEY'
       drop_params: true
+  - model_name: gpt-4.1-mini
+    litellm_params:
+      model: openai/gpt-4.1-mini
+      api_key: 'os.environ/OPENAI_API_KEY'
+      drop_params: true
   - model_name: gpt-4.1-nano
     litellm_params:
       model: openai/gpt-4.1-nano
@@ -35,4 +40,14 @@ model_list:
     litellm_params:
       model: mistral/devstral-small-2505
       api_key: 'os.environ/MISTRAL_API_KEY'
+      drop_params: true
+  - model_name: llama-3.1-8b
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: 'os.environ/GROQ_API_KEY'
+      drop_params: true
+  - model_name: qwen-32b
+    litellm_params:
+      model: groq/qwen-qwq-32b
+      api_key: 'os.environ/GROQ_API_KEY'
       drop_params: true
