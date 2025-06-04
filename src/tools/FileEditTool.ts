@@ -39,7 +39,7 @@ export const createFileEditTool = (): Tool<FileEditToolResult> => {
     id: 'file_edit',
     name: 'FileEditTool',
     description:
-      '- Modifies existing files by replacing specific content\n- Ensures precise targeting of text to be replaced\n- Preserves file structure and formatting\n- Maintains file encodings during edits\n- Normalizes line endings for consistent handling\n- Use this tool for targeted edits to existing files\n- For creating new files, use FileWriteTool instead\n\nUsage notes:\n- First use FileReadTool to understand the file\'s contents\n- The searchCode MUST match exactly once in the file\n- IMPORTANT: Include sufficient context in searchCode to ensure uniqueness\n- Make sure replaceCode maintains correct syntax and indentation\n- WARNING: The edit will fail if searchCode is found multiple times\n- WARNING: The edit will fail if searchCode isn\'t found exactly as provided\n- TIP: For complex edits, consider using FileWriteTool instead\n- TIP: When possible, include a few lines before and after the code you want to replace\n\nExample call:\n            { "path": "src/utils.js", "searchCode": "function oldName() {\\n  return true;\\n}", "replaceCode": "function newName() {\\n  return true;\\n}" }',
+      '- Modifies existing files by replacing specific content\n- Ensures precise targeting of text to be replaced\n- Preserves file structure and formatting\n- Maintains file encodings during edits\n- Normalizes line endings for consistent handling\n- Use this tool for targeted edits to existing files\n- For creating new files, use FileWriteTool instead\n\nUsage notes:\n- First use FileReadTool to understand the file\'s contents\n- The searchCode MUST match exactly once in the file\n- IMPORTANT: Include sufficient context in searchCode to ensure uniqueness\n- Make sure replaceCode maintains correct syntax and indentation\n- Use empty string ("") for replaceCode to delete the matched content\n- For multiple edits, use BatchTool to combine multiple FileEditTool calls\n- WARNING: The edit will fail if searchCode is found multiple times\n- WARNING: The edit will fail if searchCode isn\'t found exactly as provided\n- TIP: For complex edits, consider using FileWriteTool instead\n- TIP: When possible, include a few lines before and after the code you want to replace\n\nExample calls:\n            { "path": "src/utils.js", "searchCode": "function oldName() {\\n  return true;\\n}", "replaceCode": "function newName() {\\n  return true;\\n}" }\n            { "path": "src/utils.js", "searchCode": "// TODO: remove this\\nconsole.log(\\"debug\\");", "replaceCode": "" }',
     requiresPermission: true,
     category: ToolCategory.FILE_OPERATION,
     alwaysRequirePermission: false, // Can be bypassed in fast edit mode
@@ -72,21 +72,23 @@ export const createFileEditTool = (): Tool<FileEditToolResult> => {
       if (!args.path || typeof args.path !== 'string') {
         return {
           valid: false,
-          reason: 'File path must be a string',
+          reason: 'File path must be provided as a non-empty string',
         };
       }
 
       if (!args.searchCode || typeof args.searchCode !== 'string') {
         return {
           valid: false,
-          reason: 'Search code must be provided as a string',
+          reason:
+            'Search code must be provided as a non-empty string. Include sufficient context to ensure a unique match.',
         };
       }
 
-      if (!args.replaceCode || typeof args.replaceCode !== 'string') {
+      if (typeof args.replaceCode !== 'string') {
         return {
           valid: false,
-          reason: 'Replace code must be provided as a string',
+          reason:
+            'Replace code must be provided as a string. Use an empty string ("") to delete the matched code.',
         };
       }
 
@@ -108,7 +110,7 @@ export const createFileEditTool = (): Tool<FileEditToolResult> => {
         context.logger?.warn(`Attempt to edit file ${filePath} without reading it first`);
         return {
           ok: false,
-          error: `File must be read before editing. Please use FileReadTool first to read the file.`,
+          error: `File must be read before editing. Please use FileReadTool first to read ${filePath} and understand its contents before making changes.`,
         };
       }
 
@@ -145,7 +147,7 @@ export const createFileEditTool = (): Tool<FileEditToolResult> => {
         console.error(`Error editing file: ${err.message}`);
         return {
           ok: false,
-          error: err.message,
+          error: `Failed to edit file ${filePath}: ${err.message}`,
         };
       }
     },

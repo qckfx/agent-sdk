@@ -184,14 +184,14 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       if (occurrences === 0) {
         return {
           ok: false as const,
-          error: `Search code not found in file: ${filepath}`,
+          error: `Search code not found in file: ${filepath}. Ensure the search code matches exactly, including whitespace and line endings. Consider reading the file first to verify the exact content.`,
         };
       }
 
       if (occurrences > 1) {
         return {
           ok: false as const,
-          error: `Found ${occurrences} instances of the search code. Please provide a more specific search code that matches exactly once.`,
+          error: `Found ${occurrences} instances of the search code in ${filepath}. Please provide a more specific search code with additional surrounding context to ensure exactly one match.`,
         };
       }
 
@@ -223,7 +223,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       if (firstIdx === -1 || !searchBuffer) {
         return {
           ok: false as const,
-          error: `Search code not found in file: ${filepath}`,
+          error: `Search code not found in file: ${filepath}. Ensure the search code matches exactly, including whitespace and line endings. Consider reading the file first to verify the exact content.`,
         };
       }
 
@@ -231,7 +231,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
       if (secondIdx !== -1) {
         return {
           ok: false as const,
-          error: `Found multiple instances of the search code. Please provide a more specific search code that matches exactly once.`,
+          error: `Found multiple instances of the search code in ${filepath}. Please provide a more specific search code with additional surrounding context to ensure exactly one match.`,
         };
       }
 
