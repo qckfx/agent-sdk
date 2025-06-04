@@ -9,7 +9,7 @@
  *   $ npx qckfx --validate my-agent.json   # validate only
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 
 import { AgentConfigSchema } from '@qckfx/sdk-schema';
@@ -143,7 +143,33 @@ async function main() {
 
   if (opts.agent) {
     try {
-      const filePath = path.resolve(process.cwd(), opts.agent);
+      // ---------------------------------------------------------------------
+      // Support shorthand agent names by resolving against .qckfx/<name>.json
+      // ---------------------------------------------------------------------
+      const resolveAgentPath = (input: string): string => {
+        const cwd = process.cwd();
+
+        // 1. If the supplied path exists as-is (relative or absolute) use it
+        const directPath = path.resolve(cwd, input);
+        if (existsSync(directPath)) {
+          return directPath;
+        }
+
+        // 2. If the user omitted the .json extension, append it
+        const withJsonExt = input.endsWith('.json') ? input : `${input}.json`;
+
+        // 3. Look inside the conventional .qckfx directory in the CWD
+        const qckfxPath = path.resolve(cwd, '.qckfx', withJsonExt);
+        if (existsSync(qckfxPath)) {
+          return qckfxPath;
+        }
+
+        // 4. Not found – fall back to direct path (will error below)
+        return directPath;
+      };
+
+      const filePath = resolveAgentPath(opts.agent);
+
       const raw = readFileSync(filePath, 'utf8');
       const parsed = JSON.parse(raw);
       // Validate upfront for a nicer error message
