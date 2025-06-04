@@ -268,6 +268,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
    * @param lineOffset
    * @param lineCount
    * @param encoding
+   * @param numberLines
    */
   async readFile(
     executionId: string,
@@ -276,6 +277,7 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
     lineOffset?: number,
     lineCount?: number,
     encoding?: string,
+    numberLines: boolean = true,
   ): Promise<FileReadToolResult> {
     try {
       if (!encoding) {
@@ -346,23 +348,24 @@ export class DockerExecutionAdapter implements ExecutionAdapter {
         };
       }
 
-      // Build the command to read file content.  We have two very distinct
-      // modes:
-      //   1)  Regular text read (default) – we pipe the file through `nl` so
-      //       callers receive line numbers for easier display and context.
-      //   2)  Raw/binary read with `encoding === "base64"` – used by the
-      //       checkpointing system to transfer git-bundles out of the
-      //       container.  In this scenario we must *not* run the content
-      //       through `nl` because it would corrupt the binary stream.  We
-      //       instead send the exact bytes encoded as base64 so the caller
-      //       can decode them on the host side.
+      // Build the command to read file content.  We have three modes:
+      //   1)  Base64 encoding for binary files
+      //   2)  Raw text read without line numbers
+      //   3)  Text read with line numbers (default)
       let command: string;
 
       if (encoding === 'base64') {
         // `base64 -w0` writes the encoded data without line breaks which makes
         // it easier to decode afterwards and keeps output size small.
         command = `base64 -w0 "${containerPath}"`;
+      } else if (!numberLines) {
+        // Raw text read
+        command = `cat "${containerPath}"`;
+        if (lineOffset > 0 || lineCount !== undefined) {
+          command = `head -n ${lineOffset + (lineCount || 0)} "${containerPath}" | tail -n ${lineCount || '+0'}`;
+        }
       } else {
+        // Text read with line numbers (old behavior)
         command = `nl "${containerPath}"`;
         if (lineOffset > 0 || lineCount !== undefined) {
           command = `head -n ${lineOffset + (lineCount || 0)} "${containerPath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`;

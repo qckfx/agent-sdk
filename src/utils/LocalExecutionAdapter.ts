@@ -283,6 +283,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     lineOffset?: number,
     lineCount?: number,
     encoding?: string,
+    numberLines: boolean = true,
   ) {
     if (!encoding) {
       encoding = 'utf8';
@@ -354,13 +355,17 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
 
     const requestedLines = allLines.slice(startIdx, endIdx);
 
-    // Prefix each line with its (1-based) number using a tab – the
-    // same format that the `nl` utility would produce.
-    const numbered = requestedLines.map(
-      (ln, i) => `${(startIdx + i + 1).toString().padStart(6, ' ')}\t${ln}`,
-    );
-
-    const content = numbered.join('\n');
+    let content: string;
+    if (numberLines) {
+      // Prefix each line with its (1-based) number using a tab – the
+      // same format that the `nl` utility would produce.
+      const numbered = requestedLines.map(
+        (ln, i) => `${(startIdx + i + 1).toString().padStart(6, ' ')}\t${ln}`,
+      );
+      content = numbered.join('\n');
+    } else {
+      content = requestedLines.join('\n');
+    }
 
     return {
       ok: true as const,

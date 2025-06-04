@@ -157,6 +157,7 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
     lineOffset?: number,
     lineCount?: number,
     encoding?: string,
+    numberLines: boolean = true,
   ): Promise<FileReadToolResult> {
     if (!encoding) {
       encoding = 'utf8';
@@ -178,18 +179,24 @@ export class RemoteExecutionAdapter implements ExecutionAdapter {
           error: `File does not exist: ${filepath}`,
         };
       }
-      let fileContent = '';
-      if (lineOffset > 0 || lineCount !== undefined) {
-        // Use head and tail with nl for pagination, starting line numbers from lineOffset+1
-        const { stdout } = await this.sandbox.commands.run(
-          `head -n ${lineOffset + (lineCount || 0)} "${filepath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`,
-        );
-        fileContent = stdout;
+      let cmd: string;
+      if (!numberLines) {
+        // Raw text read
+        if (lineOffset > 0 || lineCount !== undefined) {
+          cmd = `head -n ${lineOffset + (lineCount || 0)} "${filepath}" | tail -n ${lineCount || '+0'}`;
+        } else {
+          cmd = `cat "${filepath}"`;
+        }
       } else {
-        // Use nl for the whole file
-        const { stdout } = await this.sandbox.commands.run(`nl "${filepath}"`);
-        fileContent = stdout;
+        // Text read with line numbers (old behavior)
+        if (lineOffset > 0 || lineCount !== undefined) {
+          cmd = `head -n ${lineOffset + (lineCount || 0)} "${filepath}" | tail -n ${lineCount || '+0'} | nl -v ${lineOffset + 1}`;
+        } else {
+          cmd = `nl "${filepath}"`;
+        }
       }
+      const { stdout } = await this.sandbox.commands.run(cmd);
+      let fileContent = stdout;
 
       // Handle line pagination if requested
       if (lineOffset > 0 || lineCount !== undefined) {

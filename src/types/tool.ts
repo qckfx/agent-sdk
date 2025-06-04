@@ -46,6 +46,9 @@ export interface ExecutionAdapter {
 
   glob: (executionId: string, pattern: string, options?: any) => Promise<string[]>;
 
+  /**
+   * @param numberLines Whether to prefix each line with numbers. Default: true.
+   */
   readFile: (
     executionId: string,
     filepath: string,
@@ -53,6 +56,7 @@ export interface ExecutionAdapter {
     lineOffset?: number,
     lineCount?: number,
     encoding?: string,
+    numberLines?: boolean,
   ) => Promise<FileReadToolResult>;
 
   writeFile: (

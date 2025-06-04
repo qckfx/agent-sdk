@@ -18,6 +18,7 @@ export interface FileReadToolArgs {
   maxSize?: number;
   lineOffset?: number;
   lineCount?: number;
+  numberLines?: boolean;
 }
 
 interface FileReadToolData {
@@ -45,7 +46,7 @@ export const createFileReadTool = (): Tool<FileReadToolResult> => {
     id: 'file_read',
     name: 'FileReadTool',
     description:
-      '- Reads the contents of files in the filesystem\n- Handles text files with various encodings\n- Supports partial file reading with line offset and count\n- Limits file size for performance and safety (500KB hard cap)\n- Automatically prefixes each line with its number (like `cat -n`) for easier code review\n- Use this tool to examine file contents\n- Use LSTool to explore directories before reading specific files\n\nUsage notes:\n- Provide the exact file path to read\n- Files larger than 500KB will be rejected, even if a higher `maxSize` is supplied\n- At most 1 000 lines can be returned in a single call, even if a higher `lineCount` is supplied\n- For large files, make multiple calls with `lineOffset` to page through the file\n- The returned text always includes line numbers; there is currently no flag to disable them\n- The result also includes metadata such as file size and encoding\n\nExample call:\n            { "path": "src/index.js", "lineOffset": 10, "lineCount": 50 }',
+      '- Reads the contents of files in the filesystem\n- Handles text files with various encodings\n- Supports partial file reading with line offset and count\n- Limits file size for performance and safety (500KB hard cap)\n- By default prefixes each line with its number (like `cat -n`) for easier code review\n- Use this tool to examine file contents\n- Use LSTool to explore directories before reading specific files\n\nUsage notes:\n- Provide the exact file path to read\n- Files larger than 500KB will be rejected, even if a higher `maxSize` is supplied\n- At most 1 000 lines can be returned in a single call, even if a higher `lineCount` is supplied\n- For large files, make multiple calls with `lineOffset` to page through the file\n- Set `numberLines: false` to get raw file content without line numbers\n- The result also includes metadata such as file size and encoding\n\nExample call:\n            { "path": "src/index.js", "lineOffset": 10, "lineCount": 50, "numberLines": false }',
     requiresPermission: false, // Reading files is generally safe
     category: ToolCategory.READONLY,
 
@@ -73,6 +74,10 @@ export const createFileReadTool = (): Tool<FileReadToolResult> => {
         type: 'number',
         description:
           'Maximum number of lines to read. Default: 1000 lines. Hard-capped at 1000 regardless of value provided.',
+      },
+      numberLines: {
+        type: 'boolean',
+        description: 'Whether to prefix each line with numbers (like `cat -n`). Default: true.',
       },
     },
     requiredParameters: ['path'],
@@ -102,6 +107,7 @@ export const createFileReadTool = (): Tool<FileReadToolResult> => {
       const requestedLineCount =
         args.lineCount !== undefined ? (args.lineCount as number) : undefined;
       const lineCount = requestedLineCount ? Math.min(requestedLineCount, 1000) : 1000;
+      const numberLines = args.numberLines !== undefined ? (args.numberLines as boolean) : true;
 
       // Check if we're running in a sandbox (E2B)
       const isSandbox = !!process.env.SANDBOX_ROOT;
@@ -130,6 +136,7 @@ export const createFileReadTool = (): Tool<FileReadToolResult> => {
           lineOffset,
           lineCount,
           encoding,
+          numberLines,
         );
 
         // If successful (result.ok is true), record the file read in the contextWindow
