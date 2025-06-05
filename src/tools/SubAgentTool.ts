@@ -8,8 +8,6 @@
 import fs from 'fs';
 import path from 'path';
 
-import { createTool } from './createTool.js';
-
 import { Agent } from '../Agent.js';
 import { ToolResult } from '../types/tool-result.js';
 import type { Tool } from '../types/tool.js';
@@ -25,6 +23,7 @@ export interface SubAgentReference {
  */
 import type { Logger } from '../utils/logger.js';
 import { LogCategory } from '../utils/logger.js';
+import { createTool } from './createTool.js';
 
 /**
  *

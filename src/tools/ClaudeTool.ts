@@ -31,9 +31,11 @@ export const createClaudeTool = (): Tool<ClaudeToolResult> => {
     id: 'claude',
     name: 'ClaudeTool',
     description:
-      `claude code is an agentic coding CLI tool. Executes \`claude -p "<prompt>"\` where <prompt> is the provided query. ` +
-      `Captures stdout/stderr. If the command fails (non-zero exit) or stderr contains 'rate limit', returns {error:"rate_limit"} so ` +
-      `callers can gracefully fall back. Usage example:\n  { "query": "Refactor utils.ts for readability" }`,
+      `claude code is an agentic coding CLI tool. You are passing in the query to instruct the agent on what to do. ` +
+      `The agent is fully autonomous and capable of writing and running code, running linters, tests, etc., ` +
+      `reading code and browsing the codebase, answering questions about the code, refactoring code, and more.` +
+      `This tool captures stdout/stderr. If the command fails (non-zero exit) or stderr contains 'rate limit', returns {error:"rate_limit"} so ` +
+      `callers can gracefully fall back to other tools. Usage example:\n  { "query": "Refactor utils.ts for readability" }`,
     requiresPermission: true,
     alwaysRequirePermission: true,
     category: ToolCategory.SHELL_EXECUTION,
@@ -59,6 +61,7 @@ export const createClaudeTool = (): Tool<ClaudeToolResult> => {
     ): Promise<ClaudeToolResult> => {
       const query = args.query as string;
 
+      context.logger?.debug('ClaudeTool query:', query);
       // Create a temporary file *inside the execution environment* using the
       // adapter's writeFile capability so we don't depend on the local
       // filesystem layout.
@@ -66,13 +69,17 @@ export const createClaudeTool = (): Tool<ClaudeToolResult> => {
 
       await context.executionAdapter.writeFile(context.executionId, tmpPath, query);
 
-      const cmd = `claude -p - < "${tmpPath}"`;
+      const cmd = `claude -p < "${tmpPath}"`;
 
       try {
         context.logger?.debug(`Executing Claude CLI: ${cmd}`);
+        const extendedTimeoutMs = 20 * 60 * 1000; // 20 minutes
         const { stdout, stderr, exitCode } = await context.executionAdapter.executeCommand(
           context.executionId,
           cmd,
+          undefined, // workingDir
+          false, // checkpoint (unused for local adapter)
+          extendedTimeoutMs,
         );
 
         const isRateLimited = stderr.toLowerCase().includes('rate limit');

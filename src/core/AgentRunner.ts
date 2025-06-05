@@ -8,7 +8,7 @@ import type { AgentRunner, AgentRunnerConfig, ProcessQueryResult } from '../type
 import { BusEvent } from '../types/bus-events.js';
 import type { SessionState } from '../types/model.js';
 import { attachCheckpointSync } from '../utils/CheckpointSync.js';
-import { LogCategory, createLogger, LogLevel } from '../utils/logger.js';
+import { LogCategory } from '../utils/logger.js';
 import { isSessionAborted, clearSessionAborted } from '../utils/sessionUtils.js';
 
 import { FsmDriver } from './FsmDriver.js';

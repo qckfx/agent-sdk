@@ -4,8 +4,6 @@
 
 import path from 'path';
 
-import { glob } from 'glob';
-
 import type { ToolResult } from '../types/tool-result.js';
 import type { Tool, ToolContext, ValidationResult } from '../types/tool.js';
 import { ToolCategory } from '../types/tool.js';

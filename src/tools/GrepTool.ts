@@ -3,16 +3,12 @@
  */
 
 // path import removed as it's unused
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
 import type { ToolResult } from '../types/tool-result.js';
 import type { Tool, ToolContext, ValidationResult } from '../types/tool.js';
 import { ToolCategory } from '../types/tool.js';
 
 import { createTool } from './createTool.js';
-
-const execAsync = promisify(exec);
 
 // ------------------------------------------------------------
 // Public argument & result helper types
