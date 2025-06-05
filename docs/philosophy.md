@@ -1,76 +1,102 @@
 # Design Philosophy In Depth
 
-This document explores how the core design principles of modularity and unopinionated design are implemented throughout the codebase.
+This document explores how the core design principles of modularity and unopinionated design are implemented throughout the qckfx Agent SDK codebase.
 
 ## Modularity in Practice
 
-### Provider Abstraction
+### OpenAI-Compatible Provider System
 
-The model provider system demonstrates our commitment to modularity. Each provider implements a common interface but can have completely different implementations:
+The model provider system demonstrates our commitment to modularity through a unified OpenAI-compatible interface that works with any provider:
 
 ```typescript
-// src/types/provider.ts
-export interface ModelProvider {
-  generateResponse(request: ModelRequest): Promise<ModelResponse>;
-}
+// The LLMFactory creates providers that all use the OpenAI SDK internally
+import { LLMFactory } from '@qckfx/agent';
 
-// src/providers/AnthropicProvider.ts
-export function createAnthropicProvider(options: AnthropicProviderOptions): ModelProvider {
-  // Implementation details...
-  return {
-    generateResponse: async request => {
-      // Anthropic-specific implementation
-    },
-  };
-}
+// Works with any OpenAI-compatible endpoint
+const provider = LLMFactory.createProvider({
+  model: 'claude-3-5-sonnet-20241022', // Via LiteLLM or OpenRouter
+  cachingEnabled: true,
+});
+
+// Or with direct OpenAI
+const provider = LLMFactory.createProvider({
+  model: 'gpt-4', // Direct OpenAI API
+  cachingEnabled: true,
+});
 ```
 
-This makes it trivial to add support for new model providers without changing any other code.
+This design makes it trivial to switch between any OpenAI-compatible provider (OpenAI, Anthropic via LiteLLM, Google via OpenRouter, local models via Ollama, etc.) without changing any other code.
 
 ### Tool Registry System
 
-Tools are registered independently and can be composed into custom toolsets:
+Tools are registered independently and can be composed into custom toolsets using a standardized interface:
 
 ```typescript
-// Example of how tools are registered
-import { createTool } from '@qckfx/agent';
-import { ToolRegistry } from '@qckfx/agent';
+// Create a custom tool using the factory
+import { createTool, ToolCategory } from '@qckfx/agent';
 
-// Create a custom tool
 const myCustomTool = createTool({
-  name: 'myTool',
-  description: 'Does something useful',
-  execute: async params => {
-    // Implementation
-    return { result: 'success' };
+  id: 'my_custom_tool',
+  name: 'My Custom Tool',
+  description: 'Does something useful for my specific use case',
+  requiresPermission: true,
+  category: ToolCategory.NETWORK,
+  parameters: {
+    input: {
+      type: 'string',
+      description: 'Input parameter',
+    },
+    options: {
+      type: 'object',
+      description: 'Optional configuration',
+    },
+  },
+  requiredParameters: ['input'],
+  execute: async (args, context) => {
+    // Access execution environment
+    const { executionAdapter, logger, sessionState } = context;
+
+    // Implement your tool logic
+    const result = await processInput(args.input, args.options);
+
+    return {
+      ok: true,
+      data: result,
+      metadata: { timestamp: new Date().toISOString() },
+    };
   },
 });
 
-// Register tools selectively
-const registry = new ToolRegistry();
-registry.register(myCustomTool);
+// Register with agent
+agent.registerTool(myCustomTool);
 ```
 
-### Execution Environment Abstraction
+### Local Execution Environment
 
-The execution environment system lets you choose where tools execute without changing your agent's core logic:
+The current implementation focuses on local execution with a clean abstraction that could be extended:
 
 ```typescript
-// Different execution environments through a factory pattern
-// src/utils/ExecutionAdapterFactory.ts
-export class ExecutionAdapterFactory {
-  static create(config: ExecutionConfig): ExecutionAdapter {
-    switch (config.type) {
-      case 'local':
-        return new LocalExecutionAdapter(config);
-      case 'docker':
-        return new DockerExecutionAdapter(config);
-      case 'remote':
-        return new E2BExecutionAdapter(config);
-      default:
-        throw new Error(`Unknown execution environment: ${config.type}`);
-    }
-  }
+// The ExecutionAdapter interface provides a consistent API
+interface ExecutionAdapter {
+  executeCommand(
+    executionId: string,
+    command: string,
+    workingDir?: string,
+  ): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+  }>;
+
+  readFile(executionId: string, filepath: string, options?: any): Promise<FileReadResult>;
+  writeFile(executionId: string, filepath: string, content: string): Promise<void>;
+  editFile(
+    executionId: string,
+    filepath: string,
+    searchCode: string,
+    replaceCode: string,
+  ): Promise<FileEditResult>;
+  // ... other file and directory operations
 }
 ```
 
@@ -81,157 +107,204 @@ export class ExecutionAdapterFactory {
 The event system is minimalistic and doesn't force specific handling patterns:
 
 ```typescript
-// src/utils/sessionUtils.ts
-export const AgentEvents = new EventEmitter();
-
-export enum AgentEventType {
-  ABORT_SESSION = 'abort_session',
-  ENVIRONMENT_STATUS_CHANGED = 'environment_status_changed',
-  PROCESSING_COMPLETED = 'processing_completed',
+// Events are defined as simple enums
+export enum BusEvent {
+  PROCESSING_STARTED = 'processing:started',
+  PROCESSING_COMPLETED = 'processing:completed',
+  PROCESSING_ERROR = 'processing:error',
+  TOOL_EXECUTION_STARTED = 'tool:execution:started',
+  TOOL_EXECUTION_COMPLETED = 'tool:execution:completed',
+  TOOL_EXECUTION_ERROR = 'tool:execution:error',
+  ENVIRONMENT_STATUS_CHANGED = 'environment:status_changed',
+  CHECKPOINT_READY = 'checkpoint:ready',
 }
 
-// Tool execution events are defined separately in types/tool-execution/index.ts
-export enum ToolExecutionEvent {
-  CREATED = 'tool_execution:created',
-  UPDATED = 'tool_execution:updated',
-  COMPLETED = 'tool_execution:completed',
-  ERROR = 'tool_execution:error',
-  ABORTED = 'tool_execution:aborted',
-  PERMISSION_REQUESTED = 'tool_execution:permission_requested',
-  PERMISSION_RESOLVED = 'tool_execution:permission_resolved',
-  PREVIEW_GENERATED = 'tool_execution:preview_generated',
-}
+// Subscribe only to the events you care about
+agent.on('tool:execution:completed', data => {
+  console.log(`Tool ${data.toolName} completed in ${data.executionTime}ms`);
+  // Handle completion however makes sense for your application
+});
 
-// Usage: Subscribe only to the events you care about
-AgentEvents.on(AgentEventType.PROCESSING_COMPLETED, data => {
-  console.log(`Processing completed for session: ${data.sessionId}`);
+// Or use callbacks during agent creation
+const agent = await Agent.create({
+  config: {
+    /* ... */
+  },
+  callbacks: {
+    onProcessingCompleted: data => {
+      // Custom completion handling
+      updateUI(data.response);
+    },
+    onToolExecutionError: data => {
+      // Custom error handling
+      logError(data.error, data.toolName);
+    },
+  },
 });
 ```
 
 ### Flexible Permission System
 
-The permission system provides fine-grained control with three distinct tiers of permissions:
+The permission system provides fine-grained control with a clear hierarchy of permission requirements:
 
 ```typescript
-// Using the permission manager
-import { createPermissionManager } from '@qckfx/agent';
+// The permission manager handles three tiers of permissions
+import { ToolCategory } from '@qckfx/agent';
 
-// Create a permission manager with custom UI handler
-const permissionManager = createPermissionManager(toolRegistry, {
-  uiHandler: {
-    async requestPermission(toolId, args) {
-      // Custom permission UI logic here
-      console.log(`Tool ${toolId} requesting permission with args:`, args);
-      return await askUserForPermission(toolId, args);
-    },
-  },
-  initialFastEditMode: false, // Default: require permission for file operations
-  DANGER_MODE: false, // Default: safer mode that requires permissions
-});
-```
-
-The permission system implements a clear hierarchy of permission requirements:
-
-#### Tier 1: No Permission Required
-
-Tools that don't need permission will execute automatically:
-
-```typescript
-// A tool that doesn't require permission
-const ReadOnlyTool = createTool({
-  name: 'Info',
+// Tier 1: No Permission Required (readonly operations)
+const readOnlyTool = createTool({
+  id: 'info_tool',
+  name: 'Information Tool',
   description: 'Get information without modifying anything',
-  requiresPermission: false, // Key setting: no permission needed
-  execute: async args => {
-    // Implementation that doesn't need permission
-    return { result: 'Read-only information' };
+  requiresPermission: false, // No permission needed
+  category: ToolCategory.READONLY,
+  execute: async (args, context) => {
+    // Safe read-only operations
+    return { ok: true, data: 'Read-only information' };
   },
 });
-```
 
-#### Tier 2: Standard Permission
-
-Tools that require permission but can be auto-approved in Fast Edit Mode:
-
-```typescript
-// A file operation tool that can be auto-approved in Fast Edit Mode
-const FileEditTool = createTool({
-  name: 'EditFile',
-  description: 'Edits a file',
+// Tier 2: Standard Permission (can be auto-approved in Fast Edit Mode)
+const fileEditTool = createTool({
+  id: 'edit_file',
+  name: 'Edit File',
+  description: 'Edits a file with targeted replacements',
   requiresPermission: true, // Requires permission by default
   category: ToolCategory.FILE_OPERATION, // Important for Fast Edit Mode
-  execute: async args => {
-    // Implementation
+  execute: async (args, context) => {
+    return context.executionAdapter.editFile(
+      context.executionId,
+      args.filepath,
+      args.searchCode,
+      args.replaceCode,
+    );
   },
 });
 
-// Toggle Fast Edit Mode to auto-approve file operations
-permissionManager.setFastEditMode(true); // Now file operations won't prompt for permission
-```
-
-#### Tier 3: Always Require Permission
-
-Tools that always require permission, regardless of Fast Edit Mode:
-
-```typescript
-// A tool that always requires permission for security reasons
-const BashTool = createTool({
+// Tier 3: Always Require Permission (security-critical operations)
+const bashTool = createTool({
+  id: 'bash',
   name: 'Bash',
-  description: 'Executes bash commands',
+  description: 'Executes shell commands',
   requiresPermission: true,
-  alwaysRequirePermission: true, // Key setting: always prompt regardless of Fast Edit Mode
-  execute: async args => {
-    // Implementation
+  alwaysRequirePermission: true, // Always prompt regardless of Fast Edit Mode
+  category: ToolCategory.SHELL_EXECUTION,
+  execute: async (args, context) => {
+    return context.executionAdapter.executeCommand(
+      context.executionId,
+      args.command,
+      args.workingDir,
+    );
   },
 });
 ```
 
-#### DANGER_MODE Override
-
-For secure sandbox environments, DANGER_MODE can bypass all permission checks:
+### Permission Mode Controls
 
 ```typescript
-// Only enable in secure environments like automated testing
-permissionManager.enableDangerMode(); // Now ALL tools will auto-approve
+// Fast Edit Mode: Auto-approve file operations but still prompt for shell commands
+agent.setFastEditMode(true);
 
-// Later, restore normal security
-permissionManager.disableDangerMode();
+// Danger Mode: Auto-approve ALL tools (use only in secure sandbox environments)
+agent.setDangerMode(true);
+
+// Normal Mode: Prompt for all tools that require permission
+agent.setFastEditMode(false);
+agent.setDangerMode(false);
 ```
 
-This tiered approach ensures appropriate security while providing flexibility for different usage scenarios.
-
-### Prompt Management Without Restrictions
-
-Our prompt system provides utilities but doesn't enforce a specific format:
+### Tool Categories for Organized Permissions
 
 ```typescript
-// Creating a custom prompt manager
-import { createPromptManager } from '@qckfx/agent';
+// Built-in categories help organize permission logic
+export enum ToolCategory {
+  FILE_OPERATION = 'file_operation', // File read/write/edit operations
+  SHELL_EXECUTION = 'shell_execution', // Command execution
+  READONLY = 'readonly', // Safe read-only operations
+  NETWORK = 'network', // Network requests
+}
 
-// Create a prompt manager with a fully custom system prompt
-const promptManager = createPromptManager(
-  `
-You are an AI assistant with the following custom behavior:
-- Focus on specific tasks related to ${yourDomain}
-- Present information in ${yourPreferredFormat}
-- Use the following tone: ${yourTone}
-
-When solving problems, follow these steps:
-${yourCustomProblemSolvingApproach}
-`,
-  0.3,
-); // Optional temperature parameter
-
-// Add context-specific prompt components
-promptManager.setDirectoryStructurePrompt(directoryStructureContext);
-promptManager.setGitStatePrompt(gitStateContext);
-
-// Multiple system messages for optimal caching/organization
-const systemPrompts = promptManager.getSystemPrompts(sessionState);
+// Tools can belong to multiple categories
+const hybridTool = createTool({
+  id: 'download_and_save',
+  name: 'Download and Save',
+  description: 'Downloads a file and saves it locally',
+  category: [ToolCategory.NETWORK, ToolCategory.FILE_OPERATION],
+  // ... rest of configuration
+});
 ```
+
+### Configuration Without Lock-in
+
+The agent configuration is designed to be explicit and flexible:
+
+```typescript
+// Minimal configuration with sensible defaults
+const agent = await Agent.create({
+  config: {
+    defaultModel: 'google/gemini-2.5-pro-preview',
+    environment: 'local',
+    logLevel: 'info',
+  },
+});
+
+// Or fully customized configuration
+const agent = await Agent.create({
+  config: {
+    defaultModel: 'claude-3-5-sonnet-20241022',
+    environment: 'local',
+    logLevel: 'debug',
+    systemPrompt: `You are a specialized AI assistant for ${myDomain}.
+    
+    Follow these specific guidelines:
+    - ${guideline1}
+    - ${guideline2}
+    
+    Use these tools strategically: ${myPreferredTools.join(', ')}`,
+    tools: [
+      'bash',
+      'file_read',
+      'file_write',
+      'file_edit',
+      { name: 'my_custom_tool', configFile: './tools/my-tool.json' },
+    ],
+    experimentalFeatures: {
+      subAgents: true,
+    },
+  },
+  callbacks: {
+    // Custom event handling for your specific needs
+    onProcessingStarted: data => myCustomStartHandler(data),
+    onToolExecutionCompleted: data => myCustomCompletionHandler(data),
+  },
+});
+```
+
+## Built-in Tools Demonstrate Modularity
+
+The SDK includes a comprehensive set of built-in tools that demonstrate the modular design:
+
+- **`bash`** - Shell command execution (always requires permission)
+- **`file_read`** - File reading operations (readonly category)
+- **`file_write`** - File creation and overwriting (file operation category)
+- **`file_edit`** - Targeted file editing (file operation category)
+- **`glob`** - Pattern-based file finding (readonly category)
+- **`grep`** - Content searching (readonly category)
+- **`ls`** - Directory listing (readonly category)
+- **`think`** - Internal reasoning and planning (no permission required)
+- **`batch`** - Parallel tool execution (inherits permissions from constituent tools)
+
+Each tool is implemented using the same `createTool` factory and follows the same patterns, making it easy to understand how to create your own tools.
 
 ## Conclusion
 
-These code examples demonstrate how the principles of modularity and unopinionated design aren't just theoretical concepts in our codebase but are directly implemented in practical ways that empower developers to build agents that work exactly how they need them to.
+These code examples demonstrate how the principles of modularity and unopinionated design are directly implemented in practical ways throughout the qckfx Agent SDK. The architecture provides:
 
-By focusing on clean interfaces, composable components, and minimal assumptions, we've created a framework that can grow and adapt alongside the rapidly evolving field of AI agents.
+- **Clean interfaces** that make components easily replaceable
+- **Composable tools** that can be mixed and matched for specific use cases
+- **Flexible permissions** that adapt to different security requirements
+- **Observable events** without prescribing how you handle them
+- **OpenAI compatibility** that works with any provider or model
+- **Minimal assumptions** about how you want to build your agent
+
+By focusing on these principles, we've created a framework that can grow and adapt alongside the rapidly evolving field of AI agents, while giving developers the freedom to build exactly what they need.
