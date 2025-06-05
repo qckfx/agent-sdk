@@ -234,6 +234,7 @@ export async function snapshot(
   // LocalExecutionAdapter (used for purely host-side execution) needs the
   // version that lives inside the repository itself (./scripts/snapshot.sh).
 
+  // Default to the path used inside container images.
   let scriptPath = '/usr/local/bin/snapshot.sh';
 
   // Detect the LocalExecutionAdapter by inspection of the runtime type.  We
@@ -242,15 +243,31 @@ export async function snapshot(
   const adapterName = (adapter as unknown as { constructor?: { name?: string } })?.constructor
     ?.name;
   if (adapterName === 'LocalExecutionAdapter') {
-    const candidate = path.join(repoRoot, 'scripts', 'snapshot.sh');
-    // Only switch when the helper exists – this guards against situations
-    // where the repository layout is incomplete (e.g. missing submodule).
+    // 1. Prefer a script shipped next to the host project (monorepo workflow)
+    const repoCandidate = path.join(repoRoot, 'scripts', 'snapshot.sh');
     try {
-      if (fs.existsSync(candidate)) {
-        scriptPath = candidate;
+      if (fs.existsSync(repoCandidate)) {
+        scriptPath = repoCandidate;
       }
     } catch {
-      /* ignore fs access errors – fall back to default path */
+      /* ignore */
+    }
+
+    // 2. Otherwise fall back to the copy bundled inside the installed SDK.
+    if (scriptPath === '/usr/local/bin/snapshot.sh') {
+      // This file lives in <pkgRoot>/dist/esm/src/utils/CheckpointManager.js
+      // Walk up a few levels until we hit the package root and look for scripts/snapshot.sh
+      let dir: string | undefined = __dirname;
+      for (let i = 0; i < 5 && dir; i += 1) {
+        const pkgCandidate = path.join(dir, 'scripts', 'snapshot.sh');
+        if (fs.existsSync(pkgCandidate)) {
+          scriptPath = pkgCandidate;
+          break;
+        }
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+      }
     }
   }
 
