@@ -13,6 +13,7 @@ import { createGlobTool } from '../../tools/GlobTool.js';
 import { createGrepTool } from '../../tools/GrepTool.js';
 import { createLSTool } from '../../tools/LSTool.js';
 import { createThinkTool } from '../../tools/ThinkTool.js';
+import { createClaudeTool } from '../../tools/ClaudeTool.js';
 import { createLogger, LogLevel } from '../../utils/logger.js';
 
 // Create a logger for tool operations
@@ -35,6 +36,7 @@ export function createAllTools(): Tool[] {
     createGrepTool(),
     createLSTool(),
     createThinkTool(),
+    createClaudeTool(),
   ];
 }
 

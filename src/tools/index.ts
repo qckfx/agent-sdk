@@ -14,6 +14,7 @@ export { createGlobTool } from './GlobTool.js';
 export { createGrepTool } from './GrepTool.js';
 export { createLSTool } from './LSTool.js';
 export { createThinkTool } from './ThinkTool.js';
+export { createClaudeTool } from './ClaudeTool.js';
 
 // Tool result types - using export type for type-only exports
 // ---------------------------------------------------------------------------
@@ -35,3 +36,6 @@ export type { FileWriteToolArgs, FileWriteToolResult } from './FileWriteTool.js'
 export type { GlobToolArgs, GlobToolResult } from './GlobTool.js';
 export type { GrepToolArgs, GrepToolResult } from './GrepTool.js';
 export type { LSToolArgs, LSToolResult, FileEntry } from './LSTool.js';
+
+// Claude
+export type { ClaudeToolArgs, ClaudeToolResult } from './ClaudeTool.js';

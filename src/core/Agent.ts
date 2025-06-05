@@ -17,6 +17,7 @@ import { createGrepTool } from '../tools/GrepTool.js';
 import { createLSTool } from '../tools/LSTool.js';
 import { createSubAgentTool } from '../tools/SubAgentTool.js';
 import { createThinkTool } from '../tools/ThinkTool.js';
+import { createClaudeTool } from '../tools/ClaudeTool.js';
 import type { ContextWindow } from '../types/contextWindow.js';
 import { createContextWindow } from '../types/contextWindow.js';
 import type { Agent, CoreAgentConfig } from '../types/main.js';
@@ -98,6 +99,7 @@ export const createAgent = async (config: CoreAgentConfig, sessionId: string): P
     file_write: createFileWriteTool,
     think: createThinkTool,
     batch: createBatchTool,
+    claude: createClaudeTool,
   };
 
   const registerBuiltIn = (name: string): void => {
