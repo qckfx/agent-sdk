@@ -23,7 +23,7 @@ export type BashToolResult = ToolResult<BashToolData>;
 
 /**
  * Creates a tool for executing bash/shell commands
- * @returns The bash tool interface
+ * @returns {Tool<BashToolResult>} The bash tool interface
  */
 export const createBashTool = (): Tool<BashToolResult> => {
   return createTool({
