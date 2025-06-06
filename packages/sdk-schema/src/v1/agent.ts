@@ -31,7 +31,7 @@ export const AgentConfigSchemaV1 = z
   .object({
     defaultModel: z.string().optional().default('google/gemini-2.5-pro-preview'),
     environment: EnvironmentSchema.optional().default('local'),
-    logLevel: LogLevelSchema.optional().default('info'),
+    logLevel: LogLevelSchema.optional().default('error'),
     systemPrompt: z.string().optional().default(DEFAULT_SYSTEM_PROMPT),
     /**
      * Optional human-readable description of the agent’s purpose and
