@@ -159,6 +159,7 @@ DO NOT suggest using more tools - you have reached your limit for this interacti
   }
 
   getTemperature(_sessionState?: SessionState): number {
+    void _sessionState;
     // For now, we just return a fixed temperature
     // In the future, this could adjust based on session state
     // For example, use a higher temperature for creative tasks
