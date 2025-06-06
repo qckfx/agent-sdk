@@ -25,6 +25,7 @@ import { Agent } from '../Agent.js';
 
 // Session persistence helpers (CLI-only)
 import { ContextWindow } from '../types/contextWindow.js';
+import { LogLevel } from '../types/logger.js';
 import { loadLastSession, saveSession } from './sessionStore.js';
 
 // Shared helpers
@@ -44,6 +45,8 @@ interface CliOptions {
    * index access to avoid the TS keyword when reading it below. */
   continue?: boolean;
   withSubagent?: string[];
+  /** Suppress all output except final response or errors */
+  quiet?: boolean;
 }
 
 //---------------------------------------------------------------------
@@ -143,6 +146,7 @@ async function main() {
     .option('--url <baseUrl>', 'Override LLM_BASE_URL environment variable')
     .option('-v, --validate <file>', 'Validate agent definition file and exit')
     .option('-c, --continue', 'Continue the most recent session')
+    .option('-q, --quiet', 'Suppress all output except final response or errors')
     .option(
       '--with-subagent <name...>',
       'Add sub-agent tool(s) for this run (resolved from .qckfx/sub-agents/<name>.json)',
@@ -176,6 +180,17 @@ async function main() {
 
   const opts = program.opts<CliOptions>();
   const promptArgs: string[] = program.args as string[];
+
+  // Override console methods when quiet flag is set
+  if (opts.quiet) {
+    const originalConsoleLog = console.log;
+    
+    console.log = () => {}; // Suppress all console.log calls
+    console.warn = () => {}; // Suppress all console.warn calls
+    
+    // Restore original methods for final result output
+    (global as any).__originalConsoleLog = originalConsoleLog;
+  }
 
   //-------------------------------------------------------------------
   // Session resume logic
@@ -226,6 +241,12 @@ async function main() {
   if (promptArgs && promptArgs.length > 0) {
     promptText = promptArgs.join(' ');
   } else {
+    // If quiet mode and no prompt args, exit with error since we cannot prompt interactively
+    if (opts.quiet) {
+      console.error('Error: prompt required when using --quiet flag');
+      process.exit(1);
+    }
+    
     const res = await prompts({
       type: 'text',
       name: 'prompt',
@@ -281,15 +302,22 @@ async function main() {
   }
 
   //-------------------------------------------------------------------
+  // Override log level for quiet mode
+  //-------------------------------------------------------------------
+  if (opts.quiet) {
+    agentConfig.logLevel = LogLevel.SILENT;
+  }
+
+  //-------------------------------------------------------------------
   // Run the agent
   //-------------------------------------------------------------------
-  const spinner = ora('Processing…').start();
+  const spinner = opts.quiet ? undefined : ora('Processing…').start();
   try {
     const agent = await Agent.create({ config: agentConfig });
     const modelToUse = opts.model ?? agentConfig.defaultModel ?? 'gemini-2.5-pro';
 
     const result = await agent.processQuery(promptText, modelToUse, initialContextWindow);
-    spinner.stop();
+    if (spinner) spinner.stop();
 
     if (result.aborted) {
       console.error('Operation aborted.');
@@ -301,9 +329,17 @@ async function main() {
     }
 
     if (result.response) {
-      console.log(result.response);
+      if (opts.quiet && (global as any).__originalConsoleLog) {
+        (global as any).__originalConsoleLog(result.response);
+      } else {
+        console.log(result.response);
+      }
     } else {
-      console.log('No response returned.');
+      if (opts.quiet && (global as any).__originalConsoleLog) {
+        (global as any).__originalConsoleLog('No response returned.');
+      } else {
+        console.log('No response returned.');
+      }
     }
 
     // Persist updated context for next session (ignore failures)
@@ -313,7 +349,7 @@ async function main() {
 
     process.exit(0);
   } catch (err) {
-    spinner.stop();
+    if (spinner) spinner.stop();
     console.error((err as Error)?.message ?? err);
     process.exit(1);
   }
