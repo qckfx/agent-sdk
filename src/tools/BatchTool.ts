@@ -36,7 +36,7 @@ export type BatchToolResult = ToolResult<BatchToolData>;
 
 /**
  * Creates a tool for batch execution of multiple tool invocations
- * @returns The batch tool interface
+ * @returns {Tool<BatchToolResult>} The batch tool interface
  */
 export const createBatchTool = (): Tool<BatchToolResult> => {
   return createTool({
@@ -153,7 +153,7 @@ export const createBatchTool = (): Tool<BatchToolResult> => {
         });
 
         // Execute all tool invocations (potentially in parallel using Promise.all)
-        const executionPromises = invocations.map(async (invocation, index) => {
+        const executionPromises = invocations.map(async invocation => {
           const { tool_name, input } = invocation;
           const startTime = Date.now();
 
