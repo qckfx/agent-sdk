@@ -33,6 +33,14 @@ export const AgentConfigSchemaV1 = z
     environment: EnvironmentSchema.optional().default('local'),
     logLevel: LogLevelSchema.optional().default('info'),
     systemPrompt: z.string().optional().default(DEFAULT_SYSTEM_PROMPT),
+    /**
+     * Optional human-readable description of the agent’s purpose and
+     * capabilities.  This is surfaced when the agent is exposed as a
+     * sub-agent tool so the parent LLM can decide when to invoke it.
+     * If omitted the sub-agent wrapper will fall back to a generic
+     * description derived from the config file path.
+     */
+    description: z.string().optional(),
     tools: z
       .array(ToolSchema)
       .optional()
