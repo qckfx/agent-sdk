@@ -31,6 +31,7 @@ import { loadLastSession, saveSession } from './sessionStore.js';
 // Shared helpers
 import { augmentAgentConfigWithSubAgents } from './augmentSubAgentTools.js';
 import { resolveAgentConfigPath } from './pathResolvers.js';
+import { interactivePrompt } from './interactivePrompt.js';
 
 //---------------------------------------------------------------------
 // Types
@@ -184,10 +185,10 @@ async function main() {
   // Override console methods when quiet flag is set
   if (opts.quiet) {
     const originalConsoleLog = console.log;
-    
+
     console.log = () => {}; // Suppress all console.log calls
     console.warn = () => {}; // Suppress all console.warn calls
-    
+
     // Restore original methods for final result output
     (global as any).__originalConsoleLog = originalConsoleLog;
   }
@@ -246,18 +247,15 @@ async function main() {
       console.error('Error: prompt required when using --quiet flag');
       process.exit(1);
     }
-    
-    const res = await prompts({
-      type: 'text',
-      name: 'prompt',
-      message: 'Enter prompt',
-      validate: val => (val && val.trim().length > 0 ? true : 'Prompt cannot be empty'),
-    });
-    if (typeof res.prompt !== 'string') {
+
+    promptText = await interactivePrompt(
+      'Enter prompt (Enter to submit, \\ + Enter for newline, large pastes collapsed):',
+    );
+
+    if (!promptText) {
       console.error('Prompt is required.');
       process.exit(1);
     }
-    promptText = res.prompt.trim();
   }
 
   //-------------------------------------------------------------------
