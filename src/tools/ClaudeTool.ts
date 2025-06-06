@@ -69,7 +69,7 @@ export const createClaudeTool = (): Tool<ClaudeToolResult> => {
 
       await context.executionAdapter.writeFile(context.executionId, tmpPath, query);
 
-      const cmd = `claude -p < "${tmpPath}"`;
+      const cmd = `claude -p --dangerously-skip-permissions < "${tmpPath}"`;
 
       try {
         context.logger?.debug(`Executing Claude CLI: ${cmd}`);
@@ -83,6 +83,9 @@ export const createClaudeTool = (): Tool<ClaudeToolResult> => {
         );
 
         const isRateLimited = stderr.toLowerCase().includes('rate limit');
+
+        context.logger?.debug('ClaudeTool stdout:', stdout);
+        context.logger?.debug('ClaudeTool stderr:', stderr);
 
         if (exitCode !== 0 || isRateLimited) {
           return { ok: false, error: 'rate_limit' };
