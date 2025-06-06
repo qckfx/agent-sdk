@@ -16,7 +16,7 @@ export type ThinkResult = ToolResult<{ thought: string }>;
 
 /**
  * Creates a think tool that allows Claude to reason through complex problems
- * @returns The think tool interface
+ * @returns {Tool<ThinkResult>} The think tool interface
  */
 export const createThinkTool = (): Tool<ThinkResult> => {
   return createTool({
