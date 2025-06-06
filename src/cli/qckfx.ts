@@ -12,7 +12,7 @@
 
 /* eslint-disable no-console */
 
-import { readFileSync } from 'fs';
+import { readFileSync, mkdirSync, copyFileSync, existsSync } from 'fs';
 import path from 'path';
 
 import { AgentConfigSchema } from '@qckfx/sdk-schema';
@@ -60,6 +60,71 @@ function createDefaultConfig(model: string) {
   } as const;
 }
 
+/**
+ * Initialize .qckfx directory with default agent models
+ */
+function initCommand() {
+  const targetDir = path.join(process.cwd(), '.qckfx');
+
+  // Determine source path - works for both CommonJS and ESM builds
+  // In the built dist, this file will be at dist/cjs/src/cli/qckfx.js, so we go up to repo root
+  const sourceRoot = path.resolve(__dirname, '..', '..', '..', '..', '.qckfx');
+
+  // Files to copy (excluding documentation-writer.json)
+  const filesToCopy = [
+    'advanced-agent.json',
+    'agent-editor.json',
+    'commit.json',
+    'sub-agents/browser.json',
+    'sub-agents/coder.json',
+  ];
+
+  // Helper to copy a file and create necessary directories
+  /**
+   *
+   * @param srcRelPath
+   */
+  function copyFile(srcRelPath: string) {
+    const srcPath = path.join(sourceRoot, srcRelPath);
+    const destPath = path.join(targetDir, srcRelPath);
+    const destDir = path.dirname(destPath);
+
+    // Create destination directory if it doesn't exist
+    if (!existsSync(destDir)) {
+      mkdirSync(destDir, { recursive: true });
+    }
+
+    // Copy the file
+    copyFileSync(srcPath, destPath);
+  }
+
+  // Create .qckfx directory if it doesn't exist
+  if (!existsSync(targetDir)) {
+    mkdirSync(targetDir, { recursive: true });
+  }
+
+  // Copy all files
+  const copiedFiles: string[] = [];
+  for (const file of filesToCopy) {
+    try {
+      copyFile(file);
+      copiedFiles.push(file);
+    } catch (error) {
+      console.error(`Failed to copy ${file}: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+
+  // Display success message
+  console.log('✅ qckfx initialization complete!');
+  console.log('\nInstalled files:');
+  for (const file of copiedFiles) {
+    console.log(`  .qckfx/${file}`);
+  }
+
+  process.exit(0);
+}
+
 //---------------------------------------------------------------------
 // Main
 //---------------------------------------------------------------------
@@ -82,7 +147,30 @@ async function main() {
       '--with-subagent <name...>',
       'Add sub-agent tool(s) for this run (resolved from .qckfx/sub-agents/<name>.json)',
     )
-    .argument('[prompt...]', 'Prompt to run');
+    .argument('[prompt...]', 'Prompt to run')
+    // NOTE: Commander treats the root command as a _command dispatcher_ when
+    // sub-commands are declared (like our `init` command below).  Without an
+    // action handler attached, any first positional argument is interpreted
+    // as a potential sub-command, and an “unknown command” error is thrown if
+    // it does not match one.  Adding a no-op action restores the expected
+    // behaviour where arbitrary free-form text can be supplied as the prompt.
+    //
+    // We keep the existing parsing logic later in the file (using
+    // `program.args`) so the remainder of the implementation remains
+    // unchanged.
+    .action(() => {
+      /* noop – actual logic executed after program.parse */
+    });
+
+  // Add init subcommand
+  program
+    .command('init')
+    .description(
+      'Install default qckfx models into a new .qckfx directory in the current working directory',
+    )
+    .action(() => {
+      initCommand();
+    });
 
   program.parse(process.argv);
 
