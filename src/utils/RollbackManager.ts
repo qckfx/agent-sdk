@@ -48,11 +48,10 @@ export async function rollbackSession(
   // --------------------------------------------------------------------
 
   const ctx = sessionState.contextWindow;
-  let checkpointId: string | undefined;
 
   const targetMsg = ctx?.getConversationMessages().find(m => m.id === messageId);
 
-  checkpointId = targetMsg?.lastCheckpointId;
+  const checkpointId = targetMsg?.lastCheckpointId;
 
   // --------------------------------------------------------------------
   // 2. Restore all repository states *only* when we have a checkpoint.
