@@ -9,7 +9,6 @@ import { createAgent, createSessionState } from './core/Agent.js';
 import { CheckpointEvents, CHECKPOINT_READY_EVENT } from './events/checkpoint-events.js';
 import { LLMFactory } from './providers/AnthropicProvider.js';
 import type { ProcessQueryResult } from './types/agent.js';
-import { ConversationResult } from './types/agent.js';
 import type { BusEvents, BusEventKey } from './types/bus-events.js';
 import { BusEvent } from './types/bus-events.js';
 import type { AgentCallbacks } from './types/callbacks.js';
