@@ -7,7 +7,7 @@
 
 import type { ToolResultEntry } from '../types/agent.js';
 import type { LLM } from '../types/llm.js';
-import { isTextBlock, isToolUseBlock } from '../types/llm.js';
+import { isTextBlock } from '../types/llm.js';
 import type { ModelClient, SessionState, ToolCall } from '../types/model.js';
 import type { PermissionManager } from '../types/permission.js';
 import type { ToolRegistry } from '../types/registry.js';
