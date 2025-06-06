@@ -145,9 +145,6 @@ export async function createExecutionAdapter(options: ExecutionAdapterFactoryOpt
       // Create concrete adapter
       let concreteAdapter: ExecutionAdapter = dockerAdapter;
 
-      const res = await dockerAdapter.executeCommand('get-pwd', 'pwd');
-      const pwd = res.stdout.trim();
-
       let attempts = 0;
       while (!dockerAdapter.initialized && attempts < 10) {
         logger?.debug(
@@ -195,9 +192,6 @@ export async function createExecutionAdapter(options: ExecutionAdapterFactoryOpt
       // Create concrete adapter
       let concreteAdapter: ExecutionAdapter = e2bAdapter;
 
-      const res = await e2bAdapter.executeCommand('get-pwd', 'pwd');
-      const pwd = res.stdout.trim();
-
       concreteAdapter = new CheckpointingExecutionAdapter(e2bAdapter, options.sessionId);
       logger?.info('Wrapped E2B adapter with checkpointing', LogCategory.SYSTEM);
 
@@ -235,9 +229,6 @@ export async function createExecutionAdapter(options: ExecutionAdapterFactoryOpt
     eventBus: options.eventBus,
   });
   let concreteAdapter: ExecutionAdapter = localAdapter;
-
-  const res = await localAdapter.executeCommand('get-pwd', 'pwd');
-  const pwd = res.stdout.trim();
 
   // Wrap with checkpointing
   concreteAdapter = new CheckpointingExecutionAdapter(localAdapter, options.sessionId);
