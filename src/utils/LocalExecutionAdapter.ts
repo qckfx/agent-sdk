@@ -89,7 +89,7 @@ export class LocalExecutionAdapter implements ExecutionAdapter {
     executionId: string,
     command: string,
     workingDir?: string,
-    checkpoint?: boolean, // ignored in local adapter, kept for interface compatibility
+    checkpoint?: boolean,
     timeoutMs: number = 5 * 60 * 1000, // 5-minute default to avoid runaway processes
     maxBuffer: number = 10 * 1024 * 1024, // 10 MB of stdout/stderr capture
   ) {
