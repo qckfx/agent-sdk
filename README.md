@@ -13,13 +13,31 @@ A modular, OpenAI-compatible framework for building LLM-powered **coding agents*
 📡 **Event System** - Monitor and debug agent behavior with comprehensive events  
 🔄 **Session Management** - Rollback capabilities and context window management  
 ⚡ **CLI Integration** - Command-line tool for quick agent interactions  
-🛡️ **Permission Control** - Fine-grained control over tool execution permissions  
+🛡️ **Permission Control** - Fine-grained control over tool execution permissions
 
 ## Installation
 
 ```bash
 npm install @qckfx/agent
 ```
+
+## Local Development
+
+To run and test the CLI locally during development:
+
+```bash
+# Build the project
+npm run build
+
+# Link the package globally for local testing
+npm link
+
+# Now you can run qckfx commands using your local code
+qckfx "List all TypeScript files in the src directory"
+qckfx "Create a simple README for this project"
+```
+
+After linking, any changes you make to the code will be reflected in the `qckfx` command after running `npm run build` again.
 
 ## Quick Start
 
@@ -33,7 +51,18 @@ const agent = await Agent.create({
     environment: 'local',
     logLevel: 'info',
     systemPrompt: 'You are a helpful AI assistant.',
-    tools: ['bash', 'claude', 'glob', 'grep', 'ls', 'file_read', 'file_edit', 'file_write', 'think', 'batch'],
+    tools: [
+      'bash',
+      'claude',
+      'glob',
+      'grep',
+      'ls',
+      'file_read',
+      'file_edit',
+      'file_write',
+      'think',
+      'batch',
+    ],
   },
 });
 
@@ -60,6 +89,7 @@ qckfx "Create a simple README for this project"
 The SDK uses the OpenAI SDK internally and works with any OpenAI-compatible API endpoint:
 
 ### Direct Provider APIs
+
 ```bash
 # OpenAI
 export LLM_API_KEY=your_openai_key
@@ -69,6 +99,7 @@ export LLM_DEFAULT_MODEL=gpt-4
 ```
 
 ### Using with LiteLLM
+
 Set up LiteLLM to proxy requests to any provider:
 
 ```bash
@@ -87,6 +118,7 @@ docker run -p 8001:8001 \
 ```
 
 ### Using with OpenRouter
+
 ```bash
 export LLM_BASE_URL=https://openrouter.ai/api/v1
 export LLM_API_KEY=your_openrouter_key
@@ -97,18 +129,18 @@ export LLM_DEFAULT_MODEL=anthropic/claude-3.5-sonnet
 
 The SDK includes these powerful built-in tools:
 
-| Tool | Description |
-|------|-------------|
-| `bash` | Execute shell commands with full environment access |
-| `claude` | **⭐ Claude CLI Integration** - Use the familiar Claude coding assistant for cost-effective development |
-| `glob` | Find files using powerful pattern matching |
-| `grep` | Search file contents with regex support |
-| `ls` | List directory contents with detailed information |
-| `file_read` | Read file contents with encoding support |
-| `file_edit` | Edit files with targeted replacements |
-| `file_write` | Write new files or overwrite existing ones |
-| `think` | Internal reasoning and planning capabilities |
-| `batch` | Execute multiple tools in parallel for efficiency |
+| Tool         | Description                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| `bash`       | Execute shell commands with full environment access                                                     |
+| `claude`     | **⭐ Claude CLI Integration** - Use the familiar Claude coding assistant for cost-effective development |
+| `glob`       | Find files using powerful pattern matching                                                              |
+| `grep`       | Search file contents with regex support                                                                 |
+| `ls`         | List directory contents with detailed information                                                       |
+| `file_read`  | Read file contents with encoding support                                                                |
+| `file_edit`  | Edit files with targeted replacements                                                                   |
+| `file_write` | Write new files or overwrite existing ones                                                              |
+| `think`      | Internal reasoning and planning capabilities                                                            |
+| `batch`      | Execute multiple tools in parallel for efficiency                                                       |
 
 ## Configuration
 
@@ -152,7 +184,9 @@ Monitor agent behavior with comprehensive event callbacks:
 
 ```typescript
 const agent = await Agent.create({
-  config: { /* ... */ },
+  config: {
+    /* ... */
+  },
   callbacks: {
     onProcessingStarted: data => console.log('Processing started:', data),
     onProcessingCompleted: data => console.log('Completed:', data.response),
@@ -215,14 +249,14 @@ Control agent execution and state:
 
 ```typescript
 // Session control
-agent.abort();                    // Abort current processing
-agent.isAborted();               // Check abort status
-agent.clearAbort();              // Clear abort flag
+agent.abort(); // Abort current processing
+agent.isAborted(); // Check abort status
+agent.clearAbort(); // Clear abort flag
 agent.performRollback(messageId); // Rollback to specific message (including environment changes)
 
 // Permission management
-agent.setFastEditMode(true);     // Skip edit confirmations
-agent.setDangerMode(true);       // Allow dangerous operations
+agent.setFastEditMode(true); // Skip edit confirmations
+agent.setDangerMode(true); // Allow dangerous operations
 
 // Tool execution
 const toolResult = await agent.invokeTool('bash', { command: 'ls -la' });
@@ -263,6 +297,7 @@ The SDK is built with a modular architecture that promotes flexibility and exten
 - **Permission Manager** - Fine-grained control over tool execution permissions
 
 This modular design allows you to:
+
 - Swap LLM providers without changing application code
 - Compose custom toolsets for specific use cases
 - Monitor and debug agent behavior comprehensively
@@ -271,6 +306,7 @@ This modular design allows you to:
 ## Examples
 
 ### Basic File Operations
+
 ```typescript
 const agent = await Agent.create({
   config: {
@@ -282,6 +318,7 @@ const result = await agent.processQuery('Read the package.json file and create a
 ```
 
 ### Development Workflow
+
 ```typescript
 const agent = await Agent.create({
   config: {
@@ -294,6 +331,7 @@ const result = await agent.processQuery('Find all TODO comments and create a tas
 ```
 
 ### Code Analysis
+
 ```typescript
 const agent = await Agent.create({
   config: {
@@ -301,7 +339,9 @@ const agent = await Agent.create({
   },
 });
 
-const result = await agent.processQuery('Analyze the codebase structure and identify potential improvements');
+const result = await agent.processQuery(
+  'Analyze the codebase structure and identify potential improvements',
+);
 ```
 
 ### Using with Claude CLI
@@ -321,6 +361,7 @@ const result = await agent.processQuery('Refactor this component to use TypeScri
 ```
 
 The `claude` tool integrates with the local Claude CLI, allowing you to:
+
 - **Save money** by using your existing Claude subscription
 - **Work with familiar tools** you already know and love
 - **Leverage Claude's advanced coding capabilities** within the agent framework
