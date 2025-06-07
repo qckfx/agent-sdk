@@ -34,6 +34,8 @@ module.exports = {
     // JSDoc rules remain as warnings
   },
   ignorePatterns: [
+    '*.md',
+    'changelog/**',
     'package.json',
     'package-lock.json',
     '.qckfx/**',
