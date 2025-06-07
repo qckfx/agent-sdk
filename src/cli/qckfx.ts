@@ -79,6 +79,7 @@ function initCommand() {
     'advanced-agent.json',
     'agent-editor.json',
     'commit.json',
+    'github-actions-architect.json',
     'sub-agents/browser.json',
     'sub-agents/coder.json',
   ];
