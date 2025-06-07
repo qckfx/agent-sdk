@@ -2,30 +2,6 @@ import { createInterface } from 'node:readline';
 import TextBuffer from './textBuffer.js';
 
 /**
- * Wraps a single line into segments based on terminal width
- * @param line - The line to wrap
- * @param width - Terminal width
- * @returns Array of wrapped line segments
- */
-function wrapLine(line: string, width: number): string[] {
-  const segments: string[] = [];
-  for (let start = 0; start < line.length; start += width) {
-    segments.push(line.slice(start, start + width));
-  }
-  return segments.length ? segments : [''];
-}
-
-/**
- * Gets wrapped lines accounting for terminal width
- * @param text - Text to wrap
- * @param width - Terminal width
- * @returns Array of wrapped lines
- */
-function getWrappedLines(text: string, width: number): string[] {
-  return text.split('\n').flatMap(l => wrapLine(l, width));
-}
-
-/**
  * Determines if a chunk should be treated as a paste based on size or newline content
  * @param chunk - The incoming data chunk
  * @returns True if chunk should be treated as paste
@@ -99,6 +75,31 @@ function handleTTYInput(resolve: (value: string) => void): void {
 
   let previousLineCount = 0;
 
+  // --- helper: wrap lines to account for terminal width ---
+  /**
+   *
+   * @param line
+   * @param width
+   */
+  function wrapLine(line: string, width: number): string[] {
+    if (width <= 0) return [line];
+    const segments: string[] = [];
+    for (let start = 0; start < line.length; start += width) {
+      segments.push(line.slice(start, start + width));
+    }
+    // preserve empty line
+    return segments.length ? segments : [''];
+  }
+
+  /**
+   *
+   * @param text
+   * @param width
+   */
+  function getWrappedLines(text: string, width: number): string[] {
+    return text.split('\n').flatMap(l => wrapLine(l, width));
+  }
+
   /**
    * Cleanup function to restore normal terminal mode
    */
@@ -109,12 +110,10 @@ function handleTTYInput(resolve: (value: string) => void): void {
     output.write('\x1b[K');
   };
 
-  /**
-   * Renders the current display with paste tokens collapsed
-   */
   const renderDisplay = (): void => {
     let displayText = textBuffer.getText();
 
+    // Collapse pasted blocks to placeholders
     pastedBlocks.forEach((content, index) => {
       const token = `\u0000PASTE#${index + 1}\u0000`;
       const lineCount = content.split(/(?:\r\n|\r|\n)/).length;
@@ -127,8 +126,8 @@ function handleTTYInput(resolve: (value: string) => void): void {
 
     // Clear previous content
     if (previousLineCount > 0) {
-      // Move cursor up to start of previous display
-      output.write('\x1b[0G'); // column 0
+      // Move cursor to column 0 of current line
+      output.write('\x1b[0G');
       for (let i = 0; i < previousLineCount; i++) {
         output.write('\x1b[2K'); // clear line
         if (i < previousLineCount - 1) {
@@ -137,8 +136,7 @@ function handleTTYInput(resolve: (value: string) => void): void {
       }
     }
 
-    // Reset cursor to column 0 and write new content
-    output.write('\x1b[0G');
+    // Write new content
     output.write(lines.join('\n'));
     previousLineCount = lineCount;
   };
