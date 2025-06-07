@@ -22,8 +22,6 @@ jobs:
         with:
           script: |
             const { execSync } = require('child_process');
-            const core = require('@actions/core');
-            const github = context.github;
             try {
               const title = context.payload.issue.title || '';
               const body  = context.payload.issue.body  || '';
