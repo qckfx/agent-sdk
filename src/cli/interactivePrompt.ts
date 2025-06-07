@@ -2,12 +2,12 @@ import { createInterface } from 'node:readline';
 import TextBuffer from './textBuffer.js';
 
 /**
- * Determines if a chunk should be treated as a paste based on size or newline content
+ * Determines if a chunk should be treated as a paste based on size
  * @param chunk - The incoming data chunk
  * @returns True if chunk should be treated as paste
  */
 function isPaste(chunk: string): boolean {
-  return chunk.includes('\n') || chunk.length > 256;
+  return chunk.length > 10;
 }
 
 /**
@@ -74,6 +74,8 @@ function handleTTYInput(resolve: (value: string) => void): void {
   const pastedBlocks: string[] = [];
 
   let previousLineCount = 0;
+  let pasteBuffer = '';
+  let pasteTimeout: NodeJS.Timeout | null = null;
 
   // --- helper: wrap lines to account for terminal width ---
   /**
@@ -101,9 +103,31 @@ function handleTTYInput(resolve: (value: string) => void): void {
   }
 
   /**
+   * Flushes accumulated paste buffer as a single paste block
+   */
+  const flushPasteBuffer = (): void => {
+    if (pasteBuffer) {
+      let pasteContent = pasteBuffer;
+      if (pasteContent.endsWith('\n')) {
+        pasteContent = pasteContent.slice(0, -1);
+      }
+
+      const pasteIndex = pastedBlocks.length + 1;
+      pastedBlocks.push(pasteContent);
+      const token = `\u0000PASTE#${pasteIndex}\u0000`;
+      textBuffer.insertStr(token);
+      pasteBuffer = '';
+      renderDisplay();
+    }
+  };
+
+  /**
    * Cleanup function to restore normal terminal mode
    */
   const cleanup = (): void => {
+    if (pasteTimeout) {
+      clearTimeout(pasteTimeout);
+    }
     input.setRawMode(false);
     input.removeAllListeners('data');
     output.write('\n');
@@ -145,17 +169,26 @@ function handleTTYInput(resolve: (value: string) => void): void {
     const data = chunk.toString();
 
     if (isPaste(data)) {
-      let pasteContent = data;
-      if (pasteContent.endsWith('\n')) {
-        pasteContent = pasteContent.slice(0, -1);
+      // Accumulate paste chunks
+      pasteBuffer += data;
+
+      // Clear any existing timeout
+      if (pasteTimeout) {
+        clearTimeout(pasteTimeout);
       }
 
-      const pasteIndex = pastedBlocks.length + 1;
-      pastedBlocks.push(pasteContent);
-      const token = `\u0000PASTE#${pasteIndex}\u0000`;
-      textBuffer.insertStr(token);
-      renderDisplay();
+      // Set a short timeout to flush the paste buffer
+      pasteTimeout = setTimeout(flushPasteBuffer, 50);
       return;
+    }
+
+    // If we have accumulated paste data, flush it first
+    if (pasteBuffer) {
+      if (pasteTimeout) {
+        clearTimeout(pasteTimeout);
+        pasteTimeout = null;
+      }
+      flushPasteBuffer();
     }
 
     for (let i = 0; i < data.length; i++) {
