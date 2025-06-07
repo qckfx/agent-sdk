@@ -2,7 +2,7 @@
 
 A modular, OpenAI-compatible framework for building LLM-powered **coding agents** with tool execution capabilities.
 
-[![npm version](https://badge.fury.io/js/@qckfx%2Fagent.svg)](https://www.npmjs.com/package/@qckfx/agent)
+[![npm version](https://badge.fury.io/js/%40qckfx%2Fagent.svg)](https://www.npmjs.com/package/@qckfx/agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
