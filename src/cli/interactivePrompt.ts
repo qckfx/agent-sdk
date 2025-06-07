@@ -2,6 +2,30 @@ import { createInterface } from 'node:readline';
 import TextBuffer from './textBuffer.js';
 
 /**
+ * Wraps a single line into segments based on terminal width
+ * @param line - The line to wrap
+ * @param width - Terminal width
+ * @returns Array of wrapped line segments
+ */
+function wrapLine(line: string, width: number): string[] {
+  const segments: string[] = [];
+  for (let start = 0; start < line.length; start += width) {
+    segments.push(line.slice(start, start + width));
+  }
+  return segments.length ? segments : [''];
+}
+
+/**
+ * Gets wrapped lines accounting for terminal width
+ * @param text - Text to wrap
+ * @param width - Terminal width
+ * @returns Array of wrapped lines
+ */
+function getWrappedLines(text: string, width: number): string[] {
+  return text.split('\n').flatMap(l => wrapLine(l, width));
+}
+
+/**
  * Determines if a chunk should be treated as a paste based on size or newline content
  * @param chunk - The incoming data chunk
  * @returns True if chunk should be treated as paste
@@ -97,7 +121,8 @@ function handleTTYInput(resolve: (value: string) => void): void {
       displayText = displayText.replace(token, `[Paste #${index + 1} +${lineCount} lines]`);
     });
 
-    const lines = displayText.split('\n');
+    const termWidth = output.columns ?? process.stdout.columns ?? 80;
+    const lines = getWrappedLines(displayText, termWidth);
     const lineCount = lines.length;
 
     // Clear previous content
@@ -112,7 +137,8 @@ function handleTTYInput(resolve: (value: string) => void): void {
       }
     }
 
-    // Write new content
+    // Reset cursor to column 0 and write new content
+    output.write('\x1b[0G');
     output.write(lines.join('\n'));
     previousLineCount = lineCount;
   };

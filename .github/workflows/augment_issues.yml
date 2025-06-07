@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install qckfx
-        run: npm install -g qckfx
+        run: npm install -g @qckfx/agent
       - name: Run qckfx browser agent
         id: augment
         uses: actions/github-script@v6
