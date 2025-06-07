@@ -32,7 +32,7 @@ jobs:
               } else {
                 task = `Provide helpful codebase context for the following issue so a future developer can address it quickly.\n\nTitle: ${title}\n\n${body}\n\nIf this issue appears unrelated to the codebase (e.g., general discussion, admin, or non-code matters), respond with exactly NO_COMMENT and nothing else.`;
               }
-              const cmd = `qckfx -a browser.openai --api-key "${process.env.OPENAI_API_KEY}" --url https://api.openai.com/v1/ --quiet "${task.replace(/"/g,'\\\\"')}"`;
+              const cmd = `qckfx -a sub-agents/browser.openai --api-key "${process.env.OPENAI_API_KEY}" --url https://api.openai.com/v1/ --quiet "${task.replace(/"/g,'\\\\"')}"`;
               const output = execSync(cmd, { encoding: 'utf8', maxBuffer: 1024*1024 }).trim();
               if (output === 'NO_COMMENT') {
                 core.warning('Issue appears unrelated to codebase, skipping comment');
