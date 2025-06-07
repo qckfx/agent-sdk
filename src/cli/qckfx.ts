@@ -304,7 +304,7 @@ async function main() {
   // Override log level for quiet mode
   //-------------------------------------------------------------------
   if (opts.quiet) {
-    agentConfig.logLevel = LogLevel.SILENT;
+    agentConfig.logLevel = LogLevel.ERROR;
   }
 
   //-------------------------------------------------------------------
