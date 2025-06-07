@@ -148,20 +148,112 @@ function handleTTYInput(resolve: (value: string) => void): void {
     const lines = getWrappedLines(displayText, termWidth);
     const lineCount = lines.length;
 
+    // ------------------------------------------------------------
+    // Helper to translate the TextBuffer cursor position (row/col)
+    // to a rendered row/col after wrapping so we can move the
+    // terminal caret accordingly.
+    // ------------------------------------------------------------
+    /**
+     *
+     * @param originalOffset
+     */
+    function computeDisplayOffset(originalOffset: number): number {
+      const originalText = textBuffer.getText();
+      let displayOffset = originalOffset;
+
+      // Find all paste tokens and their positions in the original text
+      pastedBlocks.forEach((content, index) => {
+        const token = `\u0000PASTE#${index + 1}\u0000`;
+        const tokenStart = originalText.indexOf(token);
+
+        // Only adjust for tokens that appear before the cursor position
+        if (tokenStart !== -1 && tokenStart < originalOffset) {
+          const lineCount = content.split(/(?:\r\n|\r|\n)/).length;
+          const placeholder = `[Paste #${index + 1} +${lineCount} lines]`;
+          const tokenLength = token.length;
+          const placeholderLength = placeholder.length;
+
+          // Add the difference in length (placeholder is typically longer than token)
+          displayOffset += placeholderLength - tokenLength;
+        }
+      });
+
+      return displayOffset;
+    }
+
+    /**
+     *
+     */
+    function getCursorRenderPosition(): { row: number; col: number } {
+      // 1. Calculate the character offset of the caret in the *original*
+      //    TextBuffer (before placeholder expansion).
+      const [cursorRow, cursorCol] = textBuffer.getCursor();
+      const originalLines = textBuffer.getLines();
+      let originalOffset = 0;
+      for (let r = 0; r < cursorRow; r++) {
+        originalOffset += originalLines[r].length + 1; // +1 for the newline that was split by getLines()
+      }
+      originalOffset += cursorCol;
+
+      // 2. Compute the display offset accounting for paste token/placeholder length differences
+      const displayOffset = computeDisplayOffset(originalOffset);
+
+      // 3. Walk through the *display* text (after placeholder expansion)
+      //    keeping track of wrapping so we can translate the offset -> row/col.
+      let row = 0;
+      let col = 0;
+      for (let i = 0; i < Math.min(displayOffset, displayText.length); i++) {
+        const ch = displayText[i];
+        if (ch === '\n') {
+          row++;
+          col = 0;
+          continue;
+        }
+
+        col++;
+        if (col >= termWidth) {
+          row++;
+          col = 0;
+        }
+      }
+      return { row, col };
+    }
+
+    // Hide the hardware cursor while we redraw to prevent flicker
+    output.write('\x1b[?25l');
+
     // Clear previous content
     if (previousLineCount > 0) {
-      // Move cursor to column 0 of current line
-      output.write('\x1b[0G');
+      // Move to start of current line
+      output.write('\r');
       for (let i = 0; i < previousLineCount; i++) {
-        output.write('\x1b[2K'); // clear line
+        output.write('\x1b[2K'); // clear the entire line
         if (i < previousLineCount - 1) {
-          output.write('\x1b[1A'); // move cursor up
+          output.write('\x1b[1A'); // move cursor up one line
         }
       }
     }
 
-    // Write new content
+    // Write the buffer content
     output.write(lines.join('\n'));
+
+    // Calculate caret position and move cursor there
+    const { row: caretRow, col: caretCol } = getCursorRenderPosition();
+    const linesAboveCaret = lineCount - caretRow - 1;
+
+    if (linesAboveCaret > 0) {
+      output.write(`\x1b[${linesAboveCaret}A`); // move up N lines
+    }
+
+    // Return to column 0 of the line then move right caretCol columns
+    output.write('\r');
+    if (caretCol > 0) {
+      output.write(`\x1b[${caretCol}C`); // move right N columns
+    }
+
+    // Show the hardware cursor again
+    output.write('\x1b[?25h');
+
     previousLineCount = lineCount;
   };
 
@@ -202,6 +294,30 @@ function handleTTYInput(resolve: (value: string) => void): void {
         cleanup();
         resolve(expandPasteTokens(textBuffer.getText(), pastedBlocks).trim());
         return;
+      } else if (charCode === 27 && i + 2 < data.length && data[i + 1] === '[') {
+        // Handle ANSI escape sequences for arrow keys
+        const escapeSequence = data.slice(i, i + 3);
+        if (escapeSequence === '\x1b[A') {
+          textBuffer.move('up');
+          renderDisplay();
+          i += 2; // Skip the processed bytes
+        } else if (escapeSequence === '\x1b[B') {
+          textBuffer.move('down');
+          renderDisplay();
+          i += 2; // Skip the processed bytes
+        } else if (escapeSequence === '\x1b[C') {
+          textBuffer.move('right');
+          renderDisplay();
+          i += 2; // Skip the processed bytes
+        } else if (escapeSequence === '\x1b[D') {
+          textBuffer.move('left');
+          renderDisplay();
+          i += 2; // Skip the processed bytes
+        } else {
+          // Unknown escape sequence, treat as regular character
+          textBuffer.insert(char);
+          renderDisplay();
+        }
       } else if (charCode === 127 || charCode === 8) {
         textBuffer.backspace();
         renderDisplay();

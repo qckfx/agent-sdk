@@ -54,6 +54,18 @@ interface CliOptions {
 // Helpers
 //---------------------------------------------------------------------
 /**
+ * Read input from stdin asynchronously
+ */
+async function readStdin(): Promise<string> {
+  process.stdin.setEncoding('utf8');
+  let data = '';
+  for await (const chunk of process.stdin) {
+    data += chunk;
+  }
+  return data.trim();
+}
+
+/**
  *
  * @param model
  */
@@ -239,11 +251,19 @@ async function main() {
   //-------------------------------------------------------------------
   // Gather prompt
   //-------------------------------------------------------------------
-  let promptText: string;
+  let promptText = '';
   if (promptArgs && promptArgs.length > 0) {
     promptText = promptArgs.join(' ');
   } else {
-    // If quiet mode and no prompt args, exit with error since we cannot prompt interactively
+    // Prefer stdin when quiet mode is requested, or when data is actually piped
+    const attemptStdin = opts.quiet || !process.stdin.isTTY;
+    if (attemptStdin) {
+      promptText = await readStdin();
+    }
+  }
+
+  // After reading from args or stdin, check if we still need a prompt
+  if (!promptText) {
     if (opts.quiet) {
       console.error('Error: prompt required when using --quiet flag');
       process.exit(1);
