@@ -1,0 +1,55 @@
+name: Augment new issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  augment:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install qckfx
+        run: npm install -g qckfx
+      - name: Run qckfx browser agent
+        id: augment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const core = require('@actions/core');
+            const github = context.github;
+            try {
+              const title = context.payload.issue.title || '';
+              const body  = context.payload.issue.body  || '';
+              const isQuestion = /\?\s*$/.test(title) || /\?/.test(body);
+              let task;
+              if (isQuestion) {
+                task = `${title}\n\n${body}\n\nIf you cannot fully answer, tag @christopherhwood to assist.\n\nIf this issue appears unrelated to the codebase (e.g., general discussion, admin, or non-code matters), respond with exactly NO_COMMENT and nothing else.`;
+              } else {
+                task = `Provide helpful codebase context for the following issue so a future developer can address it quickly.\n\nTitle: ${title}\n\n${body}\n\nIf this issue appears unrelated to the codebase (e.g., general discussion, admin, or non-code matters), respond with exactly NO_COMMENT and nothing else.`;
+              }
+              const cmd = `npx qckfx -a browser.openai --api-key $OPENAI_API_KEY --url https://api.openai.com/v1/ --quiet "${task.replace(/"/g,'\\\\"')}"`;
+              const output = execSync(cmd, { encoding: 'utf8', maxBuffer: 1024*1024 }).trim();
+              if (output === 'NO_COMMENT') {
+                core.warning('Issue appears unrelated to codebase, skipping comment');
+                return;
+              }
+              if (output) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  body: output,
+                });
+              } else {
+                core.warning('qckfx returned empty output');
+              }
+            } catch (error) {
+              core.setFailed(`Failed to augment issue: ${error.message}`);
+            }
