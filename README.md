@@ -4,6 +4,7 @@ A modular, OpenAI-compatible framework for building LLM-powered **coding agents*
 
 [![npm version](https://badge.fury.io/js/%40qckfx%2Fagent.svg)](https://www.npmjs.com/package/@qckfx/agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 [![SPONSORED BY E2B FOR STARTUPS](https://img.shields.io/badge/SPONSORED%20BY-E2B%20FOR%20STARTUPS-ff8800?style=for-the-badge)](https://e2b.dev/startups)
 
 ## Features
